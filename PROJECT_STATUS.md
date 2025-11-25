@@ -131,20 +131,20 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - Client: http://localhost:5173 (npm run dev in /home/helloai/client)
 
 **Ready For:**
-- Player initialization on first login
-- Main game dashboard UI
-- Sector navigation system
-- Trading system
+- Admin Panel development (Port 5174)
+- Universe management UI
+- Visual universe statistics dashboard
+- Then: Player initialization and game client
 
 ## In Progress 🚧
 
-### Next Major Feature: Player Initialization
+### Next Major Feature: Admin Panel (Port 5174)
 **Priority Order:**
-1. Player initialization service (create player on first login)
-2. Main game dashboard UI (replace placeholder)
-3. Sector navigation interface
-4. Display sector information with warps
-5. Trading system basics
+1. **Admin Panel Setup** - Setup admin React app with cyberpunk theme
+2. **Universe Management UI** - Create/view/delete universes with form
+3. **Universe List Dashboard** - Visual stats and management
+4. **Player Initialization** - Then build player auto-creation on login
+5. **Game Dashboard** - Player UI after admin tools are ready
 
 ## Next Steps 📋
 
