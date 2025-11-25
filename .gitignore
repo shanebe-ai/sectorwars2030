@@ -32,3 +32,6 @@ dist-ssr
 *.db
 *.sqlite
 *.sql.backup
+
+# Personal notes (not tracked in git)
+IDEAS.md
