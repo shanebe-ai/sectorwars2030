@@ -157,19 +157,38 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - [x] Ship types seeding
 - [ ] Player initialization on login
 
-### Phase 2: Admin Panel
-- [ ] Universe creation UI
-- [ ] Auto-generate configurable sector universe
-- [ ] Configure port types and distribution
-- [ ] Ship type management
+### Phase 2: Admin Panel (Port 5174)
+- [ ] Admin panel setup with cyberpunk theme matching client
+- [ ] Universe creation UI with suggested defaults
+  - Default: 1000 sectors, 12% port distribution
+  - Manual override options for all parameters
+- [ ] Visual universe management dashboard
+  - View/edit existing universes
+  - Sector distribution visualization
+  - Port type statistics
+- [ ] Ship type management interface
 - [ ] Player management dashboard
+- [ ] Real-time universe statistics
 
-### Phase 3: ASCII Art & UI
-- [ ] Research and create ASCII art assets
-- [ ] Create cyberpunk color scheme (neon green/cyan/magenta)
-- [ ] ASCII art component library
-- [ ] Terminal-style UI components
-- [ ] Scanline/CRT effects (optional)
+### Phase 3: ASCII Art Graphics System
+**Vision**: Use ASCII art as visual graphics (not just text like original TW2002)
+- [ ] Research and extract ASCII art from TradeWars 2002
+  - Ship designs (Scout, Trader, Freighter, etc.)
+  - Port representations (different types)
+  - Planet visuals
+  - Sector map elements
+- [ ] Create ASCII art component library
+  - Ship sprites with animations
+  - Port visual indicators
+  - Planet colony graphics
+  - Combat visualizations
+- [ ] Cyberpunk color scheme integration
+  - Neon green (friendly/systems)
+  - Neon cyan (navigation/info)
+  - Neon magenta/pink (alerts/danger)
+  - Neon purple (special/rare)
+- [ ] Terminal-style UI components with ASCII borders
+- [ ] Optional: Scanline/CRT screen effects for retro feel
 
 ### Phase 4: Game Client
 - [x] Login/Registration screens
@@ -255,13 +274,32 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 ## Development Environment
 
 ### Ports
-- Client (Game): `http://localhost:5173`
-- Admin Panel: `http://localhost:5174`
-- Backend API: `http://localhost:3000`
+- **Client (Game)**: `http://localhost:5173` - Player game interface
+- **Admin Panel**: `http://localhost:5174` - Universe/game management (admin only)
+- **Backend API**: `http://localhost:3000` - REST API + WebSocket server
 
 ### Database
 - PostgreSQL on `localhost:5432`
 - Database name: `tradewars`
+
+## Design Philosophy
+
+### ASCII Art as Graphics
+Unlike the original text-only TradeWars 2002, this modern version uses ASCII art as **visual graphics elements**:
+- Ships rendered as ASCII sprites (not just names)
+- Ports shown with distinctive ASCII art indicators
+- Sector views with visual ASCII map representations
+- Combat animations using ASCII art
+- Planet colonies displayed with ASCII graphics
+
+Source material from original TradeWars 2002 ASCII art will be adapted and enhanced with cyberpunk neon styling.
+
+### Cyberpunk Aesthetic
+- **Neon Green**: Friendly systems, go signals, positive status
+- **Neon Cyan**: Navigation, information, neutral data
+- **Neon Magenta/Pink**: Alerts, danger, warnings, combat
+- **Neon Purple**: Special items, rare events, admin functions
+- **Black background**: Terminal-style with optional CRT effects
 
 ## Contributing
 
