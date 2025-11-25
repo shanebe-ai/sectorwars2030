@@ -1,0 +1,9 @@
+{
+  "name": "tradewars-shared",
+  "version": "1.0.0",
+  "description": "Shared types and constants for TradeWars 2002 Recreation",
+  "main": "types.ts",
+  "keywords": ["tradewars", "types"],
+  "author": "shanebe-ai",
+  "license": "MIT"
+}
