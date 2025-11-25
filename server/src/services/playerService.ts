@@ -93,9 +93,9 @@ export const createPlayer = async ({
 
     const ship = shipResult.rows[0];
 
-    // Find Sol sector (sector 1) or first sector if not found
+    // Find Sol sector (sector 1) or first sector by sector_number if not found
     const sectorResult = await client.query(
-      'SELECT id FROM sectors WHERE universe_id = $1 ORDER BY id LIMIT 1',
+      'SELECT sector_number FROM sectors WHERE universe_id = $1 ORDER BY sector_number LIMIT 1',
       [universeId]
     );
 
@@ -103,7 +103,8 @@ export const createPlayer = async ({
       throw new Error('No sectors found in universe');
     }
 
-    const startingSector = sectorResult.rows[0].id;
+    // Use sector_number (1-N), NOT the database id (which is unique across all universes)
+    const startingSector = sectorResult.rows[0].sector_number;
 
     // Create the player
     const playerResult = await client.query(

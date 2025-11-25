@@ -146,7 +146,7 @@ Format: `[Fuel][Organics][Equipment]`
 - [x] Authentication system (JWT + bcrypt)
 - [x] User registration and login API
 - [x] Admin authorization middleware
-- [x] Universe generation service
+- [x] Universe generation service (with minimum 5% ports)
 - [x] Ship types system
 - [x] **Admin Panel (Port 5174)**
   - [x] Purple cyberpunk theme
@@ -158,19 +158,43 @@ Format: `[Fuel][Organics][Equipment]`
   - [x] Starting ship assignment
   - [x] Credits and sector placement
   - [x] Universe capacity validation
+- [x] **Sector Navigation Backend**
+  - [x] GET /api/sectors/:sectorNumber - Sector details with warps
+  - [x] POST /api/sectors/move - Move player between sectors
+  - [x] Turn consumption (1 turn per move)
+  - [x] Warp connection validation
+- [x] **Automated Testing**
+  - [x] Jest + ts-jest framework
+  - [x] 11 tests for navigation and player creation
+  - [x] Run with: `cd server && npm test`
 
 ### In Progress 🚧
 - [ ] **Client Player UI**
   - [ ] Universe selection screen
   - [ ] Corporation name input
   - [ ] Player dashboard
+  - [ ] Sector navigation UI
 - [ ] ASCII art component library
-- [ ] Sector navigation
 - [ ] Trading system
 - [ ] Combat system
 - [ ] Planet management
 - [ ] Corporation system
 - [ ] Real-time WebSocket events
+
+## Running Tests
+
+```bash
+cd server
+npm test              # Run all tests
+npm run test:watch    # Watch mode
+npm run test:coverage # With coverage report
+```
+
+## Documentation
+
+- **PROJECT_STATUS.md** - Detailed development status and session context
+- **IDEAS.md** - Brainstorming and future feature ideas
+- **server/DATABASE_SETUP.md** - Database configuration guide
 
 ## License
 

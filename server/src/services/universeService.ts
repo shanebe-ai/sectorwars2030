@@ -97,13 +97,23 @@ export async function generateUniverse(config: UniverseConfig) {
 
     // 2. Generate sectors
     const sectors: GeneratedSector[] = [];
-    const portCount = Math.floor(maxSectors * (portPercentage / 100));
+    
+    // Calculate port count with minimum 5% enforcement
+    const effectivePortPercentage = Math.max(portPercentage, 5); // Minimum 5% ports
+    let portCount = Math.floor(maxSectors * (effectivePortPercentage / 100));
+    
+    // Ensure at least 1 port for small universes
+    portCount = Math.max(portCount, 1);
+    
     const portSectors = new Set<number>();
 
-    // Randomly select which sectors will have ports
+    // Randomly select which sectors will have ports (excluding sector 1 - Sol)
     while (portSectors.size < portCount) {
       const sectorNum = Math.floor(Math.random() * maxSectors) + 1;
-      portSectors.add(sectorNum);
+      // Don't put a port in Sol (sector 1) - keep it as a safe starting zone
+      if (sectorNum !== 1) {
+        portSectors.add(sectorNum);
+      }
     }
 
     // Generate all sectors with warps
