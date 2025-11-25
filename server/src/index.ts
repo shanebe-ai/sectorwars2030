@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { pool } from './db/connection';
+import authRoutes from './routes/auth';
 
 dotenv.config();
 
@@ -48,10 +49,13 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// API Routes (to be added)
+// API Routes
 app.get('/api', (req, res) => {
   res.json({ message: 'TradeWars 2030 API Server', version: '1.0.0' });
 });
+
+// Auth routes
+app.use('/api/auth', authRoutes);
 
 // WebSocket connection handling
 io.on('connection', (socket) => {
