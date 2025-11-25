@@ -1,23 +1,19 @@
 import { useState } from 'react';
 
 const logo = `
-╔══════════════════════════════════════════════════════════════════════╗
-║                                                                      ║
-║  ████████╗██████╗  █████╗ ██████╗ ███████╗██╗    ██╗ █████╗ ██████╗ ║
-║  ╚══██╔══╝██╔══██╗██╔══██╗██╔══██╗██╔════╝██║    ██║██╔══██╗██╔══██╗║
-║     ██║   ██████╔╝███████║██║  ██║█████╗  ██║ █╗ ██║███████║██████╔╝║
-║     ██║   ██╔══██╗██╔══██║██║  ██║██╔══╝  ██║███╗██║██╔══██║██╔══██╗║
-║     ██║   ██║  ██║██║  ██║██████╔╝███████╗╚███╔███╔╝██║  ██║██║  ██║║
-║     ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚══════╝ ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝║
-║                                                                      ║
-║                    ██████╗  ██████╗ ██████╗  ██████╗                ║
-║                    ╚════██╗██╔═████╗╚════██╗██╔═████╗               ║
-║                     █████╔╝██║██╔██║ █████╔╝██║██╔██║               ║
-║                    ██╔═══╝ ████╔╝██║ ╚═══██╗████╔╝██║               ║
-║                    ███████╗╚██████╔╝██████╔╝╚██████╔╝               ║
-║                    ╚══════╝ ╚═════╝ ╚═════╝  ╚═════╝                ║
-║                                                                      ║
-╚══════════════════════════════════════════════════════════════════════╝
+████████╗ ██████╗   █████╗  ██████╗  ███████╗ ██╗    ██╗  █████╗  ██████╗  ███████╗
+╚══██╔══╝ ██╔══██╗ ██╔══██╗ ██╔══██╗ ██╔════╝ ██║    ██║ ██╔══██╗ ██╔══██╗ ██╔════╝
+   ██║    ██████╔╝ ███████║ ██║  ██║ █████╗   ██║ █╗ ██║ ███████║ ██████╔╝ ███████╗
+   ██║    ██╔══██╗ ██╔══██║ ██║  ██║ ██╔══╝   ██║███╗██║ ██╔══██║ ██╔══██╗ ╚════██║
+   ██║    ██║  ██║ ██║  ██║ ██████╔╝ ███████╗ ╚███╔███╔╝ ██║  ██║ ██║  ██║ ███████║
+   ╚═╝    ╚═╝  ╚═╝ ╚═╝  ╚═╝ ╚═════╝  ╚══════╝  ╚══╝╚══╝  ╚═╝  ╚═╝ ╚═╝  ╚═╝ ╚══════╝
+
+                              ██████╗   ██████╗  ██████╗  ██████╗
+                              ╚════██╗ ██╔═████╗ ╚════██╗ ██╔═████╗
+                               █████╔╝ ██║██╔██║  █████╔╝ ██║██╔██║
+                              ██╔═══╝  ████╔╝██║  ╚═══██╗ ████╔╝██║
+                              ███████╗ ╚██████╔╝ ██████╔╝ ╚██████╔╝
+                              ╚══════╝  ╚═════╝  ╚═════╝   ╚═════╝
 `;
 
 interface LoginProps {
@@ -66,13 +62,29 @@ export default function Login({ onLogin }: LoginProps) {
   return (
     <div className="cyberpunk-container" style={{ padding: '40px 20px' }}>
       <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-        <pre className="ascii-art neon-text-purple" style={{ marginBottom: '40px', textAlign: 'center' }}>
+        <pre className="ascii-art" style={{
+          marginBottom: '20px',
+          textAlign: 'center',
+          color: 'var(--neon-purple)',
+          textShadow: '0 0 5px rgba(157, 0, 255, 0.5)',
+          fontSize: '11px',
+          lineHeight: '1.1'
+        }}>
           {logo}
         </pre>
 
-        <div className="cyberpunk-panel" style={{ maxWidth: '500px', margin: '0 auto' }}>
-          <div className="panel-header">
-            {isRegistering ? '► NEW PILOT REGISTRATION' : '► SYSTEM ACCESS'}
+        <div className="cyberpunk-panel" style={{
+          maxWidth: '500px',
+          margin: '0 auto',
+          borderColor: 'var(--neon-purple)',
+          boxShadow: '0 0 10px rgba(157, 0, 255, 0.3)'
+        }}>
+          <div className="panel-header" style={{
+            color: 'var(--neon-purple)',
+            borderBottomColor: 'var(--neon-purple)',
+            textShadow: '0 0 5px rgba(157, 0, 255, 0.5)'
+          }}>
+            {isRegistering ? '► NEW TRADER REGISTRATION' : '► SYSTEM ACCESS'}
           </div>
 
           <form onSubmit={handleSubmit}>
@@ -84,6 +96,12 @@ export default function Login({ onLogin }: LoginProps) {
               onChange={(e) => setUsername(e.target.value)}
               required
               autoFocus
+              style={{
+                borderColor: 'var(--neon-green)',
+                boxShadow: 'none'
+              }}
+              onFocus={(e) => e.target.style.boxShadow = '0 0 20px rgba(0, 255, 0, 0.8)'}
+              onBlur={(e) => e.target.style.boxShadow = 'none'}
             />
 
             {isRegistering && (
@@ -94,6 +112,12 @@ export default function Login({ onLogin }: LoginProps) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                style={{
+                  borderColor: 'var(--neon-green)',
+                  boxShadow: 'none'
+                }}
+                onFocus={(e) => e.target.style.boxShadow = '0 0 20px rgba(0, 255, 0, 0.8)'}
+                onBlur={(e) => e.target.style.boxShadow = 'none'}
               />
             )}
 
@@ -105,6 +129,12 @@ export default function Login({ onLogin }: LoginProps) {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
+              style={{
+                borderColor: 'var(--neon-green)',
+                boxShadow: 'none'
+              }}
+              onFocus={(e) => e.target.style.boxShadow = '0 0 20px rgba(0, 255, 0, 0.8)'}
+              onBlur={(e) => e.target.style.boxShadow = 'none'}
             />
 
             {error && (
@@ -120,9 +150,23 @@ export default function Login({ onLogin }: LoginProps) {
 
             <button
               type="submit"
-              className="cyberpunk-button cyberpunk-button-success"
+              className="cyberpunk-button"
               disabled={loading}
-              style={{ width: '100%', marginTop: '20px', padding: '15px' }}
+              style={{
+                width: '100%',
+                marginTop: '20px',
+                padding: '15px',
+                borderColor: '#FF0000',
+                color: '#FF0000'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#FF0000';
+                e.currentTarget.style.color = 'var(--bg-black)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = '#FF0000';
+              }}
             >
               {loading ? '⟳ CONNECTING...' : isRegistering ? '► REGISTER' : '► LOGIN'}
             </button>
@@ -135,17 +179,29 @@ export default function Login({ onLogin }: LoginProps) {
                   setIsRegistering(!isRegistering);
                   setError('');
                 }}
-                style={{ fontSize: '12px' }}
+                style={{
+                  fontSize: '12px',
+                  borderColor: '#FF0000',
+                  color: '#FF0000'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#FF0000';
+                  e.currentTarget.style.color = 'var(--bg-black)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = '#FF0000';
+                }}
               >
-                {isRegistering ? '◄ BACK TO LOGIN' : '► NEW PILOT? REGISTER'}
+                {isRegistering ? '◄ BACK TO LOGIN' : '► NEW TRADER? REGISTER'}
               </button>
             </div>
           </form>
 
-          <div className="neon-text-green" style={{ marginTop: '30px', fontSize: '12px', textAlign: 'center' }}>
+          <div style={{ marginTop: '30px', fontSize: '12px', textAlign: 'center', color: '#00FF00', textShadow: '0 0 5px rgba(0, 255, 0, 0.5)' }}>
             <div>► ALPHA UNIVERSE ONLINE</div>
             <div>► 1000 SECTORS AWAITING EXPLORATION</div>
-            <div>► GOOD HUNTING, PILOT</div>
+            <div>► GOOD LUCK, TRADER</div>
           </div>
         </div>
       </div>
