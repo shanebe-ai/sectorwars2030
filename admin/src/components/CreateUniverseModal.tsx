@@ -1,0 +1,226 @@
+import { useState } from 'react';
+
+interface CreateUniverseModalProps {
+  token: string;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+export default function CreateUniverseModal({ token, onClose, onSuccess }: CreateUniverseModalProps) {
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    maxSectors: 1000,
+    portPercentage: 12,
+    maxPlayers: 100,
+    turnsPerDay: 1000,
+    startingCredits: 2000,
+    startingShipType: 'scout',
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const response = await fetch('http://localhost:3000/api/universes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create universe');
+      }
+
+      onSuccess();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: ['maxSectors', 'portPercentage', 'maxPlayers', 'turnsPerDay', 'startingCredits'].includes(name)
+        ? parseInt(value) || 0
+        : value
+    }));
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2>► CREATE NEW UNIVERSE</h2>
+          <button onClick={onClose} className="modal-close">✗</button>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-row">
+            <div className="form-group" style={{ flex: 1 }}>
+              <label className="form-label">Universe Name *</label>
+              <input
+                type="text"
+                name="name"
+                className="cyberpunk-input"
+                placeholder="Enter universe name_"
+                value={formData.name}
+                onChange={handleChange}
+                required
+                maxLength={100}
+              />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group" style={{ flex: 1 }}>
+              <label className="form-label">Description</label>
+              <textarea
+                name="description"
+                className="cyberpunk-input"
+                placeholder="Enter description (optional)_"
+                value={formData.description}
+                onChange={handleChange}
+                rows={3}
+                style={{ resize: 'vertical', minHeight: '80px' }}
+              />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Max Sectors</label>
+              <input
+                type="number"
+                name="maxSectors"
+                className="cyberpunk-input"
+                value={formData.maxSectors}
+                onChange={handleChange}
+                min={100}
+                max={10000}
+                required
+              />
+              <div className="form-hint">Recommended: 1000</div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Port Distribution %</label>
+              <input
+                type="number"
+                name="portPercentage"
+                className="cyberpunk-input"
+                value={formData.portPercentage}
+                onChange={handleChange}
+                min={1}
+                max={50}
+                required
+              />
+              <div className="form-hint">Recommended: 12%</div>
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Max Players</label>
+              <input
+                type="number"
+                name="maxPlayers"
+                className="cyberpunk-input"
+                value={formData.maxPlayers}
+                onChange={handleChange}
+                min={1}
+                max={1000}
+                required
+              />
+              <div className="form-hint">Recommended: 100</div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Turns Per Day</label>
+              <input
+                type="number"
+                name="turnsPerDay"
+                className="cyberpunk-input"
+                value={formData.turnsPerDay}
+                onChange={handleChange}
+                min={100}
+                max={10000}
+                required
+              />
+              <div className="form-hint">Recommended: 1000</div>
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Starting Credits</label>
+              <input
+                type="number"
+                name="startingCredits"
+                className="cyberpunk-input"
+                value={formData.startingCredits}
+                onChange={handleChange}
+                min={1000}
+                max={100000}
+                required
+              />
+              <div className="form-hint">Recommended: 2000</div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Starting Ship</label>
+              <select
+                name="startingShipType"
+                className="cyberpunk-input"
+                value={formData.startingShipType}
+                onChange={handleChange}
+                required
+              >
+                <option value="escape_pod">Escape Pod</option>
+                <option value="scout">Scout</option>
+                <option value="trader">Trader</option>
+              </select>
+              <div className="form-hint">Default: Scout</div>
+            </div>
+          </div>
+
+          {error && (
+            <div className="error-message">
+              ✗ {error}
+            </div>
+          )}
+
+          <div className="modal-actions">
+            <button
+              type="button"
+              onClick={onClose}
+              className="cyberpunk-button cyberpunk-button-secondary"
+              disabled={loading}
+            >
+              ◄ CANCEL
+            </button>
+            <button
+              type="submit"
+              className="cyberpunk-button cyberpunk-button-success"
+              disabled={loading}
+            >
+              {loading ? '⟳ CREATING...' : '► CREATE UNIVERSE'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

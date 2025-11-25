@@ -1,35 +1,27 @@
 import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
+import AdminLogin from './components/AdminLogin'
+import UniverseDashboard from './components/UniverseDashboard'
 import './App.css'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [token, setToken] = useState<string | null>(null)
+  const [user, setUser] = useState<any>(null)
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+  const handleLogin = (authToken: string, authUser: any) => {
+    setToken(authToken)
+    setUser(authUser)
+  }
+
+  const handleLogout = () => {
+    setToken(null)
+    setUser(null)
+  }
+
+  if (!token || !user) {
+    return <AdminLogin onLogin={handleLogin} />
+  }
+
+  return <UniverseDashboard token={token} user={user} onLogout={handleLogout} />
 }
 
 export default App
