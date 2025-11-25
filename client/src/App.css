@@ -1,42 +1,133 @@
+/* TradeWars 2030 Client App Styles */
+
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  min-height: 100vh;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/* Universe Selector Styles */
+.universe-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.universe-item {
+  background: var(--bg-dark);
+  border: 2px solid var(--neon-cyan);
+  padding: 20px;
+  transition: all 0.3s;
+  cursor: pointer;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+.universe-item:hover:not(.disabled) {
+  border-color: var(--neon-green);
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+  transform: translateX(5px);
 }
 
-.card {
-  padding: 2em;
+.universe-item.selected {
+  background: rgba(0, 255, 0, 0.1);
+  border-color: var(--neon-green);
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
 }
 
-.read-the-docs {
-  color: #888;
+.universe-item.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.universe-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  margin-bottom: 15px;
+}
+
+.universe-item-name {
+  font-size: 20px;
+  color: var(--neon-cyan);
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.universe-item-description {
+  font-size: 13px;
+  color: var(--text-primary);
+  opacity: 0.7;
+}
+
+.universe-status-badge {
+  padding: 4px 12px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.universe-item-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  padding-top: 15px;
+  border-top: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.stat-label {
+  color: var(--neon-green);
+  opacity: 0.8;
+}
+
+.stat-value {
+  color: var(--neon-cyan);
+  font-weight: bold;
+}
+
+/* Button Styles */
+.button-row {
+  display: flex;
+  gap: 15px;
+}
+
+.cyberpunk-button-primary {
+  background: rgba(0, 255, 0, 0.1);
+  border-color: var(--neon-green);
+  color: var(--neon-green);
+}
+
+.cyberpunk-button-primary:hover:not(:disabled) {
+  background: rgba(0, 255, 0, 0.2);
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+}
+
+.cyberpunk-button-primary:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Form Styles */
+.form-group {
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--neon-green);
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.form-hint {
+  margin-top: 5px;
+  font-size: 12px;
+  color: var(--neon-cyan);
+  opacity: 0.6;
 }
