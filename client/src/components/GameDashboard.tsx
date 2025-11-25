@@ -1,10 +1,18 @@
+import { useState } from 'react';
+import SectorView from './SectorView';
+
 interface GameDashboardProps {
   player: any;
   token: string;
   onLogout: () => void;
 }
 
-export default function GameDashboard({ player, token, onLogout }: GameDashboardProps) {
+export default function GameDashboard({ player: initialPlayer, token, onLogout }: GameDashboardProps) {
+  const [player, setPlayer] = useState(initialPlayer);
+
+  const handleSectorChange = (updatedPlayer: any) => {
+    setPlayer(updatedPlayer);
+  };
   return (
     <div className="cyberpunk-container">
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
@@ -73,46 +81,12 @@ export default function GameDashboard({ player, token, onLogout }: GameDashboard
           </div>
         </div>
 
-        {/* Welcome Message */}
-        <div className="cyberpunk-panel">
-          <div className="panel-header">► WELCOME TO TRADEWARS 2030</div>
-
-          <div style={{ padding: '20px 0' }}>
-            <p style={{ color: 'var(--neon-green)', marginBottom: '20px', fontSize: '16px' }}>
-              Welcome, Commander! Your trading career begins now.
-            </p>
-
-            <div style={{ color: 'var(--neon-cyan)', lineHeight: '1.8' }}>
-              <p style={{ marginBottom: '15px' }}>
-                ► You are currently in <span style={{ color: 'var(--neon-green)' }}>Sector {player.currentSector}</span>
-              </p>
-              <p style={{ marginBottom: '15px' }}>
-                ► Your {player.shipType} is fueled and ready for trade
-              </p>
-              <p style={{ marginBottom: '15px' }}>
-                ► You have <span style={{ color: 'var(--neon-green)' }}>{player.credits}</span> credits to start your empire
-              </p>
-              <p style={{ marginBottom: '15px' }}>
-                ► Each day you receive <span style={{ color: 'var(--neon-green)' }}>1000 turns</span> for movement and trading
-              </p>
-            </div>
-
-            <div style={{
-              marginTop: '30px',
-              padding: '20px',
-              background: 'rgba(0, 255, 255, 0.05)',
-              border: '1px solid var(--neon-cyan)'
-            }}>
-              <p style={{ color: 'var(--neon-yellow)', marginBottom: '15px' }}>
-                ⚡ GAME DEVELOPMENT IN PROGRESS
-              </p>
-              <p style={{ fontSize: '14px', color: 'var(--text-primary)', opacity: 0.8 }}>
-                Navigation, trading, and combat systems are currently being developed.
-                Check back soon for updates!
-              </p>
-            </div>
-          </div>
-        </div>
+        {/* Sector Navigation */}
+        <SectorView
+          currentSector={player.currentSector}
+          token={token}
+          onSectorChange={handleSectorChange}
+        />
       </div>
 
       <style>{`

@@ -374,4 +374,5 @@ When implementing new features:
 
 **Last Updated:** 2025-11-25 19:15 UTC
 **Status:** Player Initialization Backend Complete - Ready for Client UI
-**Current Session:** Universe selection UI and client integration next
+**Current Session:** Universe selection UI and client integration next, also need to Test sector navigation and turn consumption
+**side note needs to be addresses** there shouldnt be a uiverse with zero ports. there needs to be minimum 5% ports per number of sectors. also, first sector i was in was called sector 1151. how can this be if the universe has less than that?

@@ -7,6 +7,7 @@ import { pool } from './db/connection';
 import authRoutes from './routes/auth';
 import universeRoutes from './routes/universe';
 import playerRoutes from './routes/player';
+import sectorRoutes from './routes/sector';
 
 dotenv.config();
 
@@ -64,6 +65,9 @@ app.use('/api/universes', universeRoutes);
 
 // Player routes
 app.use('/api/players', playerRoutes);
+
+// Sector routes
+app.use('/api/sectors', sectorRoutes);
 
 // WebSocket connection handling
 io.on('connection', (socket) => {
