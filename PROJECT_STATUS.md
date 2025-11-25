@@ -1,7 +1,7 @@
-# TradeWars 2002 Recreation - Project Status
+# TradeWars 2030 - Project Status
 
 ## Overview
-Modern web-based recreation of the classic BBS game TradeWars 2002 with ASCII art, cyberpunk aesthetics, and multiplayer turn-based gameplay.
+Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthetics, and turn-based gameplay.
 
 ## Completed ✅
 
@@ -43,7 +43,7 @@ Modern web-based recreation of the classic BBS game TradeWars 2002 with ASCII ar
 ### 5. Documentation
 - Comprehensive README with setup instructions
 - Database schema documentation
-- Port type reference (classic TradeWars)
+- Port type reference
 - Development roadmap
 
 ## In Progress 🚧
@@ -51,7 +51,7 @@ Modern web-based recreation of the classic BBS game TradeWars 2002 with ASCII ar
 ### Admin Panel Configuration UI
 Next steps:
 1. Create Universe Configuration form
-2. Sector generator with classic TW2002 algorithm
+2. Sector generator with universe generation algorithm
 3. Port placement system
 4. Ship type editor
 5. Game settings dashboard
@@ -66,13 +66,13 @@ Next steps:
 
 ### Phase 2: Admin Panel
 - [ ] Universe creation UI
-- [ ] Auto-generate classic 1000-sector universe
+- [ ] Auto-generate configurable sector universe
 - [ ] Configure port types and distribution
 - [ ] Ship type management
 - [ ] Player management dashboard
 
 ### Phase 3: ASCII Art & UI
-- [ ] Research original TradeWars ASCII art
+- [ ] Research and create ASCII art assets
 - [ ] Create cyberpunk color scheme (neon green/cyan/magenta)
 - [ ] ASCII art component library
 - [ ] Terminal-style UI components
@@ -133,7 +133,7 @@ Next steps:
 - Native TypeScript support
 - Modern ESM-based architecture
 
-## Original TradeWars 2002 Mechanics Reference
+## Game Mechanics Reference
 
 ### Port Types
 - **BBS** (Fuel=Buy, Org=Buy, Equip=Sell) - Equipment production
@@ -151,12 +151,12 @@ Next steps:
 5. **Merchant Cruiser** (250 holds) - Advanced
 6. **Corporate Flagship** (500 holds) - Ultimate trader
 
-### Classic Universe
+### Default Universe Configuration
 - 1000 sectors default
 - ~10-15% have ports
 - Bidirectional warp connections
 - Sol sector (Earth) - starting location
-- Ferrengi aliens as NPCs
+- AI aliens as NPCs
 
 ## Development Environment
 

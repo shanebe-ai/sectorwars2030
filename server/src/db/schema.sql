@@ -1,4 +1,4 @@
--- TradeWars 2002 Recreation Database Schema
+-- TradeWars 2030 Database Schema
 
 -- ============================================================================
 -- USERS & AUTHENTICATION

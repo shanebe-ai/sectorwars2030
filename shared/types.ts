@@ -1,4 +1,4 @@
-// Shared TypeScript types for TradeWars 2002 Recreation
+// Shared TypeScript types for TradeWars 2030
 
 export interface User {
   id: number;

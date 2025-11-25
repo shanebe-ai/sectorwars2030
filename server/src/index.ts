@@ -50,7 +50,7 @@ app.get('/health', async (req, res) => {
 
 // API Routes (to be added)
 app.get('/api', (req, res) => {
-  res.json({ message: 'TradeWars 2002 API Server', version: '1.0.0' });
+  res.json({ message: 'TradeWars 2030 API Server', version: '1.0.0' });
 });
 
 // WebSocket connection handling
@@ -76,7 +76,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 httpServer.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════════════╗
-║   TradeWars 2002 Recreation - Server          ║
+║   TradeWars 2030 - Server                     ║
 ║   Port: ${PORT}                                    ║
 ║   Environment: ${process.env.NODE_ENV || 'development'}                ║
 ╚════════════════════════════════════════════════╝

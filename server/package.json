@@ -1,7 +1,7 @@
 {
   "name": "tradewars-server",
   "version": "1.0.0",
-  "description": "TradeWars 2002 Recreation - Backend Server",
+  "description": "TradeWars 2030 - Backend Server",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",

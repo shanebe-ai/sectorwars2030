@@ -1,6 +1,6 @@
-# TradeWars 2002 Recreation
+# TradeWars 2030
 
-A modern web-based recreation of the classic BBS game TradeWars 2002, featuring ASCII art, cyberpunk aesthetics, and multiplayer turn-based gameplay.
+A modern web-based multiplayer space trading game featuring ASCII art, cyberpunk aesthetics, and turn-based gameplay.
 
 ## Project Structure
 
@@ -102,10 +102,10 @@ See [server/src/db/schema.sql](server/src/db/schema.sql) for complete schema.
 
 ## Game Features
 
-### Classic TradeWars Mechanics
+### Core Game Mechanics
 - **Turn-based gameplay** - Limited turns per day
 - **Space trading** - Buy/sell fuel, organics, equipment
-- **Port types** - 8 classic port configurations (BBS, BSB, etc.)
+- **Port types** - 8 port configurations for strategic trading
 - **Ship progression** - From Scout to Corporate Flagship
 - **Combat system** - Attack other players and aliens
 - **Planets** - Colonize and produce resources
@@ -119,7 +119,7 @@ See [server/src/db/schema.sql](server/src/db/schema.sql) for complete schema.
 - **Admin panel** - Configure universes without SQL
 - **Responsive design** - Play on desktop or mobile
 
-## Port Types (Classic TradeWars)
+## Port Types
 
 Each letter represents commodity availability:
 - **B** = Buying (port buys from you)
@@ -160,4 +160,4 @@ MIT
 
 ## Credits
 
-Original TradeWars 2002 by Gary Martin
+Inspired by the classic space trading games
