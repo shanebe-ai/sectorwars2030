@@ -163,14 +163,7 @@ CREATE TABLE ship_types (
   UNIQUE(universe_id, name)
 );
 
--- Default ship types for classic TradeWars
-INSERT INTO ship_types (universe_id, name, holds, fighters_max, shields_max, torpedoes_max, mines_max, beacons_max, genesis_max, turns_cost, cost_credits, description) VALUES
-  (1, 'Escape Pod', 5, 0, 0, 0, 0, 0, 0, 5, 0, 'Emergency transport'),
-  (1, 'Scout', 20, 10, 10, 5, 5, 10, 5, 1, 10000, 'Basic trading vessel'),
-  (1, 'Trader', 60, 20, 20, 10, 10, 15, 10, 1, 50000, 'Improved cargo capacity'),
-  (1, 'Freighter', 125, 40, 40, 20, 20, 20, 15, 1, 125000, 'Large cargo hauler'),
-  (1, 'Merchant Cruiser', 250, 80, 80, 40, 40, 25, 20, 1, 250000, 'Heavy trading ship'),
-  (1, 'Corporate Flagship', 500, 150, 150, 80, 80, 30, 25, 1, 500000, 'Ultimate trader');
+-- Ship types will be created by the seed script
 
 -- ============================================================================
 -- CORPORATIONS (Team/Alliance system)
