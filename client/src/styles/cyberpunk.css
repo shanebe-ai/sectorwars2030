@@ -4,6 +4,7 @@
   /* Neon Colors */
   --neon-cyan: #00FFFF;
   --neon-magenta: #FF00FF;
+  --neon-purple: #9D00FF;
   --neon-green: #00FF00;
   --neon-pink: #FF1493;
   --neon-blue: #0080FF;
@@ -95,6 +96,11 @@ body {
 .neon-text-pink {
   color: var(--neon-pink);
   text-shadow: 0 0 5px rgba(255, 20, 147, 0.5);
+}
+
+.neon-text-purple {
+  color: var(--neon-purple);
+  text-shadow: 0 0 5px rgba(157, 0, 255, 0.5);
 }
 
 /* Buttons */
