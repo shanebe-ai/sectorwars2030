@@ -160,4 +160,4 @@ MIT
 
 ## Credits
 
-Inspired by the classic space trading games
+Inspired by TradeWars 2002 by Gary Martin - the legendary BBS space trading game that defined the genre.
