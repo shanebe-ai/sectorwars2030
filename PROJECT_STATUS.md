@@ -295,14 +295,40 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 3. **Loot System** - Credits and cargo looting after victories
 
 ### Upcoming: Planet Colonization System
-**Priority Order:**
-1. **Planet Generation** ✅ - ~3% of sectors have claimable planets (30 planets in 1000-sector universe)
+**Based on TradeWars 2002 mechanics:**
+
+**Phase 1: Basic Claiming**
+1. ✅ **Planet Generation** - ~3% of sectors have claimable planets
 2. **Claim Planet API** - POST /api/planets/:id/claim - First player to land claims it
-3. **Planet Management UI** - View owned planets, set production type
-4. **Colonist System** - Transport colonists to planets, population growth
-5. **Planet Production** - Planets produce fuel/organics/equipment based on type
-6. **Planet Defense** - Deploy fighters to protect planets
-7. **Citadel Upgrades** - Build defenses, upgrade production capacity
+3. **Set Production Type** - Choose: Fuel, Organics, Equipment, or Balanced
+4. **Planet View UI** - See owned planets, their stats, production type
+
+**Phase 2: Colonist Economy**
+5. **Buy Colonists at Ports** - Special commodity, transported like cargo
+6. **Transport to Planet** - Land on planet, deposit colonists
+7. **Population Growth** - Colonists reproduce over time (birth rate)
+8. **Production Formula** - More colonists = more resources produced
+
+**Phase 3: Resource Collection**
+9. **Planet Inventory** - Planets store produced fuel/org/equip
+10. **Collect Resources** - Land on planet, load cargo into ship
+11. **Sell at Ports** - Complete the profit loop
+
+**Phase 4: Citadel Defense System**
+| Level | Cost | Defense Features |
+|-------|------|------------------|
+| 0 | Free | Colonists only (weak) |
+| 1 | 50K | Basic Quasar Cannon |
+| 2 | 100K | Improved Weapons |
+| 3 | 250K | Atmospheric Defense |
+| 4 | 500K | Transporter Beam |
+| 5 | 1M | Interdictor (blocks warping) |
+
+**Phase 5: Planet Combat**
+12. **Attack Planet** - Fight through sector fighters → bombard planet
+13. **Citadel Combat** - Damage citadel, fight colonist militia
+14. **Capture vs Destroy** - Take ownership or destroy enemy planet
+15. **Deploy Fighters** - Station fighters in sector to protect planet
 
 ## Next Steps 📋
 
@@ -427,9 +453,39 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 ### Default Universe Configuration
 - 1000 sectors default
 - ~10-15% have ports
+- ~3% have claimable planets (~30 planets)
 - Bidirectional warp connections
-- Sol sector (Earth) - starting location
+- Sol sector (Earth) - starting location, Terra Corp owned
 - AI aliens as NPCs
+
+### Planet Mechanics (TW2002-inspired)
+**Production Types:**
+- **Fuel** - Produces fuel ore (best fuel output)
+- **Organics** - Produces organics (best org output)
+- **Equipment** - Produces equipment (best equip output)
+- **Balanced** - Produces all three (lower efficiency)
+
+**Colonist System:**
+- Buy colonists at ports (special commodity)
+- Transport in cargo holds to your planet
+- More colonists = higher production rate
+- Population grows over time (daily tick)
+- Colonists also serve as planetary militia (defense)
+
+**Citadel Levels:**
+- Level 0: No citadel (colonists only defense)
+- Level 1-2: Basic defenses
+- Level 3: Atmospheric defense (harder to bombard)
+- Level 4: Transporter (beam cargo without landing)
+- Level 5: Interdictor generator (enemies can't warp out)
+
+**Planet Strategy:**
+1. Find remote sector (fewer visitors = safer)
+2. Claim planet, set production type
+3. Transport colonists (thousands for good production)
+4. Build citadel for defense
+5. Regularly collect produced resources
+6. Sell at ports for profit
 
 ## Development Environment
 
