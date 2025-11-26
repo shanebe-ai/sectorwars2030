@@ -221,6 +221,29 @@ export const moveToSector = async (req: Request, res: Response) => {
       // Get ship type to determine turn cost (default 1 turn per move for now)
       const turnCost = 1;
 
+      // Warp drive misfire chance (0.25% chance of malfunction)
+      const MISFIRE_CHANCE = 0.0025; // 0.25% = 0.0025
+      const misfired = Math.random() < MISFIRE_CHANCE;
+
+      let actualDestination = destinationSector;
+      let misfireMessage = null;
+
+      if (misfired) {
+        // Get a random sector from the universe (excluding current sector)
+        const randomSectorResult = await client.query(
+          `SELECT sector_number FROM sectors
+           WHERE universe_id = $1 AND sector_number != $2
+           ORDER BY RANDOM()
+           LIMIT 1`,
+          [player.universe_id, player.current_sector]
+        );
+
+        if (randomSectorResult.rows.length > 0) {
+          actualDestination = randomSectorResult.rows[0].sector_number;
+          misfireMessage = `⚠ WARP DRIVE MALFUNCTION! Intended destination: Sector ${destinationSector}, actual arrival: Sector ${actualDestination}`;
+        }
+      }
+
       // Update player location and turns
       const updateResult = await client.query(
         `UPDATE players
@@ -240,7 +263,7 @@ export const moveToSector = async (req: Request, res: Response) => {
            cargo_fuel,
            cargo_organics,
            cargo_equipment`,
-        [destinationSector, turnCost, player.id]
+        [actualDestination, turnCost, player.id]
       );
 
       // Log the movement event
@@ -252,10 +275,12 @@ export const moveToSector = async (req: Request, res: Response) => {
           player.id,
           JSON.stringify({
             from: player.current_sector,
-            to: destinationSector,
+            to: actualDestination,
+            intended: destinationSector,
+            misfired,
             turnCost
           }),
-          destinationSector
+          actualDestination
         ]
       );
 
@@ -279,7 +304,9 @@ export const moveToSector = async (req: Request, res: Response) => {
           cargoOrganics: updatedPlayer.cargo_organics,
           cargoEquipment: updatedPlayer.cargo_equipment
         },
-        turnCost
+        turnCost,
+        misfired,
+        misfireMessage
       });
     } catch (error) {
       await client.query('ROLLBACK');

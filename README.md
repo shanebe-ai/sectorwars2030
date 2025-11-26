@@ -108,6 +108,7 @@ See [server/src/db/schema.sql](server/src/db/schema.sql) for complete schema.
 - **Space trading** - Buy/sell fuel, organics, equipment at ports
 - **Port types** - 8 port configurations for strategic trading routes
 - **Ship progression** - From Scout to Corporate Flagship
+- **Warp drive misfire** - 0.25% chance of malfunction sending you to a random sector
 - **Combat system** - Attack other players and aliens (coming soon)
 - **Planets** - ~30 claimable planets per universe, colonize and produce resources
 - **Corporations** - Form alliances with other players
@@ -165,6 +166,9 @@ Format: `[Fuel][Organics][Equipment]`
   - [x] Turn consumption (1 turn per move)
   - [x] Bidirectional warp connections
   - [x] SectorView component with ASCII art
+  - [x] Warp drive misfire system (0.25% chance of malfunction)
+  - [x] Visited sector tracking with visual indicators
+  - [x] Previous sector navigation (◄ marker)
 - [x] **Port Trading System**
   - [x] GET /api/ports/:sectorNumber - Port details and prices
   - [x] POST /api/ports/trade - Buy/sell commodities

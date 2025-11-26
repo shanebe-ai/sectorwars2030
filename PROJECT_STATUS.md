@@ -182,6 +182,15 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
   - Rejects movement when turns = 0
   - Transaction-safe with automatic rollback
   - Logs movement events to game_events table
+- **Warp Drive Misfire System** ✅
+  - 0.25% chance of warp drive malfunction on each jump
+  - Misfire sends player to random sector instead of destination
+  - Bold pulsing alert message displays on misfire
+  - Screen shake effect for 3 seconds on arrival
+  - Alert persists until player warps again
+- **Navigation History** ✅
+  - Visited sectors tracked with darker green border styling
+  - Previous sector marked with ◄ indicator for easy backtracking
 - **Automated Test Suite** ([server/src/__tests__/](server/src/__tests__/)) ✅
   - Jest + ts-jest testing framework configured
   - 11 automated tests covering:
@@ -249,46 +258,37 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 ## Current Session Context 🎯
 
 **What We Just Did:**
-- ✅ Fixed Earth planet display in Sector 1 (Sol) with Terra Corp ownership
-- ✅ Fixed bidirectional warp system (warps now correctly counted 1-5 per sector)
-- ✅ Implemented Terra Corp as reserved corporation name
-- ✅ **Built complete Port Trading System:**
-  - Port Trading Backend (portService.ts, portController.ts, port routes)
-  - Port Trading UI (PortTradingPanel.tsx with ASCII art interface)
-  - Cargo Management (cargo manifest display in GameDashboard)
-  - Dynamic pricing based on port_xxx_pct percentages
-- ✅ **Fixed Cargo Display Issues:**
-  - Added cargo fields (cargoFuel, cargoOrganics, cargoEquipment) to GET /api/players endpoint
-  - Fixed PortTradingPanel to use local state for real-time cargo updates
-  - Added shipHoldsMax to trade response for proper cargo limit display
-- ✅ **Fixed Admin Panel ASCII Logo Alignment:**
-  - Resolved Unicode box-drawing character alignment issues
-  - Changed from center-align to left-align with flex centering
-  - Logo now properly aligned with login panel
+- ✅ **Implemented Warp Drive Misfire System:**
+  - Server-side misfire logic in sectorController.ts
+  - 0.25% chance of malfunction (configurable MISFIRE_CHANCE constant)
+  - Random sector selection on misfire (excludes current sector)
+  - Response includes misfired flag and misfireMessage
+  - Game event logging includes misfire details
+- ✅ **Enhanced Misfire Alert UI:**
+  - Separate misfireAlert state for prominent display
+  - Bold pink/red pulsing alert box with neon glow
+  - Screen shake animation for 3 seconds on misfire
+  - Alert persists until player warps again (pulsing continues)
+- ✅ **Navigation History Improvements:**
+  - Visited sectors have darker green border (rgba(0, 100, 0, 0.9))
+  - Previous sector marked with ◄ indicator
+  - localStorage persistence for visited sectors tracking
 
-**Port Trading Implementation:**
-- Buy/sell fuel, organics, equipment at trading ports
-- Each commodity shows action (buy/sell), price, quantity
-- MAX button calculates optimal trade amount
-- Cost preview before executing trade
-- Turn consumption per trade
-- Real-time player state updates
-
-**ASCII Art Implementation:**
-- Port types shown with distinctive ASCII symbols: [$], [¥], [€], [£], [₿], [₽], [◊], [■]
-- Planets displayed with (◉) symbol
-- Ship rendered as >===> ASCII sprite
-- Trading port ASCII art interface
-- Cyberpunk color coding: green (ports/safe), cyan (info), pink (danger/other players), purple (planets)
+**Warp Misfire Implementation:**
+- Server: `MISFIRE_CHANCE = 0.0025` (0.25%)
+- On misfire: selects random sector from universe, logs event with intended vs actual destination
+- Client: displays `⚠ WARP DRIVE MALFUNCTION!` alert with shake effect
+- CSS animations: shake (3s) and pulse (infinite while alert visible)
 
 **Servers Currently Running:**
 - Backend: http://localhost:3000 (npm run dev in /home/helloai/server)
-- Client: http://localhost:5173 (npm run dev in /home/helloai/client)
+- Client: http://localhost:5175 (npm run dev in /home/helloai/client)
 - Admin: http://localhost:5174 (npm run dev in /home/helloai/admin)
 
 **Ready For:**
+- Ship communications system
+- Aliens with alien planets and ships
 - Combat system implementation
-- Ship upgrade system
 - Planet colonization (claiming, colonists, production)
 
 ## In Progress 🚧
@@ -562,15 +562,12 @@ When implementing new features:
 ---
 
 **Last Updated:** 2025-11-26 (continuation session)
-**Status:** Port Trading System Complete + UI Polish
-**Current Session:** Fixed cargo display and admin panel logo alignment
+**Status:** Warp Drive Misfire System Complete
+**Current Session:** Implemented warp misfire mechanics with visual effects
 **Recent Changes:**
-- ✅ Fixed Earth planet display with Terra Corp ownership
-- ✅ Fixed bidirectional warp system
-- ✅ Added Terra Corp as reserved corporation name
-- ✅ Created Port Trading Backend (service, controller, routes)
-- ✅ Built PortTradingPanel with cyberpunk ASCII art interface
-- ✅ Integrated cargo management into GameDashboard
-- ✅ Dynamic pricing based on port percentages
-- ✅ Fixed cargo fields in API responses (playerController.ts, portService.ts)
-- ✅ Fixed admin panel ASCII logo alignment (AdminLogin.tsx)
+- ✅ Implemented warp drive misfire system (0.25% chance)
+- ✅ Random sector redirection on misfire
+- ✅ Bold pulsing misfire alert with screen shake effect
+- ✅ Visited sector border styling (darker green)
+- ✅ Previous sector indicator (◄) for navigation history
+- ✅ Alert persists until next warp (no auto-dismiss)

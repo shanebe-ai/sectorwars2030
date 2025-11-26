@@ -61,9 +61,26 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
   const [error, setError] = useState('');
   const [moving, setMoving] = useState(false);
   const [showTrading, setShowTrading] = useState(false);
+  const [previousSector, setPreviousSector] = useState<number | null>(() => {
+    const stored = localStorage.getItem(`previousSector_${player.id}`);
+    return stored ? parseInt(stored) : null;
+  });
+  const [visitedSectors, setVisitedSectors] = useState<Set<number>>(() => {
+    const stored = localStorage.getItem(`visitedSectors_${player.id}`);
+    return stored ? new Set(JSON.parse(stored)) : new Set();
+  });
+  const [misfireAlert, setMisfireAlert] = useState<string | null>(null);
+  const [shaking, setShaking] = useState(false);
 
   useEffect(() => {
     loadSectorDetails();
+    // Mark current sector as visited
+    setVisitedSectors(prev => {
+      const newSet = new Set(prev);
+      newSet.add(currentSector);
+      localStorage.setItem(`visitedSectors_${player.id}`, JSON.stringify([...newSet]));
+      return newSet;
+    });
   }, [currentSector]);
 
   const loadSectorDetails = async () => {
@@ -94,6 +111,10 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
   const moveToSector = async (destination: number) => {
     if (moving) return;
 
+    // Track the sector we're leaving as the previous sector
+    setPreviousSector(currentSector);
+    localStorage.setItem(`previousSector_${player.id}`, currentSector.toString());
+
     setMoving(true);
     setError('');
 
@@ -112,6 +133,16 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
       const data = await response.json();
 
       if (response.ok) {
+        // Check for warp misfire
+        if (data.misfired && data.misfireMessage) {
+          setMisfireAlert(data.misfireMessage);
+          setShaking(true);
+          // Stop shaking after 3 seconds (alert stays visible until next warp)
+          setTimeout(() => setShaking(false), 3000);
+        } else {
+          // Clear any previous misfire alert on successful warp
+          setMisfireAlert(null);
+        }
         // Update parent with new player data
         onSectorChange(data.player);
       } else {
@@ -167,10 +198,28 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
   };
 
   return (
-    <div className="cyberpunk-panel">
+    <div className={`cyberpunk-panel ${shaking ? 'shake' : ''}`}>
       <div className="panel-header">
         ► SECTOR {sector.sectorNumber} {sector.name ? `- ${sector.name.toUpperCase()}` : ''}
       </div>
+
+      {/* Misfire Alert */}
+      {misfireAlert && (
+        <div style={{
+          margin: '20px 20px 0 20px',
+          padding: '15px',
+          background: 'rgba(255, 0, 0, 0.2)',
+          border: '2px solid var(--neon-pink)',
+          color: 'var(--neon-pink)',
+          fontWeight: 'bold',
+          fontSize: '14px',
+          textAlign: 'center',
+          animation: 'pulse 0.5s ease-in-out infinite alternate',
+          boxShadow: '0 0 20px rgba(255, 20, 147, 0.5)'
+        }}>
+          {misfireAlert}
+        </div>
+      )}
 
       <div style={{ padding: '20px' }}>
         {/* ASCII Art Sector Visualization */}
@@ -376,22 +425,37 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
               gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
               gap: '10px'
             }}>
-              {sector.warps.map((warp, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => moveToSector(warp.destination)}
-                  disabled={moving}
-                  className="cyberpunk-button"
-                  style={{
-                    background: 'rgba(0, 255, 0, 0.1)',
-                    borderColor: 'var(--neon-green)',
-                    color: 'var(--neon-green)',
-                    padding: '12px'
-                  }}
-                >
-                  {moving ? '⟳' : '►'} SECTOR {warp.destination}
-                </button>
-              ))}
+              {(() => {
+                // Sort warps: previous sector first, then the rest
+                const sortedWarps = [...sector.warps].sort((a, b) => {
+                  if (a.destination === previousSector) return -1;
+                  if (b.destination === previousSector) return 1;
+                  return 0;
+                });
+
+                return sortedWarps.map((warp, idx) => {
+                  const isVisited = visitedSectors.has(warp.destination);
+                  const isPrevious = warp.destination === previousSector;
+
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => moveToSector(warp.destination)}
+                      disabled={moving}
+                      className="cyberpunk-button"
+                      style={{
+                        background: 'rgba(0, 255, 0, 0.1)',
+                        borderColor: isVisited ? 'rgba(0, 100, 0, 0.9)' : 'var(--neon-green)',
+                        borderWidth: '1px',
+                        color: 'var(--neon-green)',
+                        padding: '12px'
+                      }}
+                    >
+                      {moving ? '⟳' : isPrevious ? '◄' : '►'} SECTOR {warp.destination}
+                    </button>
+                  );
+                });
+              })()}
             </div>
           </div>
         )}
@@ -423,20 +487,56 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
             turnsRemaining: player.turnsRemaining,
             shipHoldsMax: player.shipHoldsMax,
           }}
-          onTradeComplete={(updatedPlayer) => {
-            onSectorChange({
-              ...player,
-              id: player.id,
-              credits: updatedPlayer.credits,
-              turnsRemaining: updatedPlayer.turnsRemaining,
-              cargoFuel: updatedPlayer.cargoFuel,
-              cargoOrganics: updatedPlayer.cargoOrganics,
-              cargoEquipment: updatedPlayer.cargoEquipment,
-            });
+          onTradeComplete={async (updatedPlayer) => {
+            // Fetch the full updated player data from server
+            try {
+              const response = await fetch(`http://localhost:3000/api/players/${player.id}`, {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                },
+              });
+
+              if (response.ok) {
+                const data = await response.json();
+                onSectorChange(data.player);
+              }
+            } catch (err) {
+              console.error('Failed to refresh player data:', err);
+            }
           }}
           onClose={() => setShowTrading(false)}
         />
       )}
+
+      <style>{`
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          10% { transform: translateX(-10px) translateY(-5px); }
+          20% { transform: translateX(10px) translateY(5px); }
+          30% { transform: translateX(-10px) translateY(-5px); }
+          40% { transform: translateX(10px) translateY(5px); }
+          50% { transform: translateX(-10px) translateY(-5px); }
+          60% { transform: translateX(10px) translateY(5px); }
+          70% { transform: translateX(-10px) translateY(-5px); }
+          80% { transform: translateX(10px) translateY(5px); }
+          90% { transform: translateX(-10px) translateY(-5px); }
+        }
+
+        @keyframes pulse {
+          from {
+            opacity: 0.8;
+            box-shadow: 0 0 20px rgba(255, 20, 147, 0.5);
+          }
+          to {
+            opacity: 1;
+            box-shadow: 0 0 30px rgba(255, 20, 147, 0.8);
+          }
+        }
+
+        .shake {
+          animation: shake 0.5s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 }
