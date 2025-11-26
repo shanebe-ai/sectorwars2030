@@ -103,12 +103,13 @@ See [server/src/db/schema.sql](server/src/db/schema.sql) for complete schema.
 ## Game Features
 
 ### Core Game Mechanics
-- **Turn-based gameplay** - Limited turns per day
-- **Space trading** - Buy/sell fuel, organics, equipment
-- **Port types** - 8 port configurations for strategic trading
+- **Turn-based gameplay** - Limited turns per day with automatic regeneration
+- **Turn regeneration** - Turns restore gradually over time (turns_per_day / 24 per hour)
+- **Space trading** - Buy/sell fuel, organics, equipment at ports
+- **Port types** - 8 port configurations for strategic trading routes
 - **Ship progression** - From Scout to Corporate Flagship
-- **Combat system** - Attack other players and aliens
-- **Planets** - Colonize and produce resources
+- **Combat system** - Attack other players and aliens (coming soon)
+- **Planets** - ~30 claimable planets per universe, colonize and produce resources
 - **Corporations** - Form alliances with other players
 - **Territory control** - Deploy fighters and mines
 
@@ -146,39 +147,44 @@ Format: `[Fuel][Organics][Equipment]`
 - [x] Authentication system (JWT + bcrypt)
 - [x] User registration and login API
 - [x] Admin authorization middleware
-- [x] Universe generation service (with minimum 5% ports)
+- [x] Universe generation service (with ~3% planets, 12% ports)
 - [x] Ship types system
 - [x] **Admin Panel (Port 5174)**
   - [x] Purple cyberpunk theme
   - [x] Universe creation UI with defaults
   - [x] Universe management dashboard
-  - [x] Delete functionality
+  - [x] Toggle slider for dead-end sectors
 - [x] **Player Initialization System**
   - [x] Player creation API
   - [x] Starting ship assignment
   - [x] Credits and sector placement
-  - [x] Universe capacity validation
-- [x] **Sector Navigation Backend**
+  - [x] Reserved corporation names (Terra Corp)
+- [x] **Sector Navigation System**
   - [x] GET /api/sectors/:sectorNumber - Sector details with warps
   - [x] POST /api/sectors/move - Move player between sectors
   - [x] Turn consumption (1 turn per move)
-  - [x] Warp connection validation
+  - [x] Bidirectional warp connections
+  - [x] SectorView component with ASCII art
+- [x] **Port Trading System**
+  - [x] GET /api/ports/:sectorNumber - Port details and prices
+  - [x] POST /api/ports/trade - Buy/sell commodities
+  - [x] Dynamic pricing based on port percentage
+  - [x] PortTradingPanel with cyberpunk UI
+  - [x] Cargo manifest display
+- [x] **Turn Regeneration System**
+  - [x] Gradual turn regeneration (turns_per_day / 24 per hour)
+  - [x] Automatic regeneration on player data fetch
+  - [x] Capped at universe's turns_per_day setting
 - [x] **Automated Testing**
   - [x] Jest + ts-jest framework
   - [x] 11 tests for navigation and player creation
   - [x] Run with: `cd server && npm test`
 
 ### In Progress 🚧
-- [ ] **Client Player UI**
-  - [ ] Universe selection screen
-  - [ ] Corporation name input
-  - [ ] Player dashboard
-  - [ ] Sector navigation UI
-- [ ] ASCII art component library
-- [ ] Trading system
-- [ ] Combat system
-- [ ] Planet management
-- [ ] Corporation system
+- [ ] Combat system (attack, defend, loot)
+- [ ] Planet colonization (claim, colonists, production)
+- [ ] Ship upgrade system
+- [ ] Corporation/alliance system
 - [ ] Real-time WebSocket events
 
 ## Running Tests

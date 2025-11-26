@@ -195,3 +195,84 @@ export const hasPlayerInUniverse = async (
 
   return result.rows.length > 0;
 };
+
+/**
+ * Regenerate turns for a player based on time elapsed
+ * Turns regenerate gradually throughout the day based on universe's turns_per_day setting
+ * Returns the updated player with new turn count
+ */
+export const regenerateTurns = async (playerId: number): Promise<Player | null> => {
+  const client = await getClient();
+
+  try {
+    await client.query('BEGIN');
+
+    // Get player with universe settings
+    const playerResult = await client.query(
+      `SELECT p.*, u.turns_per_day
+       FROM players p
+       JOIN universes u ON p.universe_id = u.id
+       WHERE p.id = $1`,
+      [playerId]
+    );
+
+    if (playerResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    const player = playerResult.rows[0];
+    const turnsPerDay = player.turns_per_day || 1000;
+    const lastUpdate = new Date(player.last_turn_update);
+    const now = new Date();
+
+    // Calculate hours elapsed since last update
+    const msElapsed = now.getTime() - lastUpdate.getTime();
+    const hoursElapsed = msElapsed / (1000 * 60 * 60);
+
+    // Calculate turns to add (turns regenerate evenly throughout the day)
+    const turnsPerHour = turnsPerDay / 24;
+    const turnsToAdd = Math.floor(hoursElapsed * turnsPerHour);
+
+    // Only update if there are turns to add
+    if (turnsToAdd > 0) {
+      // Cap at turns_per_day (can't exceed max)
+      const newTurns = Math.min(player.turns_remaining + turnsToAdd, turnsPerDay);
+
+      // Update player turns and last_turn_update
+      const updateResult = await client.query(
+        `UPDATE players
+         SET turns_remaining = $1, last_turn_update = CURRENT_TIMESTAMP
+         WHERE id = $2
+         RETURNING *`,
+        [newTurns, playerId]
+      );
+
+      await client.query('COMMIT');
+
+      console.log(
+        `Regenerated ${turnsToAdd} turns for player ${playerId} (${player.turns_remaining} → ${newTurns})`
+      );
+
+      return updateResult.rows[0];
+    }
+
+    await client.query('COMMIT');
+    return player;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+/**
+ * Get player by ID with turn regeneration
+ * Automatically regenerates turns based on time elapsed
+ */
+export const getPlayerByIdWithTurns = async (playerId: number): Promise<Player | null> => {
+  // First regenerate turns
+  const player = await regenerateTurns(playerId);
+  return player;
+};

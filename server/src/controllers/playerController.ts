@@ -5,6 +5,8 @@ import {
   getPlayerById,
   hasPlayerInUniverse,
   getPlayerByUserAndUniverse,
+  regenerateTurns,
+  getPlayerByIdWithTurns,
 } from '../services/playerService';
 
 /**
@@ -127,7 +129,7 @@ export const getUserPlayers = async (req: Request, res: Response) => {
 
 /**
  * GET /api/players/:id
- * Get specific player details
+ * Get specific player details (with turn regeneration)
  */
 export const getPlayer = async (req: Request, res: Response) => {
   try {
@@ -141,15 +143,23 @@ export const getPlayer = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid player ID' });
     }
 
-    const player = await getPlayerById(playerId);
+    // First check ownership without regenerating turns
+    const playerCheck = await getPlayerById(playerId);
 
-    if (!player) {
+    if (!playerCheck) {
       return res.status(404).json({ error: 'Player not found' });
     }
 
     // Verify player belongs to authenticated user
-    if (player.user_id !== req.user.userId) {
+    if (playerCheck.user_id !== req.user.userId) {
       return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Now regenerate turns and get updated player
+    const player = await getPlayerByIdWithTurns(playerId);
+
+    if (!player) {
+      return res.status(404).json({ error: 'Player not found' });
     }
 
     res.json({
@@ -185,7 +195,7 @@ export const getPlayer = async (req: Request, res: Response) => {
 
 /**
  * GET /api/players/check/:universeId
- * Check if user has a player in a specific universe
+ * Check if user has a player in a specific universe (with turn regeneration)
  */
 export const checkPlayerInUniverse = async (req: Request, res: Response) => {
   try {
@@ -202,7 +212,14 @@ export const checkPlayerInUniverse = async (req: Request, res: Response) => {
     const hasPlayer = await hasPlayerInUniverse(req.user.userId, universeId);
 
     if (hasPlayer) {
-      const player = await getPlayerByUserAndUniverse(req.user.userId, universeId);
+      const playerBase = await getPlayerByUserAndUniverse(req.user.userId, universeId);
+      
+      // Regenerate turns if player exists
+      let player = playerBase;
+      if (playerBase) {
+        player = await regenerateTurns(playerBase.id) || playerBase;
+      }
+
       res.json({
         hasPlayer: true,
         player: player
@@ -213,6 +230,10 @@ export const checkPlayerInUniverse = async (req: Request, res: Response) => {
               credits: player.credits,
               turnsRemaining: player.turns_remaining,
               shipType: player.ship_type,
+              shipHoldsMax: player.ship_holds_max,
+              cargoFuel: player.cargo_fuel,
+              cargoOrganics: player.cargo_organics,
+              cargoEquipment: player.cargo_equipment,
             }
           : null,
       });

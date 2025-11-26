@@ -239,6 +239,12 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
   - Random planet names (e.g., "Alpha Prime", "Nexus Outpost", "Vega Colony")
   - Planets exclude Sector 1 (Earth) and port sectors
   - All generated planets are claimable by players
+- **Turn Regeneration System** ✅
+  - Turns regenerate gradually based on time elapsed since last update
+  - Formula: `turns_per_hour = turns_per_day / 24`
+  - Regeneration happens automatically when player data is fetched
+  - Capped at universe's `turns_per_day` setting (default 1000)
+  - `last_turn_update` timestamp tracks regeneration
 
 ## Current Session Context 🎯
 
@@ -274,9 +280,8 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 
 **Ready For:**
 - Combat system implementation
-- Turn regeneration system
 - Ship upgrade system
-- Planet colonization
+- Planet colonization (claiming, colonists, production)
 
 ## In Progress 🚧
 
@@ -388,7 +393,7 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - [x] Universe generation service ✅
 - [x] Sector navigation logic ✅ (movement + turn consumption)
 - [x] Port trading system ✅ (buy/sell commodities with dynamic pricing)
-- [ ] Turn regeneration system
+- [x] Turn regeneration system ✅ (gradual regeneration based on time elapsed)
 - [ ] Ship upgrade system
 
 ### Phase 6: Advanced Features
