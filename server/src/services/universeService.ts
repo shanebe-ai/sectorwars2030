@@ -240,6 +240,61 @@ export async function generateUniverse(config: UniverseConfig) {
       console.log(`Created Earth planet in Sector 1 (Sol) - owned by Terra Corp`);
     }
 
+    // 6. Generate claimable planets (~3% of sectors, excluding sector 1 and port sectors)
+    const planetPercentage = 3;
+    const planetCount = Math.max(1, Math.floor(maxSectors * (planetPercentage / 100)));
+    const planetSectors = new Set<number>();
+
+    // Planet name prefixes for random generation
+    const planetPrefixes = [
+      'Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Theta', 'Omega',
+      'Nova', 'Nexus', 'Orion', 'Vega', 'Rigel', 'Altair', 'Deneb', 'Sirius',
+      'Kepler', 'Titan', 'Atlas', 'Helios', 'Kronos', 'Hyperion', 'Prometheus'
+    ];
+    const planetSuffixes = ['Prime', 'Major', 'Minor', 'Station', 'Colony', 'Outpost', 'Haven', 'Base'];
+
+    // Select random sectors for planets (excluding sector 1 and port sectors)
+    while (planetSectors.size < planetCount) {
+      const sectorNum = Math.floor(Math.random() * maxSectors) + 1;
+      // Don't place planets in Sol (sector 1) or sectors with ports
+      if (sectorNum !== 1 && !portSectors.has(sectorNum)) {
+        planetSectors.add(sectorNum);
+      }
+    }
+
+    // Create claimable planets
+    let planetsCreated = 0;
+    for (const sectorNum of planetSectors) {
+      const sectorId = sectorIdMap.get(sectorNum);
+      if (!sectorId) continue;
+
+      // Generate random planet name
+      const prefix = planetPrefixes[Math.floor(Math.random() * planetPrefixes.length)];
+      const suffix = planetSuffixes[Math.floor(Math.random() * planetSuffixes.length)];
+      const planetName = `${prefix} ${suffix}`;
+
+      // Create the planet
+      const planetResult = await client.query(
+        `INSERT INTO planets (universe_id, sector_id, name, owner_id, owner_name, ore, fuel, organics, equipment,
+          colonists, fighters, is_claimable, created_at)
+         VALUES ($1, $2, $3, NULL, NULL, 0, 0, 0, 0, 0, 0, TRUE, CURRENT_TIMESTAMP)
+         RETURNING id`,
+        [universeId, sectorId, planetName]
+      );
+
+      const planetId = planetResult.rows[0].id;
+
+      // Update sector to mark it has a planet
+      await client.query(
+        `UPDATE sectors SET has_planet = TRUE, planet_id = $1 WHERE id = $2`,
+        [planetId, sectorId]
+      );
+
+      planetsCreated++;
+    }
+
+    console.log(`Created ${planetsCreated} claimable planets across the universe`);
+
     // Commit transaction
     await client.query('COMMIT');
 
@@ -252,6 +307,7 @@ export async function generateUniverse(config: UniverseConfig) {
         totalSectors: maxSectors,
         portsCreated: portCount,
         warpsCreated: warpInsertPromises.length,
+        planetsCreated: planetsCreated + 1, // +1 for Earth
       },
     };
   } catch (error) {

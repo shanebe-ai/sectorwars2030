@@ -234,6 +234,11 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
   - Cargo limits enforced by ship_holds_max
 - **Reserved Names** ✅
   - Terra Corp is a reserved corporation name (players cannot choose it)
+- **Planet Generation** ✅
+  - ~3% of sectors receive claimable planets during universe generation
+  - Random planet names (e.g., "Alpha Prime", "Nexus Outpost", "Vega Colony")
+  - Planets exclude Sector 1 (Earth) and port sectors
+  - All generated planets are claimable by players
 
 ## Current Session Context 🎯
 
@@ -288,6 +293,16 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 1. **Combat Backend** - Attack/defend mechanics, fighter deployment
 2. **Combat UI** - ASCII art battle animations
 3. **Loot System** - Credits and cargo looting after victories
+
+### Upcoming: Planet Colonization System
+**Priority Order:**
+1. **Planet Generation** ✅ - ~3% of sectors have claimable planets (30 planets in 1000-sector universe)
+2. **Claim Planet API** - POST /api/planets/:id/claim - First player to land claims it
+3. **Planet Management UI** - View owned planets, set production type
+4. **Colonist System** - Transport colonists to planets, population growth
+5. **Planet Production** - Planets produce fuel/organics/equipment based on type
+6. **Planet Defense** - Deploy fighters to protect planets
+7. **Citadel Upgrades** - Build defenses, upgrade production capacity
 
 ## Next Steps 📋
 
@@ -352,7 +367,8 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 
 ### Phase 6: Advanced Features
 - [ ] Combat system
-- [ ] Planet colonization
+- [x] Planet generation (~3% of sectors get claimable planets)
+- [ ] Planet colonization (claim, manage, produce)
 - [ ] Corporation/alliance system
 - [ ] Fighter/mine deployment
 - [ ] Genesis torpedoes
