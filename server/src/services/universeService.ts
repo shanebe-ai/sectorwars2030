@@ -44,28 +44,24 @@ function generatePortType(): PortType | null {
 
 /**
  * Generate warp connections for a sector
- * TW2002-style: Ensures strong connectivity with 2-3 outgoing warps per sector
- * After bidirectional creation, most sectors will have 3-6 total warps
- * Distribution: 2 (most common ~60%), 3 (common ~30%), 1 (rare ~5%), 4-5 (rare ~5%)
+ * TW2002-style: Ensures strong connectivity with 1-3 outgoing warps per sector
+ * After bidirectional creation, most sectors will have 2-5 total warps
+ * Distribution: 2 (most common ~65%), 1 (common ~25%), 3 (less common ~10%)
  * Dead-ends are very rare (~0.25%) when allowDeadEnds is true, otherwise guaranteed 1+ warps
  */
 function generateWarps(sectorNumber: number, totalSectors: number, allowDeadEnds: boolean = false): number[] {
-  // Weighted random: 2-3 warps most common to ensure connectivity
+  // Weighted random: 1-2 warps most common, 3 max to avoid over-connected sectors
   const rand = Math.random();
   let warpCount: number;
 
   if (allowDeadEnds && rand < 0.0025) {
     warpCount = 0; // 0.25% chance - dead-end (only if explicitly allowed)
-  } else if (rand < 0.60) {
-    warpCount = 2; // 60% chance - most common (ensures minimum connectivity)
+  } else if (rand < 0.65) {
+    warpCount = 2; // 65% chance - most common (good connectivity)
   } else if (rand < 0.90) {
-    warpCount = 3; // 30% chance - common
-  } else if (rand < 0.95) {
-    warpCount = 1; // 5% chance - rare (will get bidirectional warps from others)
-  } else if (rand < 0.985) {
-    warpCount = 4; // 3.5% chance - rare
+    warpCount = 1; // 25% chance - common (will get bidirectional warps from others)
   } else {
-    warpCount = 5; // 1.5% chance - very rare
+    warpCount = 3; // 10% chance - less common (junction sectors)
   }
 
   const warps = new Set<number>();
