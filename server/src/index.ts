@@ -9,6 +9,7 @@ import universeRoutes from './routes/universe';
 import playerRoutes from './routes/player';
 import sectorRoutes from './routes/sector';
 import portRoutes from './routes/port';
+import messageRoutes from './routes/messages';
 
 dotenv.config();
 
@@ -72,6 +73,9 @@ app.use('/api/sectors', sectorRoutes);
 
 // Port routes
 app.use('/api/ports', portRoutes);
+
+// Message routes
+app.use('/api/messages', messageRoutes);
 
 // WebSocket connection handling
 io.on('connection', (socket) => {

@@ -191,6 +191,36 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - **Navigation History** ✅
   - Visited sectors tracked with darker green border styling
   - Previous sector marked with ◄ indicator for easy backtracking
+
+### 15. Ship Communications System (FULLY WORKING!)
+- **Message Service** ([server/src/services/messageService.ts](server/src/services/messageService.ts)) ✅
+  - `sendMessage()` - Send message to another player in same universe
+  - `getInbox()` - Get inbox messages for a player
+  - `getSentMessages()` - Get sent messages history
+  - `getMessage()` - Get specific message (auto-marks as read)
+  - `markAsRead()` - Mark message as read
+  - `deleteMessage()` - Soft delete (per-user deletion)
+  - `getUnreadCount()` - Get count of unread messages
+  - `getPlayersInSector()` - Get other players in same sector for messaging
+- **Message Controller & Routes** ✅
+  - POST /api/messages - Send a message
+  - GET /api/messages/inbox - Get inbox messages
+  - GET /api/messages/sent - Get sent messages
+  - GET /api/messages/:id - Get specific message
+  - PUT /api/messages/:id/read - Mark as read
+  - DELETE /api/messages/:id - Delete message
+  - GET /api/messages/unread-count - Get unread count
+  - GET /api/messages/players-in-sector - Get players available to message
+- **MessagingPanel Component** ([client/src/components/MessagingPanel.tsx](client/src/components/MessagingPanel.tsx)) ✅
+  - Inbox view with unread indicators
+  - Sent messages view
+  - Compose message form with recipient selection
+  - Read message view with reply/delete options
+  - Cyberpunk-themed modal interface
+- **GameDashboard Integration** ✅
+  - COMMS button in header with unread badge
+  - Unread count fetched on mount
+  - Real-time count updates when reading messages
 - **Automated Test Suite** ([server/src/__tests__/](server/src/__tests__/)) ✅
   - Jest + ts-jest testing framework configured
   - 11 automated tests covering:
@@ -258,27 +288,26 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 ## Current Session Context 🎯
 
 **What We Just Did:**
-- ✅ **Implemented Warp Drive Misfire System:**
-  - Server-side misfire logic in sectorController.ts
-  - 0.25% chance of malfunction (configurable MISFIRE_CHANCE constant)
-  - Random sector selection on misfire (excludes current sector)
-  - Response includes misfired flag and misfireMessage
-  - Game event logging includes misfire details
-- ✅ **Enhanced Misfire Alert UI:**
-  - Separate misfireAlert state for prominent display
-  - Bold pink/red pulsing alert box with neon glow
-  - Screen shake animation for 3 seconds on misfire
-  - Alert persists until player warps again (pulsing continues)
-- ✅ **Navigation History Improvements:**
-  - Visited sectors have darker green border (rgba(0, 100, 0, 0.9))
-  - Previous sector marked with ◄ indicator
-  - localStorage persistence for visited sectors tracking
+- ✅ **Implemented Ship Communications System:**
+  - Created messages database table with soft delete support
+  - Built messageService.ts with full CRUD operations
+  - Created messageController.ts with all API endpoints
+  - Added message routes to server index.ts
+  - Built MessagingPanel.tsx with inbox/sent/compose views
+  - Integrated COMMS button into GameDashboard header
+  - Added unread message count badge indicator
+- ✅ **Fixed Warp Count Issue:**
+  - Reduced max outgoing warps from 5 to 3
+  - New distribution: 65% get 2, 25% get 1, 10% get 3
+  - With bidirectional warps, sectors now have ~2-5 total warps
 
-**Warp Misfire Implementation:**
-- Server: `MISFIRE_CHANCE = 0.0025` (0.25%)
-- On misfire: selects random sector from universe, logs event with intended vs actual destination
-- Client: displays `⚠ WARP DRIVE MALFUNCTION!` alert with shake effect
-- CSS animations: shake (3s) and pulse (infinite while alert visible)
+**Ship Communications Features:**
+- Players can message other ships in their sector
+- Messages stored in "ship computer" for offline players
+- Inbox/Sent views with unread indicators
+- Compose form with recipient dropdown
+- Read message view with reply/delete options
+- Unread count badge on COMMS button
 
 **Servers Currently Running:**
 - Backend: http://localhost:3000 (npm run dev in /home/helloai/server)
@@ -286,10 +315,10 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - Admin: http://localhost:5174 (npm run dev in /home/helloai/admin)
 
 **Ready For:**
-- Ship communications system
 - Aliens with alien planets and ships
 - Combat system implementation
 - Planet colonization (claiming, colonists, production)
+- Port creation system
 
 ## In Progress 🚧
 
@@ -562,12 +591,12 @@ When implementing new features:
 ---
 
 **Last Updated:** 2025-11-26 (continuation session)
-**Status:** Warp Drive Misfire System Complete
-**Current Session:** Implemented warp misfire mechanics with visual effects
+**Status:** Ship Communications System Complete
+**Current Session:** Implemented ship messaging system
 **Recent Changes:**
-- ✅ Implemented warp drive misfire system (0.25% chance)
-- ✅ Random sector redirection on misfire
-- ✅ Bold pulsing misfire alert with screen shake effect
-- ✅ Visited sector border styling (darker green)
-- ✅ Previous sector indicator (◄) for navigation history
-- ✅ Alert persists until next warp (no auto-dismiss)
+- ✅ Created messages database table with migration
+- ✅ Built messageService.ts and messageController.ts
+- ✅ Added message API routes (inbox, sent, compose, read, delete)
+- ✅ Built MessagingPanel.tsx with full UI
+- ✅ Integrated COMMS button with unread badge in GameDashboard
+- ✅ Fixed warp count distribution (max 3 outgoing, ~2-5 total)

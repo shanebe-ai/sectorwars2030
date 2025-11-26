@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import SectorView from './SectorView';
+import MessagingPanel from './MessagingPanel';
 
 interface GameDashboardProps {
   player: any;
@@ -9,6 +10,26 @@ interface GameDashboardProps {
 
 export default function GameDashboard({ player: initialPlayer, token, onLogout }: GameDashboardProps) {
   const [player, setPlayer] = useState(initialPlayer);
+  const [showMessaging, setShowMessaging] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Fetch unread message count on mount
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      try {
+        const response = await fetch('http://localhost:3000/api/messages/unread-count', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        if (response.ok) {
+          setUnreadCount(data.unreadCount);
+        }
+      } catch (err) {
+        // Silent fail
+      }
+    };
+    fetchUnreadCount();
+  }, [token]);
 
   const handleSectorChange = (updatedPlayer: any) => {
     setPlayer(updatedPlayer);
@@ -39,13 +60,46 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
               {player.shipType.toUpperCase()} • SECTOR {player.currentSector}
             </div>
           </div>
-          <button onClick={onLogout} className="cyberpunk-button" style={{
-            background: 'rgba(255, 20, 147, 0.1)',
-            borderColor: 'var(--neon-pink)',
-            color: 'var(--neon-pink)'
-          }}>
-            ◄ LOGOUT
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              onClick={() => setShowMessaging(true)}
+              className="cyberpunk-button"
+              style={{
+                background: 'rgba(0, 255, 255, 0.1)',
+                borderColor: 'var(--neon-cyan)',
+                color: 'var(--neon-cyan)',
+                position: 'relative'
+              }}
+            >
+              ✉ COMMS
+              {unreadCount > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '-8px',
+                  right: '-8px',
+                  background: 'var(--neon-pink)',
+                  color: '#000',
+                  borderRadius: '50%',
+                  width: '20px',
+                  height: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '11px',
+                  fontWeight: 'bold'
+                }}>
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+            <button onClick={onLogout} className="cyberpunk-button" style={{
+              background: 'rgba(255, 20, 147, 0.1)',
+              borderColor: 'var(--neon-pink)',
+              color: 'var(--neon-pink)'
+            }}>
+              ◄ LOGOUT
+            </button>
+          </div>
         </div>
 
         {/* Player Stats */}
@@ -128,6 +182,15 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
           onSectorChange={handleSectorChange}
         />
       </div>
+
+      {/* Messaging Panel */}
+      {showMessaging && (
+        <MessagingPanel
+          token={token}
+          onClose={() => setShowMessaging(false)}
+          onUnreadCountChange={setUnreadCount}
+        />
+      )}
 
       <style>{`
         .stat-box {

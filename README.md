@@ -109,6 +109,7 @@ See [server/src/db/schema.sql](server/src/db/schema.sql) for complete schema.
 - **Port types** - 8 port configurations for strategic trading routes
 - **Ship progression** - From Scout to Corporate Flagship
 - **Warp drive misfire** - 0.25% chance of malfunction sending you to a random sector
+- **Ship communications** - Message other ships in your sector, stored for offline players
 - **Combat system** - Attack other players and aliens (coming soon)
 - **Planets** - ~30 claimable planets per universe, colonize and produce resources
 - **Corporations** - Form alliances with other players
@@ -179,6 +180,12 @@ Format: `[Fuel][Organics][Equipment]`
   - [x] Gradual turn regeneration (turns_per_day / 24 per hour)
   - [x] Automatic regeneration on player data fetch
   - [x] Capped at universe's turns_per_day setting
+- [x] **Ship Communications System**
+  - [x] Send messages to other ships in your sector
+  - [x] Messages stored in "ship computer" for offline players
+  - [x] Inbox/Sent message views
+  - [x] Unread message count badge
+  - [x] Reply and delete functionality
 - [x] **Automated Testing**
   - [x] Jest + ts-jest framework
   - [x] 11 tests for navigation and player creation
