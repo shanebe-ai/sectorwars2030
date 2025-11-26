@@ -55,18 +55,19 @@ export const getSectorDetails = async (req: Request, res: Response) => {
     const sector = sectorResult.rows[0];
 
     // Get warps for this sector (bidirectional lookup)
-    // Look for warps FROM this sector AND warps TO this sector
+    // Look for warps FROM this sector AND warps TO this sector (filtered by universe)
     const warpsResult = await pool.query(
       `SELECT DISTINCT
         CASE
-          WHEN sector_id = $1 THEN destination_sector_number
+          WHEN sw.sector_id = $1 THEN sw.destination_sector_number
           ELSE (SELECT sector_number FROM sectors WHERE id = sw.sector_id)
         END as destination,
-        is_two_way
+        sw.is_two_way
        FROM sector_warps sw
-       WHERE sector_id = $1 OR destination_sector_number = $2
+       JOIN sectors s ON sw.sector_id = s.id
+       WHERE s.universe_id = $3 AND (sw.sector_id = $1 OR sw.destination_sector_number = $2)
        ORDER BY destination`,
-      [sector.id, sector.sector_number]
+      [sector.id, sector.sector_number, universeId]
     );
 
     const warps = warpsResult.rows.map(w => ({

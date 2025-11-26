@@ -572,6 +572,8 @@ When implementing new features:
 
 **IMPORTANT:** This `PROJECT_STATUS.md` file serves as the primary memory and context for AI assistants working on this project.
 
+**⚠️ DO NOT USE IDEAS.md** - That file is for the user's personal notes only. AI assistants should not read from or write to IDEAS.md.
+
 **Always keep updated:**
 - `PROJECT_STATUS.md` - Current state, completed features, bugs, session context
 - `README.md` - User-facing documentation, setup instructions, feature list
