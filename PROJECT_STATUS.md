@@ -257,6 +257,14 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
   - Port Trading UI (PortTradingPanel.tsx with ASCII art interface)
   - Cargo Management (cargo manifest display in GameDashboard)
   - Dynamic pricing based on port_xxx_pct percentages
+- ✅ **Fixed Cargo Display Issues:**
+  - Added cargo fields (cargoFuel, cargoOrganics, cargoEquipment) to GET /api/players endpoint
+  - Fixed PortTradingPanel to use local state for real-time cargo updates
+  - Added shipHoldsMax to trade response for proper cargo limit display
+- ✅ **Fixed Admin Panel ASCII Logo Alignment:**
+  - Resolved Unicode box-drawing character alignment issues
+  - Changed from center-align to left-align with flex centering
+  - Logo now properly aligned with login panel
 
 **Port Trading Implementation:**
 - Buy/sell fuel, organics, equipment at trading ports
@@ -554,8 +562,8 @@ When implementing new features:
 ---
 
 **Last Updated:** 2025-11-26 (continuation session)
-**Status:** Port Trading System Complete (Frontend + Backend)
-**Current Session:** Implemented full port trading system with ASCII art UI
+**Status:** Port Trading System Complete + UI Polish
+**Current Session:** Fixed cargo display and admin panel logo alignment
 **Recent Changes:**
 - ✅ Fixed Earth planet display with Terra Corp ownership
 - ✅ Fixed bidirectional warp system
@@ -564,3 +572,5 @@ When implementing new features:
 - ✅ Built PortTradingPanel with cyberpunk ASCII art interface
 - ✅ Integrated cargo management into GameDashboard
 - ✅ Dynamic pricing based on port percentages
+- ✅ Fixed cargo fields in API responses (playerController.ts, portService.ts)
+- ✅ Fixed admin panel ASCII logo alignment (AdminLogin.tsx)

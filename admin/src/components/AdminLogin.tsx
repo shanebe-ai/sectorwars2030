@@ -6,7 +6,7 @@ const logo = `
 ███████║██║  ██║██╔████╔██║██║██╔██╗ ██║    ██████╔╝███████║██╔██╗ ██║█████╗  ██║
 ██╔══██║██║  ██║██║╚██╔╝██║██║██║╚██╗██║    ██╔═══╝ ██╔══██║██║╚██╗██║██╔══╝  ██║
 ██║  ██║██████╔╝██║ ╚═╝ ██║██║██║ ╚████║    ██║     ██║  ██║██║ ╚████║███████╗███████╗
-╚═╝  ╚═╝╚═════╝ ╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝    ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝╚══════╝
+ ╚═╝  ╚═╝╚═════╝ ╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝    ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝╚══════╝
 `;
 
 interface AdminLoginProps {
@@ -53,16 +53,18 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
   return (
     <div className="cyberpunk-container" style={{ padding: '40px 20px' }}>
       <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-        <pre className="ascii-art" style={{
-          marginBottom: '20px',
-          textAlign: 'center',
-          color: 'var(--neon-purple)',
-          textShadow: '0 0 10px rgba(157, 0, 255, 0.8)',
-          fontSize: '10px',
-          lineHeight: '1.1'
-        }}>
-          {logo}
-        </pre>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+          <pre className="ascii-art" style={{
+            textAlign: 'left',
+            color: 'var(--neon-purple)',
+            textShadow: '0 0 10px rgba(157, 0, 255, 0.8)',
+            fontSize: '10px',
+            lineHeight: '1.1',
+            margin: 0
+          }}>
+            {logo}
+          </pre>
+        </div>
 
         <div className="cyberpunk-panel" style={{
           maxWidth: '500px',

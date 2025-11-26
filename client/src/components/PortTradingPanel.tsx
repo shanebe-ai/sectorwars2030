@@ -37,7 +37,7 @@ interface PortTradingPanelProps {
 export default function PortTradingPanel({
   sectorNumber,
   token,
-  player,
+  player: initialPlayer,
   onTradeComplete,
   onClose,
 }: PortTradingPanelProps) {
@@ -46,6 +46,7 @@ export default function PortTradingPanel({
   const [error, setError] = useState('');
   const [trading, setTrading] = useState(false);
   const [tradeResult, setTradeResult] = useState<string | null>(null);
+  const [player, setPlayer] = useState<PlayerCargo>(initialPlayer);
   const [quantities, setQuantities] = useState({
     fuel: 0,
     organics: 0,
@@ -129,6 +130,15 @@ export default function PortTradingPanel({
               },
             },
           };
+        });
+        // Update local player state
+        setPlayer({
+          credits: data.player.credits,
+          cargoFuel: data.player.cargoFuel,
+          cargoOrganics: data.player.cargoOrganics,
+          cargoEquipment: data.player.cargoEquipment,
+          turnsRemaining: data.player.turnsRemaining,
+          shipHoldsMax: data.player.shipHoldsMax,
         });
         // Reset quantity input
         setQuantities((prev) => ({ ...prev, [commodity]: 0 }));
