@@ -28,9 +28,22 @@ export default function Login({ onLogin }: LoginProps) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Simple email validation regex
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Validate email format when registering
+    if (isRegistering && !isValidEmail(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -178,6 +191,9 @@ export default function Login({ onLogin }: LoginProps) {
                 onClick={() => {
                   setIsRegistering(!isRegistering);
                   setError('');
+                  setUsername('');
+                  setEmail('');
+                  setPassword('');
                 }}
                 style={{
                   fontSize: '12px',

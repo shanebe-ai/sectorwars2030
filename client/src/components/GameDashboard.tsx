@@ -81,10 +81,50 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
           </div>
         </div>
 
+        {/* Cargo Display */}
+        <div className="cyberpunk-panel" style={{ marginBottom: '30px' }}>
+          <div className="panel-header">► CARGO MANIFEST</div>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+            gap: '15px',
+            padding: '10px 0'
+          }}>
+            <div className="cargo-box" style={{ borderColor: '#ff6b35' }}>
+              <div className="cargo-label" style={{ color: '#ff6b35' }}>⚡ FUEL</div>
+              <div className="cargo-value">{player.cargoFuel || 0}</div>
+            </div>
+            <div className="cargo-box" style={{ borderColor: '#7bed9f' }}>
+              <div className="cargo-label" style={{ color: '#7bed9f' }}>🌿 ORGANICS</div>
+              <div className="cargo-value">{player.cargoOrganics || 0}</div>
+            </div>
+            <div className="cargo-box" style={{ borderColor: '#70a1ff' }}>
+              <div className="cargo-label" style={{ color: '#70a1ff' }}>⚙ EQUIPMENT</div>
+              <div className="cargo-value">{player.cargoEquipment || 0}</div>
+            </div>
+            <div className="cargo-box" style={{ borderColor: 'var(--neon-cyan)' }}>
+              <div className="cargo-label" style={{ color: 'var(--neon-cyan)' }}>TOTAL USED</div>
+              <div className="cargo-value">
+                {(player.cargoFuel || 0) + (player.cargoOrganics || 0) + (player.cargoEquipment || 0)}/{player.shipHoldsMax}
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Sector Navigation */}
         <SectorView
           currentSector={player.currentSector}
           token={token}
+          currentPlayerId={player.id}
+          player={{
+            id: player.id,
+            credits: player.credits,
+            turnsRemaining: player.turnsRemaining,
+            shipHoldsMax: player.shipHoldsMax,
+            cargoFuel: player.cargoFuel || 0,
+            cargoOrganics: player.cargoOrganics || 0,
+            cargoEquipment: player.cargoEquipment || 0,
+          }}
           onSectorChange={handleSectorChange}
         />
       </div>
@@ -108,6 +148,26 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
         .stat-box-value {
           font-size: 24px;
           color: var(--neon-cyan);
+          font-weight: bold;
+        }
+
+        .cargo-box {
+          text-align: center;
+          padding: 12px;
+          background: rgba(0, 0, 0, 0.3);
+          border: 1px solid var(--neon-cyan);
+        }
+
+        .cargo-label {
+          font-size: 11px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          margin-bottom: 6px;
+        }
+
+        .cargo-value {
+          font-size: 20px;
+          color: var(--text-primary);
           font-weight: bold;
         }
       `}</style>

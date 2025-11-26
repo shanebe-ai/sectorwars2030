@@ -54,17 +54,23 @@ export const getSectorDetails = async (req: Request, res: Response) => {
 
     const sector = sectorResult.rows[0];
 
-    // Get warps for this sector
+    // Get warps for this sector (bidirectional lookup)
+    // Look for warps FROM this sector AND warps TO this sector
     const warpsResult = await pool.query(
-      `SELECT destination_sector_number, is_two_way
-       FROM sector_warps
-       WHERE sector_id = $1
-       ORDER BY destination_sector_number`,
-      [sector.id]
+      `SELECT DISTINCT
+        CASE
+          WHEN sector_id = $1 THEN destination_sector_number
+          ELSE (SELECT sector_number FROM sectors WHERE id = sw.sector_id)
+        END as destination,
+        is_two_way
+       FROM sector_warps sw
+       WHERE sector_id = $1 OR destination_sector_number = $2
+       ORDER BY destination`,
+      [sector.id, sector.sector_number]
     );
 
     const warps = warpsResult.rows.map(w => ({
-      destination: w.destination_sector_number,
+      destination: w.destination,
       isTwoWay: w.is_two_way
     }));
 
@@ -92,6 +98,29 @@ export const getSectorDetails = async (req: Request, res: Response) => {
       username: p.username
     }));
 
+    // Get planet data if sector has a planet
+    let planets = [];
+    if (sector.has_planet) {
+      const planetsResult = await pool.query(
+        `SELECT
+          pl.id,
+          pl.name,
+          pl.owner_id,
+          COALESCE(pl.owner_name, p.corp_name) as owner_name
+        FROM planets pl
+        LEFT JOIN players p ON pl.owner_id = p.id
+        WHERE pl.sector_id = $1`,
+        [sector.id]
+      );
+
+      planets = planetsResult.rows.map(pl => ({
+        id: pl.id,
+        name: pl.name,
+        ownerId: pl.owner_id,
+        ownerName: pl.owner_name
+      }));
+    }
+
     res.json({
       sector: {
         sectorNumber: sector.sector_number,
@@ -104,7 +133,8 @@ export const getSectorDetails = async (req: Request, res: Response) => {
         fightersCount: sector.fighters_count,
         minesCount: sector.mines_count,
         warps,
-        players
+        players,
+        planets
       }
     });
   } catch (error) {
@@ -162,11 +192,13 @@ export const moveToSector = async (req: Request, res: Response) => {
         return res.status(400).json({ error: 'Not enough turns remaining' });
       }
 
-      // Check if the destination sector is connected via a warp
+      // Check if the destination sector is connected via a warp (bidirectional check)
       const warpResult = await client.query(
         `SELECT id FROM sector_warps
-         WHERE sector_id = $1 AND destination_sector_number = $2`,
-        [player.current_sector_id, destinationSector]
+         WHERE (sector_id = $1 AND destination_sector_number = $2)
+            OR (sector_id IN (SELECT id FROM sectors WHERE sector_number = $2 AND universe_id = $3)
+                AND destination_sector_number = $4)`,
+        [player.current_sector_id, destinationSector, player.universe_id, player.current_sector]
       );
 
       if (warpResult.rows.length === 0) {

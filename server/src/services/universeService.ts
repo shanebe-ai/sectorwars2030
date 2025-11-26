@@ -10,6 +10,7 @@ interface UniverseConfig {
   startingCredits?: number;
   startingShipType?: string;
   portPercentage?: number; // Percentage of sectors with ports (default 12%)
+  allowDeadEnds?: boolean; // Allow dead-end sectors (~0.25% chance)
   createdBy: number;
 }
 
@@ -43,12 +44,33 @@ function generatePortType(): PortType | null {
 
 /**
  * Generate warp connections for a sector
- * Each sector has 2-6 bidirectional warps
+ * TW2002-style: Ensures strong connectivity with 2-3 outgoing warps per sector
+ * After bidirectional creation, most sectors will have 3-6 total warps
+ * Distribution: 2 (most common ~60%), 3 (common ~30%), 1 (rare ~5%), 4-5 (rare ~5%)
+ * Dead-ends are very rare (~0.25%) when allowDeadEnds is true, otherwise guaranteed 1+ warps
  */
-function generateWarps(sectorNumber: number, totalSectors: number): number[] {
-  const warpCount = Math.floor(Math.random() * 5) + 2; // 2-6 warps
+function generateWarps(sectorNumber: number, totalSectors: number, allowDeadEnds: boolean = false): number[] {
+  // Weighted random: 2-3 warps most common to ensure connectivity
+  const rand = Math.random();
+  let warpCount: number;
+
+  if (allowDeadEnds && rand < 0.0025) {
+    warpCount = 0; // 0.25% chance - dead-end (only if explicitly allowed)
+  } else if (rand < 0.60) {
+    warpCount = 2; // 60% chance - most common (ensures minimum connectivity)
+  } else if (rand < 0.90) {
+    warpCount = 3; // 30% chance - common
+  } else if (rand < 0.95) {
+    warpCount = 1; // 5% chance - rare (will get bidirectional warps from others)
+  } else if (rand < 0.985) {
+    warpCount = 4; // 3.5% chance - rare
+  } else {
+    warpCount = 5; // 1.5% chance - very rare
+  }
+
   const warps = new Set<number>();
 
+  // Generate random destinations
   while (warps.size < warpCount) {
     const destination = Math.floor(Math.random() * totalSectors) + 1;
     if (destination !== sectorNumber) {
@@ -72,6 +94,7 @@ export async function generateUniverse(config: UniverseConfig) {
     startingCredits = 2000,
     startingShipType = 'scout',
     portPercentage = 12,
+    allowDeadEnds = false,
     createdBy,
   } = config;
 
@@ -124,7 +147,7 @@ export async function generateUniverse(config: UniverseConfig) {
         name: i === 1 ? 'Sol (Earth)' : undefined,
         portType: hasPort ? generatePortType() || undefined : undefined,
         portClass: hasPort ? Math.floor(Math.random() * 3) + 1 : undefined, // Class 1-3
-        warps: generateWarps(i, maxSectors),
+        warps: generateWarps(i, maxSectors, allowDeadEnds),
       };
       sectors.push(sector);
     }
@@ -167,6 +190,8 @@ export async function generateUniverse(config: UniverseConfig) {
     console.log(`Inserted ${sectorResults.length} sectors into database`);
 
     // 4. Insert warp connections in batch
+    // Note: Warps are two-way, so we only insert once per connection
+    // The sector controller handles bidirectional lookups
     const warpInsertPromises: Promise<any>[] = [];
 
     for (const sector of sectors) {
@@ -174,10 +199,15 @@ export async function generateUniverse(config: UniverseConfig) {
       if (!sectorId) continue;
 
       for (const destNumber of sector.warps) {
+        const destSectorId = sectorIdMap.get(destNumber);
+        if (!destSectorId) continue;
+
+        // Create warp: sector → destination (two-way)
         warpInsertPromises.push(
           client.query(
             `INSERT INTO sector_warps (sector_id, destination_sector_number, is_two_way)
-             VALUES ($1, $2, TRUE)`,
+             VALUES ($1, $2, TRUE)
+             ON CONFLICT DO NOTHING`,
             [sectorId, destNumber]
           )
         );
@@ -186,6 +216,29 @@ export async function generateUniverse(config: UniverseConfig) {
 
     await Promise.all(warpInsertPromises);
     console.log(`Inserted ${warpInsertPromises.length} warp connections`);
+
+    // 5. Create Earth planet in Sector 1 (Sol) - owned by Terra Corp (unclaimable)
+    const sector1Id = sectorIdMap.get(1);
+    if (sector1Id) {
+      // Create Earth planet (unclaimable - owned by Terra Corp)
+      const planetResult = await client.query(
+        `INSERT INTO planets (universe_id, sector_id, name, owner_id, owner_name, ore, fuel, organics, equipment,
+          colonists, fighters, is_claimable, created_at)
+         VALUES ($1, $2, $3, NULL, 'Terra Corp', 0, 0, 0, 0, 0, 0, FALSE, CURRENT_TIMESTAMP)
+         RETURNING id`,
+        [universeId, sector1Id, 'Earth']
+      );
+
+      const planetId = planetResult.rows[0].id;
+
+      // Update sector to mark it has a planet
+      await client.query(
+        `UPDATE sectors SET has_planet = TRUE, planet_id = $1 WHERE id = $2`,
+        [planetId, sector1Id]
+      );
+
+      console.log(`Created Earth planet in Sector 1 (Sol) - owned by Terra Corp`);
+    }
 
     // Commit transaction
     await client.query('COMMIT');

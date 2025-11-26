@@ -30,6 +30,7 @@ export const createUniverse = async (req: Request, res: Response) => {
       startingCredits,
       startingShipType,
       portPercentage,
+      allowDeadEnds,
     } = req.body;
 
     // Validation
@@ -52,6 +53,7 @@ export const createUniverse = async (req: Request, res: Response) => {
       startingCredits,
       startingShipType,
       portPercentage,
+      allowDeadEnds: allowDeadEnds === true,
       createdBy: req.user.userId,
     });
 

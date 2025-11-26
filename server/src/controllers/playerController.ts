@@ -34,6 +34,14 @@ export const initializePlayer = async (req: Request, res: Response) => {
         .json({ error: 'Corporation name must be between 3 and 100 characters' });
     }
 
+    // Reserved corporation names (NPC factions)
+    const reservedNames = ['terra corp', 'terracorp'];
+    if (reservedNames.includes(corpName.trim().toLowerCase())) {
+      return res
+        .status(400)
+        .json({ error: 'This corporation name is reserved' });
+    }
+
     console.log(
       `User ${req.user.username} initializing player in universe ${universeId}`
     );
@@ -103,6 +111,9 @@ export const getUserPlayers = async (req: Request, res: Response) => {
         experience: p.experience,
         alignment: p.alignment,
         shipType: p.ship_type,
+        shipHoldsMax: p.ship_holds_max,
+        shipFighters: p.ship_fighters,
+        shipShields: p.ship_shields,
         isAlive: p.is_alive,
         createdAt: p.created_at,
       })),

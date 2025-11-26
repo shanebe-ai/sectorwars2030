@@ -208,21 +208,58 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 ### 13. Bug Fixes Applied
 - ✅ **Fixed: Player sector assignment bug** - Players were being assigned `sectors.id` (database primary key) instead of `sector_number`. This caused players to appear in "sector 1151" when they should be in sector 1.
 - ✅ **Fixed: Universe minimum ports** - Enforced minimum 5% ports and at least 1 port for small universes. Sol (sector 1) excluded from ports for safe starting zone.
+- ✅ **Fixed: Warp count bug** - Warps were being doubled (A→B and B→A). Now stored once with bidirectional lookup.
+- ✅ **Fixed: Earth planet display** - Added automatic Earth planet creation in Sector 1 during universe generation.
+- ✅ **Fixed: Terra Corp ownership** - Earth displays "Owner: Terra Corp" as unclaimable NPC planet.
+
+### 14. Port Trading System (FULLY WORKING!)
+- **Port Service** ([server/src/services/portService.ts](server/src/services/portService.ts)) ✅
+  - `getPortInfo()` - Retrieves port commodities, prices, and available actions
+  - `executeTrade()` - Handles buy/sell transactions with validation
+  - Dynamic pricing based on port percentage (port_xxx_pct)
+  - Turn consumption per trade
+  - Transaction logging to game_events table
+- **Port Controller** ([server/src/controllers/portController.ts](server/src/controllers/portController.ts)) ✅
+  - GET /api/ports/:sectorNumber - Get port details
+  - POST /api/ports/trade - Execute commodity trade
+- **PortTradingPanel Component** ([client/src/components/PortTradingPanel.tsx](client/src/components/PortTradingPanel.tsx)) ✅
+  - ASCII art port interface with cyberpunk styling
+  - Commodity display with color-coded icons (fuel=orange, organics=green, equipment=blue)
+  - Quantity input with MAX button for optimal trading
+  - Cost preview before trade execution
+  - Real-time player stats update (credits, cargo, turns)
+- **Cargo Management** ✅
+  - GameDashboard displays cargo manifest (fuel, organics, equipment, total)
+  - SectorView passes player cargo data to trading panel
+  - Cargo limits enforced by ship_holds_max
+- **Reserved Names** ✅
+  - Terra Corp is a reserved corporation name (players cannot choose it)
 
 ## Current Session Context 🎯
 
 **What We Just Did:**
-- ✅ Created complete sector navigation frontend with ASCII art visualization
-- ✅ Built SectorView component with cyberpunk-themed sector display
-- ✅ Integrated sector navigation into GameDashboard
-- ✅ Implemented interactive warp travel with turn consumption
-- ✅ Added port/planet/player detection visuals with ASCII art
-- ✅ Real-time player state updates on movement
+- ✅ Fixed Earth planet display in Sector 1 (Sol) with Terra Corp ownership
+- ✅ Fixed bidirectional warp system (warps now correctly counted 1-5 per sector)
+- ✅ Implemented Terra Corp as reserved corporation name
+- ✅ **Built complete Port Trading System:**
+  - Port Trading Backend (portService.ts, portController.ts, port routes)
+  - Port Trading UI (PortTradingPanel.tsx with ASCII art interface)
+  - Cargo Management (cargo manifest display in GameDashboard)
+  - Dynamic pricing based on port_xxx_pct percentages
+
+**Port Trading Implementation:**
+- Buy/sell fuel, organics, equipment at trading ports
+- Each commodity shows action (buy/sell), price, quantity
+- MAX button calculates optimal trade amount
+- Cost preview before executing trade
+- Turn consumption per trade
+- Real-time player state updates
 
 **ASCII Art Implementation:**
 - Port types shown with distinctive ASCII symbols: [$], [¥], [€], [£], [₿], [₽], [◊], [■]
 - Planets displayed with (◉) symbol
 - Ship rendered as >===> ASCII sprite
+- Trading port ASCII art interface
 - Cyberpunk color coding: green (ports/safe), cyan (info), pink (danger/other players), purple (planets)
 
 **Servers Currently Running:**
@@ -231,21 +268,26 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - Admin: http://localhost:5174 (npm run dev in /home/helloai/admin)
 
 **Ready For:**
-- End-to-end testing of sector navigation in browser
-- Port trading system (next major feature)
-- Ship status & cargo management displays
+- Combat system implementation
 - Turn regeneration system
-- Combat mechanics
+- Ship upgrade system
+- Planet colonization
 
 ## In Progress 🚧
 
-### Next Major Feature: Port Trading System
+### Completed: Port Trading System ✅
+**All tasks completed:**
+1. ✅ **Test Sector Navigation** - End-to-end browser testing
+2. ✅ **Port Trading Backend** - API endpoints for buy/sell commodities
+3. ✅ **Port Trading UI** - Interactive trading interface with ASCII art
+4. ✅ **Cargo Management** - Display and manage ship holds
+5. ✅ **Price Calculations** - Dynamic pricing based on supply/demand
+
+### Next Major Feature: Combat System
 **Priority Order:**
-1. **Test Sector Navigation** - End-to-end browser testing
-2. **Port Trading Backend** - API endpoints for buy/sell commodities
-3. **Port Trading UI** - Interactive trading interface with ASCII art
-4. **Cargo Management** - Display and manage ship holds
-5. **Price Calculations** - Dynamic pricing based on supply/demand
+1. **Combat Backend** - Attack/defend mechanics, fighter deployment
+2. **Combat UI** - ASCII art battle animations
+3. **Loot System** - Credits and cargo looting after victories
 
 ## Next Steps 📋
 
@@ -295,15 +337,16 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - [x] Login/Registration screens
 - [x] Main game dashboard
 - [x] Sector navigation interface (complete with ASCII art UI)
-- [ ] Trading system (port interactions)
+- [x] Trading system (port interactions)
 - [x] Ship status display (in GameDashboard)
+- [x] Cargo management display
 - [ ] Turn management
 - [ ] Real-time player notifications
 
 ### Phase 5: Core Gameplay
 - [x] Universe generation service ✅
 - [x] Sector navigation logic ✅ (movement + turn consumption)
-- [ ] Port trading calculations
+- [x] Port trading system ✅ (buy/sell commodities with dynamic pricing)
 - [ ] Turn regeneration system
 - [ ] Ship upgrade system
 
@@ -433,12 +476,14 @@ When implementing new features:
 
 ---
 
-**Last Updated:** 2025-11-25 22:00 UTC
-**Status:** Sector Navigation System Complete (Frontend + Backend)
-**Current Session:** Implemented full sector navigation UI with ASCII art visualization
+**Last Updated:** 2025-11-26 (continuation session)
+**Status:** Port Trading System Complete (Frontend + Backend)
+**Current Session:** Implemented full port trading system with ASCII art UI
 **Recent Changes:**
-- ✅ Created SectorView component with cyberpunk ASCII art styling
-- ✅ Integrated sector navigation into GameDashboard
-- ✅ Implemented interactive warp travel with turn consumption UI
-- ✅ Added port/planet/player detection with ASCII symbols
-- ✅ Real-time player state updates on movement
+- ✅ Fixed Earth planet display with Terra Corp ownership
+- ✅ Fixed bidirectional warp system
+- ✅ Added Terra Corp as reserved corporation name
+- ✅ Created Port Trading Backend (service, controller, routes)
+- ✅ Built PortTradingPanel with cyberpunk ASCII art interface
+- ✅ Integrated cargo management into GameDashboard
+- ✅ Dynamic pricing based on port percentages

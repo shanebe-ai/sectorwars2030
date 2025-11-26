@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import PortTradingPanel from './PortTradingPanel';
 
 interface Warp {
   destination: number;
@@ -14,6 +15,13 @@ interface Player {
   username: string;
 }
 
+interface Planet {
+  id: number;
+  name: string;
+  ownerId: number | null;
+  ownerName: string | null;
+}
+
 interface Sector {
   sectorNumber: number;
   name: string | null;
@@ -26,19 +34,33 @@ interface Sector {
   minesCount: number;
   warps: Warp[];
   players: Player[];
+  planets: Planet[];
+}
+
+interface PlayerData {
+  id: number;
+  credits: number;
+  turnsRemaining: number;
+  shipHoldsMax: number;
+  cargoFuel: number;
+  cargoOrganics: number;
+  cargoEquipment: number;
 }
 
 interface SectorViewProps {
   currentSector: number;
   token: string;
+  currentPlayerId: number;
+  player: PlayerData;
   onSectorChange: (player: any) => void;
 }
 
-export default function SectorView({ currentSector, token, onSectorChange }: SectorViewProps) {
+export default function SectorView({ currentSector, token, currentPlayerId, player, onSectorChange }: SectorViewProps) {
   const [sector, setSector] = useState<Sector | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [moving, setMoving] = useState(false);
+  const [showTrading, setShowTrading] = useState(false);
 
   useEffect(() => {
     loadSectorDetails();
@@ -220,19 +242,51 @@ export default function SectorView({ currentSector, token, onSectorChange }: Sec
                   B=Buys, S=Sells • Order: Fuel, Organics, Equipment
                 </div>
               </div>
+              <button
+                onClick={() => setShowTrading(true)}
+                className="cyberpunk-button"
+                style={{
+                  marginTop: '12px',
+                  width: '100%',
+                  background: 'rgba(0, 255, 0, 0.2)',
+                  borderColor: 'var(--neon-green)',
+                  color: 'var(--neon-green)',
+                  padding: '12px',
+                  fontSize: '14px',
+                  fontWeight: 'bold'
+                }}
+              >
+                ► DOCK AT PORT
+              </button>
             </div>
           )}
 
-          {sector.hasPlanet && (
+          {sector.planets && sector.planets.length > 0 && (
             <div style={{
               padding: '15px',
               background: 'rgba(138, 43, 226, 0.05)',
               border: '1px solid var(--neon-purple)',
               marginBottom: '15px'
             }}>
-              <div style={{ color: 'var(--neon-purple)', fontWeight: 'bold' }}>
-                ► PLANET DETECTED
+              <div style={{ color: 'var(--neon-purple)', fontWeight: 'bold', marginBottom: '10px' }}>
+                ► PLANETS IN SECTOR ({sector.planets.length})
               </div>
+              {sector.planets.map(planet => (
+                <div key={planet.id} style={{
+                  padding: '8px',
+                  background: 'rgba(0, 0, 0, 0.3)',
+                  marginBottom: '5px',
+                  fontSize: '13px',
+                  color: 'var(--text-primary)'
+                }}>
+                  <div style={{ color: 'var(--neon-purple)' }}>
+                    {planet.name}
+                  </div>
+                  <div style={{ fontSize: '11px', opacity: 0.8 }}>
+                    {planet.ownerName ? `Owner: ${planet.ownerName}` : 'Unclaimed'}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
@@ -293,7 +347,9 @@ export default function SectorView({ currentSector, token, onSectorChange }: Sec
                   fontSize: '13px',
                   color: 'var(--text-primary)'
                 }}>
-                  <div style={{ color: 'var(--neon-cyan)' }}>{p.corpName}</div>
+                  <div style={{ color: 'var(--neon-cyan)' }}>
+                    {p.corpName}{p.id === currentPlayerId && <span style={{ color: 'var(--neon-green)', marginLeft: '8px' }}>(me)</span>}
+                  </div>
                   <div style={{ fontSize: '11px', opacity: 0.8 }}>
                     {p.shipType.toUpperCase()} • Pilot: {p.username}
                   </div>
@@ -353,6 +409,34 @@ export default function SectorView({ currentSector, token, onSectorChange }: Sec
           </div>
         )}
       </div>
+
+      {/* Port Trading Panel */}
+      {showTrading && sector?.hasPort && (
+        <PortTradingPanel
+          sectorNumber={currentSector}
+          token={token}
+          player={{
+            credits: player.credits,
+            cargoFuel: player.cargoFuel,
+            cargoOrganics: player.cargoOrganics,
+            cargoEquipment: player.cargoEquipment,
+            turnsRemaining: player.turnsRemaining,
+            shipHoldsMax: player.shipHoldsMax,
+          }}
+          onTradeComplete={(updatedPlayer) => {
+            onSectorChange({
+              ...player,
+              id: player.id,
+              credits: updatedPlayer.credits,
+              turnsRemaining: updatedPlayer.turnsRemaining,
+              cargoFuel: updatedPlayer.cargoFuel,
+              cargoOrganics: updatedPlayer.cargoOrganics,
+              cargoEquipment: updatedPlayer.cargoEquipment,
+            });
+          }}
+          onClose={() => setShowTrading(false)}
+        />
+      )}
     </div>
   );
 }

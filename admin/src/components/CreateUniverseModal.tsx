@@ -16,6 +16,7 @@ export default function CreateUniverseModal({ token, onClose, onSuccess }: Creat
     turnsPerDay: 1000,
     startingCredits: 2000,
     startingShipType: 'scout',
+    allowDeadEnds: false,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -50,10 +51,12 @@ export default function CreateUniverseModal({ token, onClose, onSuccess }: Creat
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+    const { name, value, type } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: ['maxSectors', 'portPercentage', 'maxPlayers', 'turnsPerDay', 'startingCredits'].includes(name)
+      [name]: type === 'checkbox'
+        ? (e.target as HTMLInputElement).checked
+        : ['maxSectors', 'portPercentage', 'maxPlayers', 'turnsPerDay', 'startingCredits'].includes(name)
         ? parseInt(value) || 0
         : value
     }));
@@ -193,6 +196,66 @@ export default function CreateUniverseModal({ token, onClose, onSuccess }: Creat
                 <option value="trader">Trader</option>
               </select>
               <div className="form-hint">Default: Scout</div>
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group" style={{ flex: 1 }}>
+              <label className="form-label">Allow Dead-End Sectors</label>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  marginTop: '8px',
+                }}
+              >
+                <div
+                  onClick={() => setFormData(prev => ({ ...prev, allowDeadEnds: !prev.allowDeadEnds }))}
+                  style={{
+                    width: '50px',
+                    height: '26px',
+                    background: formData.allowDeadEnds
+                      ? 'rgba(157, 0, 255, 0.3)'
+                      : 'rgba(0, 0, 0, 0.5)',
+                    border: `2px solid ${formData.allowDeadEnds ? 'var(--neon-purple)' : '#444'}`,
+                    borderRadius: '13px',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    transition: 'all 0.2s ease',
+                    boxShadow: formData.allowDeadEnds
+                      ? '0 0 10px rgba(157, 0, 255, 0.5), inset 0 0 10px rgba(157, 0, 255, 0.2)'
+                      : 'none',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '18px',
+                      height: '18px',
+                      background: formData.allowDeadEnds ? 'var(--neon-purple)' : '#666',
+                      borderRadius: '50%',
+                      position: 'absolute',
+                      top: '2px',
+                      left: formData.allowDeadEnds ? '26px' : '2px',
+                      transition: 'all 0.2s ease',
+                      boxShadow: formData.allowDeadEnds
+                        ? '0 0 8px rgba(157, 0, 255, 0.8)'
+                        : 'none',
+                    }}
+                  />
+                </div>
+                <span style={{
+                  color: formData.allowDeadEnds ? 'var(--neon-purple)' : 'var(--text-secondary)',
+                  fontSize: '14px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                }}>
+                  {formData.allowDeadEnds ? 'ENABLED' : 'DISABLED'}
+                </span>
+              </div>
+              <div className="form-hint">
+                ~0.25% chance of dead-end sectors (only incoming warps). Default: No
+              </div>
             </div>
           </div>
 
