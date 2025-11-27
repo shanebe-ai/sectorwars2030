@@ -239,6 +239,8 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
         setSubject('');
         setBody('');
         setRecipientId('');
+        // Reload unread counts (corporate messages show as unread until viewed)
+        loadUnreadCounts();
         setTimeout(() => {
           setView('sent');
           loadSentMessages();
@@ -622,17 +624,18 @@ function MessageList({ messages, loading, onOpenMessage, type, formatDateTime }:
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
             <span style={{ color: 'var(--neon-cyan)', fontWeight: 'bold' }}>
               {type === 'sent'
-                ? `To: ${(msg as any).recipient_name || '[Universe Broadcast]'}`
+                ? `To: ${msg.message_type === 'BROADCAST' ? '[Universe Broadcast]' : msg.message_type === 'CORPORATE' ? '[Corporate]' : ((msg as any).recipient_name || '[Unknown]')}`
                 : `From: ${msg.sender_name || '[Unknown]'}`
               }
               {msg.message_type === 'BROADCAST' && <span style={{ color: 'var(--neon-purple)', marginLeft: '10px' }}>[BROADCAST]</span>}
+              {msg.message_type === 'CORPORATE' && <span style={{ color: 'var(--neon-green)', marginLeft: '10px' }}>[CORPORATE]</span>}
             </span>
             <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
               {formatDateTime(msg.sent_at)}
             </span>
           </div>
           <div style={{ color: 'var(--text-primary)', fontSize: '14px' }}>
-            {msg.message_type === 'BROADCAST' 
+            {(msg.message_type === 'BROADCAST' || msg.message_type === 'CORPORATE')
               ? msg.body.substring(0, 60) + (msg.body.length > 60 ? '...' : '')
               : (msg.subject || '(no subject)')}
           </div>

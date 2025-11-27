@@ -197,22 +197,34 @@ export async function getSentMessages(playerId: number): Promise<Message[]> {
     [playerId]
   );
 
-  return result.rows.map(msg => ({
-    id: msg.id,
-    universe_id: msg.universe_id,
-    sender_id: msg.sender_id,
-    recipient_id: msg.recipient_id,
-    sender_name: msg.sender_name,
-    recipient_name: msg.recipient_corp_name || (msg.message_type === 'BROADCAST' ? '[Universe Broadcast]' : '[Deleted Player]'),
-    subject: msg.subject,
-    body: msg.body,
-    message_type: msg.message_type,
-    is_read: msg.is_read,
-    is_deleted_by_sender: msg.is_deleted_by_sender,
-    is_deleted_by_recipient: msg.is_deleted_by_recipient,
-    sent_at: msg.sent_at,
-    read_at: msg.read_at
-  }));
+  return result.rows.map(msg => {
+    let recipient_name = msg.recipient_corp_name;
+    if (!recipient_name) {
+      if (msg.message_type === 'BROADCAST') {
+        recipient_name = '[Universe Broadcast]';
+      } else if (msg.message_type === 'CORPORATE') {
+        recipient_name = '[Corporate]';
+      } else {
+        recipient_name = '[Deleted Player]';
+      }
+    }
+    return {
+      id: msg.id,
+      universe_id: msg.universe_id,
+      sender_id: msg.sender_id,
+      recipient_id: msg.recipient_id,
+      sender_name: msg.sender_name,
+      recipient_name,
+      subject: msg.subject,
+      body: msg.body,
+      message_type: msg.message_type,
+      is_read: msg.is_read,
+      is_deleted_by_sender: msg.is_deleted_by_sender,
+      is_deleted_by_recipient: msg.is_deleted_by_recipient,
+      sent_at: msg.sent_at,
+      read_at: msg.read_at
+    };
+  });
 }
 
 /**
