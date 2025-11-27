@@ -243,11 +243,15 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
   - Chat-style rendering: `[CORPORATE] PilotName (CorpName): Message` with green theme
   - Per-player deletion support (same as broadcasts)
   - Auto-corporation creation: new players get their own corporation on join
+  - Sent folder shows actual corp name (e.g., "To: MyCorp" not "[Corporate]")
   - Migration 005: Added `corp_id` column to messages, CORPORATE message type
 - **Unread Indicators** ✅
   - COMMS button badge shows total unread count (all channels)
   - Individual tab badges: Inbox, Broadcasts, Corporate (pink badges with count)
   - `getUnreadCounts` API returns detailed counts per channel
+  - Per-user read tracking via `message_reads` table (persists across sessions)
+  - Opening Broadcasts/Corporate tab marks all as read in database
+  - Migration 006: Added `message_reads` table for per-user read tracking
 - **Player Encounters** ✅
   - Automatic tracking when players meet in sectors
   - Bidirectional encounter recording
@@ -286,6 +290,8 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - ✅ **Fixed: Broadcast deletion from Sent** - Senders can now delete their own broadcasts from Sent panel; properly returns to Sent view after deletion.
 - ✅ **Fixed: Broadcast display in Sent** - Broadcasts show message preview instead of "(no subject)" in Sent list and message view.
 - ✅ **Fixed: Sender broadcast deletion from Broadcasts tab** - Sender's own deleted broadcasts now hidden from their Broadcasts view (not just Sent).
+- ✅ **Fixed: Corporate messages in Sent** - Corporate messages now show actual corp name instead of "[Corporate]" or "Deleted User".
+- ✅ **Fixed: Unread badges persistence** - Broadcasts/corporate read status now tracked per-user in database, badges don't reappear on COMMS reopen.
 
 ### 14. Port Trading System (FULLY WORKING!)
 - **Port Service** ([server/src/services/portService.ts](server/src/services/portService.ts)) ✅
@@ -664,22 +670,27 @@ When implementing new features:
 ---
 
 **Last Updated:** 2025-11-27
-**Status:** Corporate Messaging Implemented
-**Current Session:** Added corporate chat channel and unread indicators
+**Status:** Communications System Complete
+**Current Session:** Corporate messaging, per-user read tracking, bug fixes
 **Recent Changes:**
 - ✅ **Corporate Messaging System:**
   - CORPORATE message type for alliance chat
   - Corporate tab (only visible if in a corporation)
   - Auto-corporation creation on player join
+  - Sent folder shows actual corp name
   - Migration 005: corp_id column, CORPORATE type constraint
+- ✅ **Per-User Read Tracking:**
+  - message_reads table for broadcasts/corporate
+  - Opening tab marks all as read in database
+  - Badges persist correctly across COMMS reopens
+  - Migration 006: message_reads table
 - ✅ **Unread Indicators:**
   - COMMS button badge (total unread)
   - Per-tab badges (Inbox, Broadcasts, Corporate)
   - getUnreadCounts API with detailed counts
-- ✅ Network/remote access configuration (IP 37.27.80.77)
 - ✅ Chat-style format for broadcasts and corporate messages
 - ✅ Dynamic back button returns to correct tab
 **Previous Session:**
+- ✅ Network/remote access configuration (IP 37.27.80.77)
 - ✅ Broadcast messaging refinements and bug fixes
 - ✅ Per-player broadcast deletion feature
-- ✅ API URL abstraction for production deployments
