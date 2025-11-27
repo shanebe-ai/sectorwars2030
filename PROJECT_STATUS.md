@@ -293,16 +293,22 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - ✅ **Fixed: Corporate messages in Sent** - Corporate messages now show actual corp name instead of "[Corporate]" or "Deleted User".
 - ✅ **Fixed: Unread badges persistence** - Broadcasts/corporate read status now tracked per-user in database, badges don't reappear on COMMS reopen.
 
-### 14. Port Trading System (FULLY WORKING!)
+### 14. Port Trading System (FULLY WORKING - TW2002 FAITHFUL!)
 - **Port Service** ([server/src/services/portService.ts](server/src/services/portService.ts)) ✅
   - `getPortInfo()` - Retrieves port commodities, prices, and available actions
   - `executeTrade()` - Handles buy/sell transactions with validation
-  - Dynamic pricing based on port percentage (port_xxx_pct)
+  - **TW2002-faithful pricing:** Buy LOW from ports that SELL, Sell HIGH to ports that BUY
+  - ~3x profit margin on good port pairs (port pair trading is now profitable!)
   - Turn consumption per trade
   - Transaction logging to game_events table
+  - `regeneratePorts()` - Regenerates port stock over time
+  - `startPortRegeneration()` - Auto-regen every 30 minutes (500 units, max 15000)
 - **Port Controller** ([server/src/controllers/portController.ts](server/src/controllers/portController.ts)) ✅
   - GET /api/ports/:sectorNumber - Get port details
   - POST /api/ports/trade - Execute commodity trade
+- **Rare Port Bonuses** ✅
+  - SSS ports sell 30% cheaper (great for buying)
+  - BBB ports buy 30% higher (great for selling)
 - **PortTradingPanel Component** ([client/src/components/PortTradingPanel.tsx](client/src/components/PortTradingPanel.tsx)) ✅
   - ASCII art port interface with cyberpunk styling
   - Commodity display with color-coded icons (fuel=orange, organics=green, equipment=blue)
@@ -313,6 +319,30 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
   - GameDashboard displays cargo manifest (fuel, organics, equipment, total)
   - SectorView passes player cargo data to trading panel
   - Cargo limits enforced by ship_holds_max
+
+### 15. StarDock System (NEW!)
+- **StarDock Service** ([server/src/services/stardockService.ts](server/src/services/stardockService.ts)) ✅
+  - `getStardockInfo()` - Get ships for sale, fighter/shield prices
+  - `purchaseShip()` - Buy new ships (cargo/fighters/shields transfer)
+  - `purchaseFighters()` - Buy fighters (100 credits each)
+  - `purchaseShields()` - Buy shields (50 credits each)
+- **StarDock Generation** ✅
+  - 1 StarDock per 500 sectors (minimum 1 for 1000+ sector universes)
+  - Special port type 'STARDOCK' with Class 9
+  - Unlimited commodity supply (50,000 each)
+  - Named "StarDock Alpha-1", "StarDock Alpha-2", etc.
+- **StarDock Routes** ([server/src/routes/stardock.ts](server/src/routes/stardock.ts)) ✅
+  - GET /api/stardock - Get StarDock info (if at one)
+  - POST /api/stardock/ship - Purchase a ship
+  - POST /api/stardock/fighters - Purchase fighters
+  - POST /api/stardock/shields - Purchase shields
+- **Ship Types Available** (from [server/src/db/seedShipTypes.ts](server/src/db/seedShipTypes.ts)):
+  - Escape Pod (5 holds, 0 cost - emergency)
+  - Scout (20 holds, 1,000 credits)
+  - Trader (60 holds, 10,000 credits)
+  - Freighter (125 holds, 50,000 credits)
+  - Merchant Cruiser (250 holds, 250,000 credits, cloaking)
+  - Corporate Flagship (500 holds, 1,000,000 credits, cloaking)
 - **Reserved Names** ✅
   - Terra Corp is a reserved corporation name (players cannot choose it)
 - **Planet Generation** ✅
@@ -670,27 +700,31 @@ When implementing new features:
 ---
 
 **Last Updated:** 2025-11-27
-**Status:** Communications System Complete
-**Current Session:** Corporate messaging, per-user read tracking, bug fixes
+**Status:** Trading System Overhauled - TW2002 Faithful Economy
+**Current Session:** Major trading system improvements, StarDock implementation
 **Recent Changes:**
-- ✅ **Corporate Messaging System:**
-  - CORPORATE message type for alliance chat
-  - Corporate tab (only visible if in a corporation)
-  - Auto-corporation creation on player join
-  - Sent folder shows actual corp name
-  - Migration 005: corp_id column, CORPORATE type constraint
-- ✅ **Per-User Read Tracking:**
-  - message_reads table for broadcasts/corporate
-  - Opening tab marks all as read in database
-  - Badges persist correctly across COMMS reopens
-  - Migration 006: message_reads table
-- ✅ **Unread Indicators:**
-  - COMMS button badge (total unread)
-  - Per-tab badges (Inbox, Broadcasts, Corporate)
-  - getUnreadCounts API with detailed counts
-- ✅ Chat-style format for broadcasts and corporate messages
-- ✅ Dynamic back button returns to correct tab
+- ✅ **Trading Price Spread Fix (TW2002 Faithful):**
+  - Buy LOW from ports that SELL (they have excess supply)
+  - Sell HIGH to ports that BUY (they have demand)
+  - ~3x profit margin on good port pairs (was break-even before!)
+  - Port pair trading now the primary money-making strategy
+- ✅ **Rare Port Bonuses:**
+  - SSS ports sell commodities 30% cheaper
+  - BBB ports buy commodities 30% higher
+  - Finding these ports is now very valuable
+- ✅ **StarDock System:**
+  - New STARDOCK port type for ship/equipment purchases
+  - 1 StarDock per 500 sectors (minimum 1 for large universes)
+  - Ship purchasing: Scout → Trader → Freighter → Merchant Cruiser → Corporate Flagship
+  - Fighter purchasing: 100 credits each
+  - Shield purchasing: 50 credits each
+  - Cargo/fighters/shields transfer when buying new ship
+- ✅ **Port Regeneration:**
+  - Ports regenerate 500 units every 30 minutes
+  - Stock range: 1,000 minimum to 15,000 maximum
+  - StarDocks excluded (unlimited supply)
+  - Automatic startup on server launch
 **Previous Session:**
-- ✅ Network/remote access configuration (IP 37.27.80.77)
-- ✅ Broadcast messaging refinements and bug fixes
-- ✅ Per-player broadcast deletion feature
+- ✅ Corporate messaging system with per-user read tracking
+- ✅ Communications bug fixes (unread badges, corp names)
+- ✅ Network/remote access configuration
