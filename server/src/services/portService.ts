@@ -1,11 +1,22 @@
 import { pool } from '../db/connection';
 
-// Base prices for commodities
+// Base prices for commodities (mid-point prices)
 const BASE_PRICES = {
-  fuel: 10,
-  organics: 20,
-  equipment: 30,
+  fuel: 20,      // Range: ~10-35
+  organics: 35,  // Range: ~18-60
+  equipment: 55, // Range: ~28-95
 };
+
+// Price multipliers for port actions
+// When port SELLS (S) = they have excess = LOW price for player to buy
+// When port BUYS (B) = they need it = HIGH price for player to sell
+const PRICE_MULTIPLIERS = {
+  SELL_TO_PLAYER: 0.5,  // Port sells cheap (player buys low)
+  BUY_FROM_PLAYER: 1.7, // Port buys high (player sells high)
+};
+
+// Special multipliers for rare port types (SSS and BBB)
+const RARE_PORT_BONUS = 1.3; // 30% better prices at rare ports
 
 // Port type definitions: S = Sells to players, B = Buys from players
 // Format: [fuel, organics, equipment]
@@ -16,8 +27,8 @@ const PORT_TYPES: Record<string, { fuel: 'S' | 'B'; organics: 'S' | 'B'; equipme
   SSB: { fuel: 'S', organics: 'S', equipment: 'B' },
   SBS: { fuel: 'S', organics: 'B', equipment: 'S' },
   BSS: { fuel: 'B', organics: 'S', equipment: 'S' },
-  SSS: { fuel: 'S', organics: 'S', equipment: 'S' },
-  BBB: { fuel: 'B', organics: 'B', equipment: 'B' },
+  SSS: { fuel: 'S', organics: 'S', equipment: 'S' }, // Rare - sells all cheap
+  BBB: { fuel: 'B', organics: 'B', equipment: 'B' }, // Rare - buys all high
 };
 
 export interface PortInfo {
@@ -100,20 +111,35 @@ export const getPortInfo = async (
     throw new Error('Invalid port type');
   }
 
-  // Calculate prices based on port percentage (higher % = higher price)
-  // When port sells (S), player buys at higher price
-  // When port buys (B), player sells at lower price (port gets discount)
+  // Calculate prices based on port type and stock percentage
+  // S = Port SELLS to player (cheap - they have excess)
+  // B = Port BUYS from player (expensive - they need it)
+  // Stock percentage affects price: low stock = higher prices
   const calculatePrice = (commodity: 'fuel' | 'organics' | 'equipment', action: 'S' | 'B') => {
     const basePrice = BASE_PRICES[commodity];
     const pctKey = `port_${commodity}_pct` as keyof typeof sector;
-    const pct = sector[pctKey] || 100;
+    const stockPct = sector[pctKey] || 100;
+    
+    // Stock affects price: low stock (high pct) = higher prices
+    // pct represents "demand" - 100% = normal, 150% = high demand, 50% = low demand
+    const stockMultiplier = stockPct / 100;
+    
+    // Check if this is a rare port type (SSS or BBB)
+    const isRarePort = sector.port_type === 'SSS' || sector.port_type === 'BBB';
+    const rareBonus = isRarePort ? RARE_PORT_BONUS : 1.0;
     
     if (action === 'S') {
-      // Port sells, player buys - price goes up with percentage
-      return Math.round(basePrice * (pct / 100) * 1.2);
+      // Port SELLS to player = player BUYS at LOW price
+      // Lower stock = slightly higher buy price
+      const price = basePrice * PRICE_MULTIPLIERS.SELL_TO_PLAYER * stockMultiplier;
+      // SSS sells even cheaper (better for player)
+      return Math.round(price / rareBonus);
     } else {
-      // Port buys, player sells - price is lower (port pays less)
-      return Math.round(basePrice * (pct / 100) * 0.8);
+      // Port BUYS from player = player SELLS at HIGH price
+      // Higher stock demand (high pct) = even higher sell price
+      const price = basePrice * PRICE_MULTIPLIERS.BUY_FROM_PLAYER * stockMultiplier;
+      // BBB buys even higher (better for player)
+      return Math.round(price * rareBonus);
     }
   };
 
@@ -227,18 +253,25 @@ export const executeTrade = async (
     const cargoKey = `cargo_${commodity}` as keyof typeof player;
     const playerCargo = player[cargoKey] || 0;
 
-    // Calculate price
+    // Calculate price using the same formula as getPortInfo
     const basePrice = BASE_PRICES[commodity];
     const pctKey = `port_${commodity}_pct` as keyof typeof player;
-    const pct = player[pctKey] || 100;
+    const stockPct = player[pctKey] || 100;
+    const stockMultiplier = stockPct / 100;
+    
+    // Check if this is a rare port type
+    const isRarePort = player.port_type === 'SSS' || player.port_type === 'BBB';
+    const rareBonus = isRarePort ? RARE_PORT_BONUS : 1.0;
 
     let pricePerUnit: number;
     if (action === 'buy') {
-      // Player buys from port - higher price
-      pricePerUnit = Math.round(basePrice * (pct / 100) * 1.2);
+      // Player BUYS from port (port SELLS) = LOW price
+      const price = basePrice * PRICE_MULTIPLIERS.SELL_TO_PLAYER * stockMultiplier;
+      pricePerUnit = Math.round(price / rareBonus);
     } else {
-      // Player sells to port - lower price
-      pricePerUnit = Math.round(basePrice * (pct / 100) * 0.8);
+      // Player SELLS to port (port BUYS) = HIGH price
+      const price = basePrice * PRICE_MULTIPLIERS.BUY_FROM_PLAYER * stockMultiplier;
+      pricePerUnit = Math.round(price * rareBonus);
     }
 
     let actualQuantity = quantity;
@@ -374,5 +407,54 @@ export const executeTrade = async (
   } finally {
     client.release();
   }
+};
+
+// Port regeneration configuration
+const PORT_REGEN_BASE = 500;      // Base units regenerated per cycle
+const PORT_REGEN_MAX = 15000;     // Maximum port stock
+const PORT_REGEN_MIN = 1000;      // Minimum port stock (always regenerate to this)
+
+/**
+ * Regenerate port stock across all universes
+ * Should be called periodically (e.g., every hour or on game tick)
+ * Ports regenerate stock over time, simulating production/consumption
+ */
+export const regeneratePorts = async (): Promise<{ portsUpdated: number }> => {
+  const client = await pool.connect();
+
+  try {
+    // Regenerate all ports (excluding StarDocks which have unlimited supply)
+    const result = await client.query(`
+      UPDATE sectors
+      SET
+        port_fuel_qty = LEAST($2, GREATEST($3, port_fuel_qty + $1)),
+        port_organics_qty = LEAST($2, GREATEST($3, port_organics_qty + $1)),
+        port_equipment_qty = LEAST($2, GREATEST($3, port_equipment_qty + $1))
+      WHERE port_type IS NOT NULL 
+        AND port_type != 'STARDOCK'
+      RETURNING id
+    `, [PORT_REGEN_BASE, PORT_REGEN_MAX, PORT_REGEN_MIN]);
+
+    console.log(`[Port Regen] Regenerated ${result.rowCount} ports (+${PORT_REGEN_BASE} units each)`);
+
+    return { portsUpdated: result.rowCount || 0 };
+  } finally {
+    client.release();
+  }
+};
+
+/**
+ * Start automatic port regeneration (runs every hour)
+ */
+export const startPortRegeneration = (intervalMs: number = 3600000): NodeJS.Timeout => {
+  console.log(`[Port Regen] Starting automatic port regeneration every ${intervalMs / 60000} minutes`);
+  
+  // Run immediately once
+  regeneratePorts().catch(console.error);
+  
+  // Then run on interval
+  return setInterval(() => {
+    regeneratePorts().catch(console.error);
+  }, intervalMs);
 };
 

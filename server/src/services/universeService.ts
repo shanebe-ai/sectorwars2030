@@ -26,6 +26,10 @@ const PORT_TYPES: PortType[] = ['BBS', 'BSB', 'SBB', 'SSB', 'SBS', 'BSS', 'SSS',
 const COMMON_PORT_TYPES: PortType[] = ['BBS', 'BSB', 'SBB', 'SSB', 'SBS', 'BSS'];
 const RARE_PORT_TYPES: PortType[] = ['SSS', 'BBB'];
 
+// StarDock configuration
+const STARDOCK_SECTORS_PER_DOCK = 500; // 1 StarDock per 500 sectors
+const STARDOCK_MIN_FOR_LARGE_UNIVERSE = 1; // Minimum 1 for 1000+ sector universes
+
 /**
  * Generate a random port type with rarity weighting
  * SSS and BBB are rare (5% chance each)
@@ -291,6 +295,53 @@ export async function generateUniverse(config: UniverseConfig) {
 
     console.log(`Created ${planetsCreated} claimable planets across the universe`);
 
+    // 7. Generate StarDocks (1 per 500 sectors, minimum 1 for 1000+ sector universes)
+    let stardockCount = Math.floor(maxSectors / STARDOCK_SECTORS_PER_DOCK);
+    if (maxSectors >= 1000 && stardockCount < STARDOCK_MIN_FOR_LARGE_UNIVERSE) {
+      stardockCount = STARDOCK_MIN_FOR_LARGE_UNIVERSE;
+    }
+    // Ensure at least 1 StarDock for any universe with 500+ sectors
+    if (maxSectors >= 500 && stardockCount < 1) {
+      stardockCount = 1;
+    }
+    
+    const stardockSectors = new Set<number>();
+    
+    // Select random sectors for StarDocks (excluding sector 1, port sectors, and planet sectors)
+    while (stardockSectors.size < stardockCount) {
+      const sectorNum = Math.floor(Math.random() * maxSectors) + 1;
+      if (sectorNum !== 1 && !portSectors.has(sectorNum) && !planetSectors.has(sectorNum)) {
+        stardockSectors.add(sectorNum);
+      }
+    }
+    
+    // Create StarDocks
+    let stardocksCreated = 0;
+    for (const sectorNum of stardockSectors) {
+      const sectorId = sectorIdMap.get(sectorNum);
+      if (!sectorId) continue;
+      
+      // Update sector to be a StarDock
+      await client.query(
+        `UPDATE sectors SET 
+          port_type = 'STARDOCK',
+          port_class = 9,
+          name = $1,
+          port_fuel_qty = 50000,
+          port_organics_qty = 50000,
+          port_equipment_qty = 50000,
+          port_fuel_pct = 100,
+          port_organics_pct = 100,
+          port_equipment_pct = 100
+        WHERE id = $2`,
+        [`StarDock Alpha-${stardocksCreated + 1}`, sectorId]
+      );
+      
+      stardocksCreated++;
+    }
+    
+    console.log(`Created ${stardocksCreated} StarDock(s) for ship/equipment trading`);
+
     // Commit transaction
     await client.query('COMMIT');
 
@@ -304,6 +355,7 @@ export async function generateUniverse(config: UniverseConfig) {
         portsCreated: portCount,
         warpsCreated: warpInsertPromises.length,
         planetsCreated: planetsCreated + 1, // +1 for Earth
+        stardocksCreated,
       },
     };
   } catch (error) {

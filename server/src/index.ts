@@ -10,6 +10,8 @@ import playerRoutes from './routes/player';
 import sectorRoutes from './routes/sector';
 import portRoutes from './routes/port';
 import messageRoutes from './routes/messages';
+import stardockRoutes from './routes/stardock';
+import { startPortRegeneration } from './services/portService';
 
 dotenv.config();
 
@@ -80,6 +82,9 @@ app.use('/api/ports', portRoutes);
 // Message routes
 app.use('/api/messages', messageRoutes);
 
+// StarDock routes (ship/equipment purchases)
+app.use('/api/stardock', stardockRoutes);
+
 // WebSocket connection handling
 io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id}`);
@@ -109,6 +114,9 @@ httpServer.listen(PORT, '0.0.0.0', () => {
 ║   Environment: ${process.env.NODE_ENV || 'development'}                ║
 ╚════════════════════════════════════════════════╝
   `);
+  
+  // Start port stock regeneration (every 30 minutes)
+  startPortRegeneration(30 * 60 * 1000);
 });
 
 // Graceful shutdown

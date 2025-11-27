@@ -48,7 +48,7 @@ export interface Player {
   created_at: string;
 }
 
-export type PortType = 'BBS' | 'BSB' | 'SBB' | 'SSB' | 'SBS' | 'BSS' | 'SSS' | 'BBB';
+export type PortType = 'BBS' | 'BSB' | 'SBB' | 'SSB' | 'SBS' | 'BSS' | 'SSS' | 'BBB' | 'STARDOCK';
 
 export interface Sector {
   id: number;
