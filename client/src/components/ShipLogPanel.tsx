@@ -147,7 +147,9 @@ export const ShipLogPanel: React.FC<ShipLogPanelProps> = ({ token, onClose }) =>
 
   const filteredLogs = filter === 'ALL' 
     ? logs 
-    : logs.filter(log => log.log_type === filter);
+    : filter === 'PLANET'
+      ? logs.filter(log => log.log_type === 'PLANET' || log.log_type === 'SOL')
+      : logs.filter(log => log.log_type === filter);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);

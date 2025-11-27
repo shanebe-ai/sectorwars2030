@@ -194,8 +194,8 @@ export async function autoLogSector(
     if (entry) logs.push(entry);
   }
 
-  // Log planets
-  if (has_planet && planet_name) {
+  // Log planets (but not Sol/Earth - that's already logged as SOL)
+  if (has_planet && planet_name && sector_number !== 1) {
     const entry = await addLogEntry(playerId, universeId, sector_number, 'PLANET', {
       planetName: planet_name,
       sectorName: name,
