@@ -343,6 +343,31 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
   - Freighter (125 holds, 50,000 credits)
   - Merchant Cruiser (250 holds, 250,000 credits, cloaking)
   - Corporate Flagship (500 holds, 1,000,000 credits, cloaking)
+
+### 16. Ship Log System (NEW!)
+- **Ship Log Service** ([server/src/services/shipLogService.ts](server/src/services/shipLogService.ts)) ✅
+  - `autoLogSector()` - Auto-logs discoveries when entering sectors
+  - `addManualNote()` - Add custom notes to any sector
+  - `deleteManualNote()` - Delete manual notes (auto entries cannot be deleted)
+  - `getShipLogs()` - Retrieve all logs with stats
+  - `getLogStats()` - Get counts by category
+- **Auto-Logged Discoveries** ✅
+  - SOL: Home sector (sector 1)
+  - PORT: Trading ports (with port type)
+  - STARDOCK: Ship dealers
+  - PLANET: Planets (with name)
+  - DEAD_END: Sectors with 0-1 exits
+- **ShipLogPanel Component** ([client/src/components/ShipLogPanel.tsx](client/src/components/ShipLogPanel.tsx)) ✅
+  - LOG button in header (green, beside COMMS)
+  - Color-coded entries by type with icons
+  - Filter tabs: All, Ports, Planets, StarDocks, Dead Ends, Notes
+  - Stats bar showing discovery counts
+  - Add Note form with sector input
+  - Delete button for manual notes only
+- **Persistence** ✅
+  - Logs tied to player (not ship) - survive ship loss/upgrade
+  - Unique constraint prevents duplicate auto-entries
+  - Migration 007: ship_logs table
 - **Reserved Names** ✅
   - Terra Corp is a reserved corporation name (players cannot choose it)
 - **Planet Generation** ✅
@@ -700,31 +725,30 @@ When implementing new features:
 ---
 
 **Last Updated:** 2025-11-27
-**Status:** Trading System Overhauled - TW2002 Faithful Economy
-**Current Session:** Major trading system improvements, StarDock implementation
+**Status:** Ship Log System Complete
+**Current Session:** Ship log for tracking discoveries and manual notes
 **Recent Changes:**
+- ✅ **Ship Log System:**
+  - LOG button in header (green, beside COMMS)
+  - Auto-logs when visiting: Sol, Ports, StarDocks, Planets, Dead-ends
+  - Manual notes: add custom notes to any sector (deleteable)
+  - Filter by type: All, Ports, Planets, StarDocks, Dead Ends, Notes
+  - Stats bar showing counts per category
+  - Persists across ship changes (tied to player, not ship)
+  - Color-coded entries with icons
+  - Migration 007: ship_logs table
 - ✅ **Trading Price Spread Fix (TW2002 Faithful):**
   - Buy LOW from ports that SELL (they have excess supply)
   - Sell HIGH to ports that BUY (they have demand)
-  - ~3x profit margin on good port pairs (was break-even before!)
-  - Port pair trading now the primary money-making strategy
-- ✅ **Rare Port Bonuses:**
-  - SSS ports sell commodities 30% cheaper
-  - BBB ports buy commodities 30% higher
-  - Finding these ports is now very valuable
+  - ~3x profit margin on good port pairs
 - ✅ **StarDock System:**
   - New STARDOCK port type for ship/equipment purchases
   - 1 StarDock per 500 sectors (minimum 1 for large universes)
-  - Ship purchasing: Scout → Trader → Freighter → Merchant Cruiser → Corporate Flagship
-  - Fighter purchasing: 100 credits each
-  - Shield purchasing: 50 credits each
-  - Cargo/fighters/shields transfer when buying new ship
+  - Ship/fighter/shield purchasing
 - ✅ **Port Regeneration:**
   - Ports regenerate 500 units every 30 minutes
   - Stock range: 1,000 minimum to 15,000 maximum
-  - StarDocks excluded (unlimited supply)
-  - Automatic startup on server launch
 **Previous Session:**
-- ✅ Corporate messaging system with per-user read tracking
-- ✅ Communications bug fixes (unread badges, corp names)
-- ✅ Network/remote access configuration
+- ✅ Trading system overhaul - TW2002 faithful economy
+- ✅ Rare port bonuses (SSS/BBB)
+- ✅ Corporate messaging with per-user read tracking
