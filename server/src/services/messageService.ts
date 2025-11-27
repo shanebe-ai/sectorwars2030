@@ -129,10 +129,10 @@ export async function getBroadcasts(playerId: number): Promise<Message[]> {
 
   // Only show broadcasts sent AFTER the player joined the universe
   const result = await pool.query(
-    `SELECT m.*, p.corp_name as sender_corp_name, sender.corp_name as full_sender_name
+    `SELECT m.*, p.corp_name as sender_corp_name, u.username as sender_username
      FROM messages m
      LEFT JOIN players p ON m.sender_id = p.id
-     LEFT JOIN players sender ON m.sender_id = sender.id
+     LEFT JOIN users u ON p.user_id = u.id
      LEFT JOIN message_deletions md ON m.id = md.message_id AND md.player_id = $3
      WHERE m.universe_id = $1
        AND m.message_type = 'BROADCAST'
@@ -148,7 +148,8 @@ export async function getBroadcasts(playerId: number): Promise<Message[]> {
     universe_id: msg.universe_id,
     sender_id: msg.sender_id,
     recipient_id: msg.recipient_id,
-    sender_name: msg.full_sender_name || msg.sender_corp_name || msg.sender_name || '[Deleted Player]',
+    sender_name: msg.sender_username || '[Unknown]',
+    sender_corp: msg.sender_corp_name || '[Unknown Corp]',
     subject: msg.subject,
     body: msg.body,
     message_type: msg.message_type,
