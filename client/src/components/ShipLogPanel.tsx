@@ -251,11 +251,11 @@ export const ShipLogPanel: React.FC<ShipLogPanelProps> = ({ token, onClose }) =>
             flexWrap: 'wrap',
             fontSize: '13px'
           }}>
-            <span style={{ color: LOG_TYPE_COLORS.PORT }}>
-              {LOG_TYPE_ICONS.PORT} Ports: {stats.ports}
-            </span>
             <span style={{ color: LOG_TYPE_COLORS.PLANET }}>
               {LOG_TYPE_ICONS.PLANET} Planets: {stats.planets}
+            </span>
+            <span style={{ color: LOG_TYPE_COLORS.PORT }}>
+              {LOG_TYPE_ICONS.PORT} Ports: {stats.ports}
             </span>
             <span style={{ color: LOG_TYPE_COLORS.STARDOCK }}>
               {LOG_TYPE_ICONS.STARDOCK} StarDocks: {stats.stardocks}
@@ -280,7 +280,7 @@ export const ShipLogPanel: React.FC<ShipLogPanelProps> = ({ token, onClose }) =>
           gap: '10px'
         }}>
           <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-            {(['ALL', 'PORT', 'PLANET', 'STARDOCK', 'DEAD_END', 'MANUAL'] as FilterType[]).map(f => (
+            {(['ALL', 'PLANET', 'PORT', 'STARDOCK', 'DEAD_END', 'MANUAL'] as FilterType[]).map(f => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
