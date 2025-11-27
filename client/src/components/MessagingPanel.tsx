@@ -622,7 +622,7 @@ function MessageList({ messages, loading, onOpenMessage, type, formatDateTime }:
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
             <span style={{ color: 'var(--neon-cyan)', fontWeight: 'bold' }}>
               {type === 'sent'
-                ? `To: ${msg.message_type === 'BROADCAST' ? '[Universe Broadcast]' : msg.message_type === 'CORPORATE' ? '[Corporate]' : ((msg as any).recipient_name || '[Unknown]')}`
+                ? `To: ${(msg as any).recipient_name || '[Unknown]'}`
                 : `From: ${msg.sender_name || '[Unknown]'}`
               }
               {msg.message_type === 'BROADCAST' && <span style={{ color: 'var(--neon-purple)', marginLeft: '10px' }}>[BROADCAST]</span>}
