@@ -258,10 +258,10 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                 ─── WARP CONNECTIONS ───
               </div>
               <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(60px, 1fr))',
+                display: 'flex',
+                flexWrap: 'wrap',
                 gap: '8px',
-                justifyItems: 'center'
+                justifyContent: 'center'
               }}>
                 {sector.warps.map((warp, idx) => (
                   <div key={idx} style={{ color: 'var(--neon-cyan)' }}>

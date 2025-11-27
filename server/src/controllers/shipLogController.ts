@@ -196,3 +196,59 @@ export const getLogStats = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Get unread log count
+ * GET /api/shiplogs/unread-count
+ */
+export const getUnreadLogCount = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const playerId = await getPlayerIdFromUser(userId);
+    if (!playerId) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    const unreadCount = await shipLogService.getUnreadLogCount(playerId);
+
+    res.json({
+      success: true,
+      unreadCount
+    });
+  } catch (error: any) {
+    console.error('Error getting unread log count:', error);
+    res.status(500).json({ error: error.message || 'Failed to get unread count' });
+  }
+};
+
+/**
+ * Mark all logs as read
+ * POST /api/shiplogs/mark-read
+ */
+export const markLogsAsRead = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const playerId = await getPlayerIdFromUser(userId);
+    if (!playerId) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    await shipLogService.markAllLogsAsRead(playerId);
+
+    res.json({
+      success: true,
+      message: 'All logs marked as read'
+    });
+  } catch (error: any) {
+    console.error('Error marking logs as read:', error);
+    res.status(500).json({ error: error.message || 'Failed to mark logs as read' });
+  }
+};
+

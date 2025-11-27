@@ -13,6 +13,7 @@ export default function CreateUniverseModal({ token, onClose, onSuccess }: Creat
     description: '',
     maxSectors: 1000,
     portPercentage: 12,
+    stardockCount: 2, // Default: Math.max(1, Math.floor(1000 / 500))
     maxPlayers: 100,
     turnsPerDay: 1000,
     startingCredits: 2000,
@@ -53,14 +54,22 @@ export default function CreateUniverseModal({ token, onClose, onSuccess }: Creat
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    setFormData(prev => ({
-      ...prev,
+    const newFormData = {
+      ...formData,
       [name]: type === 'checkbox'
         ? (e.target as HTMLInputElement).checked
-        : ['maxSectors', 'portPercentage', 'maxPlayers', 'turnsPerDay', 'startingCredits'].includes(name)
+        : ['maxSectors', 'portPercentage', 'stardockCount', 'maxPlayers', 'turnsPerDay', 'startingCredits'].includes(name)
         ? parseInt(value) || 0
         : value
-    }));
+    };
+
+    // Auto-update stardockCount when maxSectors changes
+    if (name === 'maxSectors') {
+      const calculatedStardocks = Math.max(1, Math.floor((parseInt(value) || 0) / 500));
+      newFormData.stardockCount = calculatedStardocks;
+    }
+
+    setFormData(newFormData);
   };
 
   return (
@@ -132,6 +141,21 @@ export default function CreateUniverseModal({ token, onClose, onSuccess }: Creat
                 required
               />
               <div className="form-hint">Recommended: 12%</div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">StarDocks</label>
+              <input
+                type="number"
+                name="stardockCount"
+                className="cyberpunk-input"
+                value={formData.stardockCount}
+                onChange={handleChange}
+                min={0}
+                max={100}
+                required
+              />
+              <div className="form-hint">Default: 1 per 500 sectors (min 1)</div>
             </div>
           </div>
 

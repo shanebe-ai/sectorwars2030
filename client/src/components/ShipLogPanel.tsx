@@ -12,6 +12,7 @@ interface ShipLogEntry {
   sector_name?: string;
   note?: string;
   is_manual: boolean;
+  is_read: boolean;
   discovered_at: string;
 }
 
@@ -27,9 +28,11 @@ interface LogStats {
 interface ShipLogPanelProps {
   token: string;
   onClose: () => void;
+  onUnreadCountChange?: (count: number) => void;
 }
 
 type FilterType = 'ALL' | 'SOL' | 'PLANET' | 'PORT' | 'DEAD_END' | 'STARDOCK' | 'MANUAL';
+type SortType = 'date' | 'sector';
 
 const LOG_TYPE_COLORS: Record<string, string> = {
   SOL: 'var(--neon-yellow)',
@@ -49,12 +52,13 @@ const LOG_TYPE_ICONS: Record<string, string> = {
   MANUAL: '📝'
 };
 
-export const ShipLogPanel: React.FC<ShipLogPanelProps> = ({ token, onClose }) => {
+export const ShipLogPanel: React.FC<ShipLogPanelProps> = ({ token, onClose, onUnreadCountChange }) => {
   const [logs, setLogs] = useState<ShipLogEntry[]>([]);
   const [stats, setStats] = useState<LogStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<FilterType>('ALL');
+  const [sortBy, setSortBy] = useState<SortType>('date');
   const [showAddNote, setShowAddNote] = useState(false);
   const [newNoteSector, setNewNoteSector] = useState('');
   const [newNoteText, setNewNoteText] = useState('');
@@ -83,7 +87,24 @@ export const ShipLogPanel: React.FC<ShipLogPanelProps> = ({ token, onClose }) =>
 
   useEffect(() => {
     loadLogs();
+    // Mark logs as read when panel opens
+    markLogsAsRead();
   }, [loadLogs]);
+
+  const markLogsAsRead = async () => {
+    try {
+      await fetch(`${API_URL}/api/shiplogs/mark-read`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      // Update unread count in parent component
+      if (onUnreadCountChange) {
+        onUnreadCountChange(0);
+      }
+    } catch (err) {
+      // Silent fail
+    }
+  };
 
   const handleAddNote = async () => {
     const sectorNum = parseInt(newNoteSector);
@@ -145,11 +166,21 @@ export const ShipLogPanel: React.FC<ShipLogPanelProps> = ({ token, onClose }) =>
     }
   };
 
-  const filteredLogs = filter === 'ALL' 
-    ? logs 
+  const filteredLogs = filter === 'ALL'
+    ? logs
     : filter === 'PLANET'
       ? logs.filter(log => log.log_type === 'PLANET' || log.log_type === 'SOL')
       : logs.filter(log => log.log_type === filter);
+
+  // Sort logs based on selected sort type
+  const sortedLogs = [...filteredLogs].sort((a, b) => {
+    if (sortBy === 'sector') {
+      return a.sector_number - b.sector_number;
+    } else {
+      // Sort by date (newest first)
+      return new Date(b.discovered_at).getTime() - new Date(a.discovered_at).getTime();
+    }
+  });
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -300,20 +331,52 @@ export const ShipLogPanel: React.FC<ShipLogPanelProps> = ({ token, onClose }) =>
               </button>
             ))}
           </div>
-          <button
-            onClick={() => setShowAddNote(!showAddNote)}
-            style={{
-              padding: '5px 15px',
-              border: '1px solid var(--neon-green)',
-              backgroundColor: showAddNote ? 'rgba(0, 255, 0, 0.1)' : 'transparent',
-              color: 'var(--neon-green)',
-              cursor: 'pointer',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '12px'
-            }}
-          >
-            ➕ ADD NOTE
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <div style={{ display: 'flex', gap: '5px' }}>
+              <button
+                onClick={() => setSortBy('date')}
+                style={{
+                  padding: '5px 10px',
+                  border: `1px solid ${sortBy === 'date' ? 'var(--neon-purple)' : 'var(--border-color)'}`,
+                  backgroundColor: sortBy === 'date' ? 'rgba(138, 43, 226, 0.1)' : 'transparent',
+                  color: sortBy === 'date' ? 'var(--neon-purple)' : 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '12px'
+                }}
+              >
+                📅 DATE
+              </button>
+              <button
+                onClick={() => setSortBy('sector')}
+                style={{
+                  padding: '5px 10px',
+                  border: `1px solid ${sortBy === 'sector' ? 'var(--neon-purple)' : 'var(--border-color)'}`,
+                  backgroundColor: sortBy === 'sector' ? 'rgba(138, 43, 226, 0.1)' : 'transparent',
+                  color: sortBy === 'sector' ? 'var(--neon-purple)' : 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '12px'
+                }}
+              >
+                🔢 SECTOR
+              </button>
+            </div>
+            <button
+              onClick={() => setShowAddNote(!showAddNote)}
+              style={{
+                padding: '5px 15px',
+                border: '1px solid var(--neon-green)',
+                backgroundColor: showAddNote ? 'rgba(0, 255, 0, 0.1)' : 'transparent',
+                color: 'var(--neon-green)',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '12px'
+              }}
+            >
+              ➕ ADD NOTE
+            </button>
+          </div>
         </div>
 
         {/* Add Note Form */}
@@ -423,15 +486,15 @@ export const ShipLogPanel: React.FC<ShipLogPanelProps> = ({ token, onClose }) =>
             <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
               Loading ship log...
             </div>
-          ) : filteredLogs.length === 0 ? (
+          ) : sortedLogs.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
-              {filter === 'ALL' 
+              {filter === 'ALL'
                 ? 'No discoveries yet. Start exploring!'
                 : `No ${filter.replace('_', ' ').toLowerCase()} entries found.`}
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {filteredLogs.map(log => (
+              {sortedLogs.map(log => (
                 <div
                   key={log.id}
                   style={{

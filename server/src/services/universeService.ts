@@ -10,6 +10,7 @@ interface UniverseConfig {
   startingCredits?: number;
   startingShipType?: string;
   portPercentage?: number; // Percentage of sectors with ports (default 12%)
+  stardockCount?: number; // Number of stardocks to create (default: calculated)
   allowDeadEnds?: boolean; // Allow dead-end sectors (~0.25% chance)
   createdBy: number;
 }
@@ -295,14 +296,17 @@ export async function generateUniverse(config: UniverseConfig) {
 
     console.log(`Created ${planetsCreated} claimable planets across the universe`);
 
-    // 7. Generate StarDocks (1 per 500 sectors, minimum 1 for 1000+ sector universes)
-    let stardockCount = Math.floor(maxSectors / STARDOCK_SECTORS_PER_DOCK);
-    if (maxSectors >= 1000 && stardockCount < STARDOCK_MIN_FOR_LARGE_UNIVERSE) {
-      stardockCount = STARDOCK_MIN_FOR_LARGE_UNIVERSE;
-    }
-    // Ensure at least 1 StarDock for any universe with 500+ sectors
-    if (maxSectors >= 500 && stardockCount < 1) {
-      stardockCount = 1;
+    // 7. Generate StarDocks (use provided count or calculate: 1 per 500 sectors, minimum 1 for 1000+ sector universes)
+    let stardockCount = config.stardockCount !== undefined ? config.stardockCount : Math.floor(maxSectors / STARDOCK_SECTORS_PER_DOCK);
+    if (config.stardockCount === undefined) {
+      // Apply defaults only if not explicitly set
+      if (maxSectors >= 1000 && stardockCount < STARDOCK_MIN_FOR_LARGE_UNIVERSE) {
+        stardockCount = STARDOCK_MIN_FOR_LARGE_UNIVERSE;
+      }
+      // Ensure at least 1 StarDock for any universe with 500+ sectors
+      if (maxSectors >= 500 && stardockCount < 1) {
+        stardockCount = 1;
+      }
     }
     
     const stardockSectors = new Set<number>();

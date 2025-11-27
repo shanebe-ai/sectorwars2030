@@ -30,6 +30,7 @@ export const createUniverse = async (req: Request, res: Response) => {
       startingCredits,
       startingShipType,
       portPercentage,
+      stardockCount,
       allowDeadEnds,
     } = req.body;
 
@@ -53,6 +54,7 @@ export const createUniverse = async (req: Request, res: Response) => {
       startingCredits,
       startingShipType,
       portPercentage,
+      stardockCount,
       allowDeadEnds: allowDeadEnds === true,
       createdBy: req.user.userId,
     });

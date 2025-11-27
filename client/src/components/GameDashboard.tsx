@@ -14,24 +14,34 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
   const [player, setPlayer] = useState(initialPlayer);
   const [showMessaging, setShowMessaging] = useState(false);
   const [showShipLog, setShowShipLog] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [unreadLogCount, setUnreadLogCount] = useState(0);
 
-  // Fetch unread message count on mount
+  // Fetch unread message and log counts on mount
   useEffect(() => {
-    const fetchUnreadCount = async () => {
+    const fetchUnreadCounts = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/messages/unread-count`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await response.json();
-        if (response.ok) {
-          setUnreadCount(data.unreadCount);
+        const [messagesRes, logsRes] = await Promise.all([
+          fetch(`${API_URL}/api/messages/unread-count`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          }),
+          fetch(`${API_URL}/api/shiplogs/unread-count`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+        ]);
+        const messagesData = await messagesRes.json();
+        const logsData = await logsRes.json();
+        if (messagesRes.ok) {
+          setUnreadMessageCount(messagesData.unreadCount);
+        }
+        if (logsRes.ok) {
+          setUnreadLogCount(logsData.unreadCount);
         }
       } catch (err) {
         // Silent fail
       }
     };
-    fetchUnreadCount();
+    fetchUnreadCounts();
   }, [token]);
 
   const handleSectorChange = (updatedPlayer: any) => {
@@ -70,23 +80,12 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
               style={{
                 background: 'rgba(0, 255, 0, 0.1)',
                 borderColor: 'var(--neon-green)',
-                color: 'var(--neon-green)'
-              }}
-            >
-              📋 LOG
-            </button>
-            <button
-              onClick={() => setShowMessaging(true)}
-              className="cyberpunk-button"
-              style={{
-                background: 'rgba(0, 255, 255, 0.1)',
-                borderColor: 'var(--neon-cyan)',
-                color: 'var(--neon-cyan)',
+                color: 'var(--neon-green)',
                 position: 'relative'
               }}
             >
-              ✉ COMMS
-              {unreadCount > 0 && (
+              📋 LOG
+              {unreadLogCount > 0 && (
                 <span style={{
                   position: 'absolute',
                   top: '-8px',
@@ -102,7 +101,38 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
                   fontSize: '11px',
                   fontWeight: 'bold'
                 }}>
-                  {unreadCount > 9 ? '9+' : unreadCount}
+                  {unreadLogCount > 9 ? '9+' : unreadLogCount}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setShowMessaging(true)}
+              className="cyberpunk-button"
+              style={{
+                background: 'rgba(0, 255, 255, 0.1)',
+                borderColor: 'var(--neon-cyan)',
+                color: 'var(--neon-cyan)',
+                position: 'relative'
+              }}
+            >
+              ✉ COMMS
+              {unreadMessageCount > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '-8px',
+                  right: '-8px',
+                  background: 'var(--neon-pink)',
+                  color: '#000',
+                  borderRadius: '50%',
+                  width: '20px',
+                  height: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '11px',
+                  fontWeight: 'bold'
+                }}>
+                  {unreadMessageCount > 9 ? '9+' : unreadMessageCount}
                 </span>
               )}
             </button>
@@ -128,7 +158,7 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
           }}>
             <div className="stat-box">
               <div className="stat-box-label">CREDITS</div>
-              <div className="stat-box-value">{player.credits.toLocaleString()}</div>
+              <div className="stat-box-value">₡{player.credits.toLocaleString()}</div>
             </div>
             <div className="stat-box">
               <div className="stat-box-label">TURNS REMAINING</div>
@@ -202,7 +232,7 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
         <MessagingPanel
           token={token}
           onClose={() => setShowMessaging(false)}
-          onUnreadCountChange={setUnreadCount}
+          onUnreadCountChange={setUnreadMessageCount}
         />
       )}
 
@@ -210,6 +240,7 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
         <ShipLogPanel
           token={token}
           onClose={() => setShowShipLog(false)}
+          onUnreadCountChange={setUnreadLogCount}
         />
       )}
 

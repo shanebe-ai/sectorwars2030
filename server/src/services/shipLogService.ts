@@ -13,6 +13,7 @@ export interface ShipLogEntry {
   sector_name?: string;
   note?: string;
   is_manual: boolean;
+  is_read: boolean;
   discovered_at: string;
 }
 
@@ -228,7 +229,7 @@ export async function getLogStats(playerId: number): Promise<{
   manual: number;
 }> {
   const result = await pool.query(
-    `SELECT 
+    `SELECT
        COUNT(*) as total,
        COUNT(*) FILTER (WHERE log_type = 'PORT') as ports,
        COUNT(*) FILTER (WHERE log_type = 'PLANET') as planets,
@@ -238,7 +239,7 @@ export async function getLogStats(playerId: number): Promise<{
      FROM ship_logs WHERE player_id = $1`,
     [playerId]
   );
-  
+
   const row = result.rows[0];
   return {
     total: parseInt(row.total) || 0,
@@ -248,5 +249,30 @@ export async function getLogStats(playerId: number): Promise<{
     stardocks: parseInt(row.stardocks) || 0,
     manual: parseInt(row.manual) || 0
   };
+}
+
+/**
+ * Get unread log count for a player
+ */
+export async function getUnreadLogCount(playerId: number): Promise<number> {
+  const result = await pool.query(
+    `SELECT COUNT(*) as unread_count
+     FROM ship_logs
+     WHERE player_id = $1 AND is_read = FALSE`,
+    [playerId]
+  );
+  return parseInt(result.rows[0]?.unread_count) || 0;
+}
+
+/**
+ * Mark all logs as read for a player
+ */
+export async function markAllLogsAsRead(playerId: number): Promise<void> {
+  await pool.query(
+    `UPDATE ship_logs
+     SET is_read = TRUE
+     WHERE player_id = $1 AND is_read = FALSE`,
+    [playerId]
+  );
 }
 

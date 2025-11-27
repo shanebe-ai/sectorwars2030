@@ -385,18 +385,26 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 ## Current Session Context 🎯
 
 **What We Just Did:**
-- ✅ **Added Network/Remote Access Configuration:**
-  - Server listens on `0.0.0.0` (all network interfaces)
-  - CORS configured for IP `37.27.80.77` (production server)
-  - Vite dev servers accessible remotely (`host: '0.0.0.0'`)
-  - API URL abstraction via `config/api.ts` and `VITE_API_URL` env variable
-  - Production environment files (`.env.production`) for deployment
-- ✅ **Enhanced Broadcast Messaging:**
-  - Per-player broadcast deletion (`message_deletions` table)
-  - Broadcasts only show messages sent after player joined universe
-  - Chat-style compact UI for broadcasts (inline messages)
-  - Improved date/time formatting
-  - Subject field hidden for broadcasts
+- ✅ **Ship Log Unread Alert System:**
+  - Added `is_read` column to `ship_log` table (migration 008)
+  - GET `/api/shiplogs/unread-count` - Get unread log count
+  - POST `/api/shiplogs/mark-read` - Mark all logs as read
+  - Badge on LOG button showing unread count (pink badge like COMMS)
+  - Logs automatically marked as read when panel is opened
+- ✅ **Ship Log Sorting Options:**
+  - 📅 DATE - Sort by discovery date (newest first)
+  - 🔢 SECTOR - Sort by sector number (ascending)
+  - Purple-themed sort buttons with active state highlighting
+- ✅ **Editable StarDocks in Universe Generation:**
+  - StarDocks field added to Create Universe Modal (admin panel)
+  - Default value: `Math.max(1, Math.floor(maxSectors / 500))`
+  - Auto-updates when Max Sectors changes
+  - Admin can manually override the default count
+  - Server accepts `stardockCount` parameter in universe creation API
+- ✅ **Universal Credit System (₡):**
+  - Replaced all `$` signs with ₡ (colón symbol) for credits
+  - Updated port trading panel, game dashboard, and all price displays
+  - Term "credits" explicitly mentioned where appropriate
 
 **Servers Currently Running (Network Accessible):**
 - Backend: http://localhost:3000 (or http://37.27.80.77:3000)

@@ -116,7 +116,7 @@ export default function PortTradingPanel({
 
       if (response.ok) {
         setTradeResult(
-          `${action === 'buy' ? 'Bought' : 'Sold'} ${data.quantity} ${commodity} for ${data.totalCost.toLocaleString()} credits`
+          `${action === 'buy' ? 'Bought' : 'Sold'} ${data.quantity} ${commodity} for ₡${data.totalCost.toLocaleString()} credits`
         );
         // Update port quantity
         setPort((prev) => {
@@ -299,7 +299,7 @@ export default function PortTradingPanel({
               CREDITS
             </div>
             <div style={{ fontSize: '18px', color: 'var(--neon-yellow)' }}>
-              ${player.credits.toLocaleString()}
+              ₡{player.credits.toLocaleString()}
             </div>
           </div>
           <div style={{ textAlign: 'center' }}>
@@ -410,7 +410,7 @@ export default function PortTradingPanel({
                     </span>
                   </div>
                   <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-                    ${info.price}/unit
+                    ₡{info.price} credits/unit
                   </div>
                 </div>
 
@@ -499,7 +499,7 @@ export default function PortTradingPanel({
                   >
                     Total:{' '}
                     <span style={{ color: 'var(--neon-yellow)' }}>
-                      ${(quantities[commodity] * info.price).toLocaleString()}
+                      ₡{(quantities[commodity] * info.price).toLocaleString()} credits
                     </span>
                   </div>
                 )}
