@@ -376,7 +376,7 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
             onClick={() => handleViewChange('broadcasts')}
             badge={unreadCounts.broadcasts}
           />
-          {corporation && corporation.memberCount > 1 && (
+          {corporation && (
             <TabButton
               label="★ CORPORATE"
               active={view === 'corporate'}
@@ -688,7 +688,7 @@ function ComposeForm({
             />
             <span style={{ color: 'var(--neon-purple)' }}>Universe Broadcast</span>
           </label>
-          {corporation && corporation.memberCount > 1 && (
+          {corporation && (
             <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
               <input
                 type="radio"
