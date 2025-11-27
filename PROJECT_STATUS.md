@@ -725,30 +725,29 @@ When implementing new features:
 ---
 
 **Last Updated:** 2025-11-27
-**Status:** Ship Log System Complete
-**Current Session:** Ship log for tracking discoveries and manual notes
+**Status:** Ship Log System Complete - Ready for Combat
+**Current Session:** Ship log system, trading overhaul, StarDock implementation
+**Next Priority:** Combat System
 **Recent Changes:**
 - ✅ **Ship Log System:**
   - LOG button in header (green, beside COMMS)
   - Auto-logs when visiting: Sol, Ports, StarDocks, Planets, Dead-ends
+  - Sol shows once (under Planets filter since Earth is a planet)
   - Manual notes: add custom notes to any sector (deleteable)
-  - Filter by type: All, Ports, Planets, StarDocks, Dead Ends, Notes
+  - Cancel button on note form
+  - Filter by type: All, Planets, Ports, StarDocks, Dead Ends, Notes
   - Stats bar showing counts per category
   - Persists across ship changes (tied to player, not ship)
   - Color-coded entries with icons
   - Migration 007: ship_logs table
-- ✅ **Trading Price Spread Fix (TW2002 Faithful):**
-  - Buy LOW from ports that SELL (they have excess supply)
-  - Sell HIGH to ports that BUY (they have demand)
+- ✅ **Trading System Overhaul (TW2002 Faithful):**
+  - Buy LOW from ports that SELL, Sell HIGH to ports that BUY
   - ~3x profit margin on good port pairs
+  - SSS ports sell 30% cheaper, BBB ports buy 30% higher
+  - Port regeneration: 500 units every 30 minutes
 - ✅ **StarDock System:**
-  - New STARDOCK port type for ship/equipment purchases
-  - 1 StarDock per 500 sectors (minimum 1 for large universes)
+  - 1 StarDock per 500 sectors (min 1 for large universes)
   - Ship/fighter/shield purchasing
-- ✅ **Port Regeneration:**
-  - Ports regenerate 500 units every 30 minutes
-  - Stock range: 1,000 minimum to 15,000 maximum
 **Previous Session:**
-- ✅ Trading system overhaul - TW2002 faithful economy
-- ✅ Rare port bonuses (SSS/BBB)
 - ✅ Corporate messaging with per-user read tracking
+- ✅ Network/remote access configuration
