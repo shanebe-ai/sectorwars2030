@@ -360,21 +360,40 @@ export const ShipLogPanel: React.FC<ShipLogPanelProps> = ({ token, onClose }) =>
                   }}
                 />
               </div>
-              <button
-                onClick={handleAddNote}
-                disabled={addingNote}
-                style={{
-                  padding: '8px 20px',
-                  border: '1px solid var(--neon-green)',
-                  backgroundColor: 'rgba(0, 255, 0, 0.2)',
-                  color: 'var(--neon-green)',
-                  cursor: addingNote ? 'not-allowed' : 'pointer',
-                  fontFamily: 'var(--font-mono)',
-                  marginTop: '19px'
-                }}
-              >
-                {addingNote ? 'SAVING...' : 'SAVE'}
-              </button>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '19px' }}>
+                <button
+                  onClick={handleAddNote}
+                  disabled={addingNote}
+                  style={{
+                    padding: '8px 20px',
+                    border: '1px solid var(--neon-green)',
+                    backgroundColor: 'rgba(0, 255, 0, 0.2)',
+                    color: 'var(--neon-green)',
+                    cursor: addingNote ? 'not-allowed' : 'pointer',
+                    fontFamily: 'var(--font-mono)'
+                  }}
+                >
+                  {addingNote ? 'SAVING...' : 'SAVE'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowAddNote(false);
+                    setNewNoteSector('');
+                    setNewNoteText('');
+                    setError('');
+                  }}
+                  style={{
+                    padding: '8px 20px',
+                    border: '1px solid var(--text-secondary)',
+                    backgroundColor: 'transparent',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    fontFamily: 'var(--font-mono)'
+                  }}
+                >
+                  CANCEL
+                </button>
+              </div>
             </div>
           </div>
         )}
