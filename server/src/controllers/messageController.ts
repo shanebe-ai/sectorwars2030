@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import * as messageService from '../services/messageService';
 import { pool } from '../db/connection';
+import { MessageType } from '../../../shared/types';
 
 /**
  * Get player ID from user ID
@@ -14,7 +15,7 @@ async function getPlayerIdFromUser(userId: number): Promise<number | null> {
 }
 
 /**
- * Send a message to another player
+ * Send a message (direct or broadcast)
  * POST /api/messages
  */
 export const sendMessage = async (req: Request, res: Response) => {
@@ -29,12 +30,28 @@ export const sendMessage = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Player not found' });
     }
 
-    const { recipientId, subject, body } = req.body;
+    const { recipientId, subject, body, messageType } = req.body;
 
-    if (!recipientId || typeof recipientId !== 'number') {
-      return res.status(400).json({ error: 'Invalid recipient ID' });
+    // Validate message type
+    const validMessageTypes: MessageType[] = ['DIRECT', 'BROADCAST'];
+    const type: MessageType = messageType || 'DIRECT';
+
+    if (!validMessageTypes.includes(type)) {
+      return res.status(400).json({ error: 'Invalid message type' });
     }
 
+    // Validate based on type
+    if (type === 'DIRECT') {
+      if (!recipientId || typeof recipientId !== 'number') {
+        return res.status(400).json({ error: 'Recipient required for direct messages' });
+      }
+
+      if (recipientId === playerId) {
+        return res.status(400).json({ error: 'Cannot send message to yourself' });
+      }
+    }
+
+    // Validate body
     if (!body || typeof body !== 'string' || body.trim().length === 0) {
       return res.status(400).json({ error: 'Message body is required' });
     }
@@ -47,15 +64,12 @@ export const sendMessage = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Subject too long (max 200 characters)' });
     }
 
-    if (recipientId === playerId) {
-      return res.status(400).json({ error: 'Cannot send message to yourself' });
-    }
-
     const message = await messageService.sendMessage({
       senderId: playerId,
-      recipientId,
+      recipientId: type === 'DIRECT' ? recipientId : undefined,
       subject: subject?.trim(),
-      body: body.trim()
+      body: body.trim(),
+      messageType: type
     });
 
     res.status(201).json({
@@ -69,7 +83,7 @@ export const sendMessage = async (req: Request, res: Response) => {
 };
 
 /**
- * Get inbox messages
+ * Get inbox messages (direct messages only)
  * GET /api/messages/inbox
  */
 export const getInbox = async (req: Request, res: Response) => {
@@ -93,6 +107,34 @@ export const getInbox = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error getting inbox:', error);
     res.status(500).json({ error: 'Failed to get inbox' });
+  }
+};
+
+/**
+ * Get broadcast messages for player's universe
+ * GET /api/messages/broadcasts
+ */
+export const getBroadcasts = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const playerId = await getPlayerIdFromUser(userId);
+    if (!playerId) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    const messages = await messageService.getBroadcasts(playerId);
+
+    res.json({
+      success: true,
+      messages
+    });
+  } catch (error) {
+    console.error('Error getting broadcasts:', error);
+    res.status(500).json({ error: 'Failed to get broadcasts' });
   }
 };
 
@@ -258,10 +300,10 @@ export const getUnreadCount = async (req: Request, res: Response) => {
 };
 
 /**
- * Get players in the same sector (for composing messages)
- * GET /api/messages/players-in-sector
+ * Get known traders (players you've encountered)
+ * GET /api/messages/known-traders
  */
-export const getPlayersInSector = async (req: Request, res: Response) => {
+export const getKnownTraders = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.userId;
     if (!userId) {
@@ -273,15 +315,14 @@ export const getPlayersInSector = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Player not found' });
     }
 
-    const players = await messageService.getPlayersInSector(playerId);
+    const traders = await messageService.getKnownTraders(playerId);
 
     res.json({
       success: true,
-      players
+      traders
     });
   } catch (error) {
-    console.error('Error getting players in sector:', error);
-    res.status(500).json({ error: 'Failed to get players in sector' });
+    console.error('Error getting known traders:', error);
+    res.status(500).json({ error: 'Failed to get known traders' });
   }
 };
-

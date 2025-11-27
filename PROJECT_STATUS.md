@@ -194,33 +194,44 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 
 ### 15. Ship Communications System (FULLY WORKING!)
 - **Message Service** ([server/src/services/messageService.ts](server/src/services/messageService.ts)) ✅
-  - `sendMessage()` - Send message to another player in same universe
-  - `getInbox()` - Get inbox messages for a player
+  - `sendMessage()` - Send DIRECT or BROADCAST messages
+  - `getInbox()` - Get inbox messages (direct only)
+  - `getBroadcasts()` - Get universe-wide broadcasts
   - `getSentMessages()` - Get sent messages history
   - `getMessage()` - Get specific message (auto-marks as read)
   - `markAsRead()` - Mark message as read
   - `deleteMessage()` - Soft delete (per-user deletion)
   - `getUnreadCount()` - Get count of unread messages
-  - `getPlayersInSector()` - Get other players in same sector for messaging
+  - `getKnownTraders()` - Get players you've encountered
+  - `recordEncounter()` - Track player encounters (auto on movement)
 - **Message Controller & Routes** ✅
-  - POST /api/messages - Send a message
+  - POST /api/messages - Send message (direct or broadcast)
   - GET /api/messages/inbox - Get inbox messages
+  - GET /api/messages/broadcasts - Get universe broadcasts
   - GET /api/messages/sent - Get sent messages
   - GET /api/messages/:id - Get specific message
   - PUT /api/messages/:id/read - Mark as read
   - DELETE /api/messages/:id - Delete message
   - GET /api/messages/unread-count - Get unread count
-  - GET /api/messages/players-in-sector - Get players available to message
+  - GET /api/messages/known-traders - Get traders you've met
 - **MessagingPanel Component** ([client/src/components/MessagingPanel.tsx](client/src/components/MessagingPanel.tsx)) ✅
-  - Inbox view with unread indicators
-  - Sent messages view
-  - Compose message form with recipient selection
+  - Inbox tab (direct messages with unread indicators)
+  - Broadcasts tab (universe-wide messages in purple)
+  - Sent messages tab
+  - Compose tab with message type selector
+  - Known traders dropdown (no location restriction)
   - Read message view with reply/delete options
+  - Broadcast warning when sending to universe
   - Cyberpunk-themed modal interface
 - **GameDashboard Integration** ✅
   - COMMS button in header with unread badge
   - Unread count fetched on mount
   - Real-time count updates when reading messages
+- **Player Encounters** ✅
+  - Automatic tracking when players meet in sectors
+  - Bidirectional encounter recording
+  - Encounter count and last met timestamp
+  - Enables messaging any known trader from anywhere
 - **Automated Test Suite** ([server/src/__tests__/](server/src/__tests__/)) ✅
   - Jest + ts-jest testing framework configured
   - 11 automated tests covering:
@@ -288,26 +299,25 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 ## Current Session Context 🎯
 
 **What We Just Did:**
-- ✅ **Implemented Ship Communications System:**
-  - Created messages database table with soft delete support
-  - Built messageService.ts with full CRUD operations
-  - Created messageController.ts with all API endpoints
-  - Added message routes to server index.ts
-  - Built MessagingPanel.tsx with inbox/sent/compose views
-  - Integrated COMMS button into GameDashboard header
-  - Added unread message count badge indicator
-- ✅ **Fixed Warp Count Issue:**
-  - Reduced max outgoing warps from 5 to 3
-  - New distribution: 65% get 2, 25% get 1, 10% get 3
-  - With bidirectional warps, sectors now have ~2-5 total warps
+- ✅ **Enhanced Ship Communications System:**
+  - Added DIRECT and BROADCAST message types
+  - Created player_encounters table for known traders tracking
+  - Updated messageService.ts with broadcasts and known traders
+  - Added GET /api/messages/broadcasts endpoint
+  - Added GET /api/messages/known-traders endpoint
+  - Rebuilt MessagingPanel.tsx with tabs (Inbox/Broadcasts/Sent/Compose)
+  - Added automatic encounter tracking on sector movement
+  - Known traders list shows ship type and encounter count
+  - Universe-wide broadcasts with purple color scheme
 
-**Ship Communications Features:**
-- Players can message other ships in their sector
-- Messages stored in "ship computer" for offline players
-- Inbox/Sent views with unread indicators
-- Compose form with recipient dropdown
-- Read message view with reply/delete options
-- Unread count badge on COMMS button
+**Enhanced Communications Features:**
+- Message any known trader from anywhere (no location restriction)
+- Universe broadcast channel visible to all players
+- Automatic encounter tracking when players meet in sectors
+- Bidirectional encounter recording
+- Known traders dropdown with encounter statistics
+- Direct messages vs. Broadcasts clearly distinguished
+- Broadcast warning when sending to entire universe
 
 **Servers Currently Running:**
 - Backend: http://localhost:3000 (npm run dev in /home/helloai/server)
@@ -315,7 +325,7 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - Admin: http://localhost:5174 (npm run dev in /home/helloai/admin)
 
 **Ready For:**
-- Aliens with alien planets and ships
+- Aliens with alien planets and ships (NEXT PRIORITY)
 - Combat system implementation
 - Planet colonization (claiming, colonists, production)
 - Port creation system
@@ -592,13 +602,15 @@ When implementing new features:
 
 ---
 
-**Last Updated:** 2025-11-26 (continuation session)
-**Status:** Ship Communications System Complete
-**Current Session:** Implemented ship messaging system
+**Last Updated:** 2025-11-27
+**Status:** Enhanced Communications System Complete
+**Current Session:** Upgraded messaging with broadcasts and known traders
 **Recent Changes:**
-- ✅ Created messages database table with migration
-- ✅ Built messageService.ts and messageController.ts
-- ✅ Added message API routes (inbox, sent, compose, read, delete)
-- ✅ Built MessagingPanel.tsx with full UI
-- ✅ Integrated COMMS button with unread badge in GameDashboard
-- ✅ Fixed warp count distribution (max 3 outgoing, ~2-5 total)
+- ✅ Added message types: DIRECT and BROADCAST
+- ✅ Created player_encounters table for known traders tracking
+- ✅ Implemented automatic encounter tracking on sector movement
+- ✅ Added universe-wide broadcast channel
+- ✅ Rebuilt MessagingPanel with Inbox/Broadcasts/Sent/Compose tabs
+- ✅ Known traders list with encounter statistics
+- ✅ Removed location restriction - message any known trader from anywhere
+- ✅ Added broadcast warnings and purple color scheme for universe messages

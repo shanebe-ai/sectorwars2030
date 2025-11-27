@@ -211,3 +211,52 @@ export interface WsPortUpdate {
     equipment: number;
   };
 }
+
+// Message types
+export type MessageType = 'DIRECT' | 'BROADCAST';
+
+export interface Message {
+  id: number;
+  universe_id: number;
+  sender_id?: number;
+  recipient_id?: number;
+  sender_name?: string;
+  subject?: string;
+  body: string;
+  message_type: MessageType;
+  is_read: boolean;
+  is_deleted_by_sender: boolean;
+  is_deleted_by_recipient: boolean;
+  sent_at: string;
+  read_at?: string;
+}
+
+export interface PlayerEncounter {
+  id: number;
+  player_id: number;
+  encountered_player_id: number;
+  universe_id: number;
+  first_met_at: string;
+  last_met_at: string;
+  encounter_count: number;
+  // Joined data
+  encountered_player_name?: string;
+  encountered_corp_name?: string;
+  encountered_ship_type?: string;
+}
+
+export interface SendMessageRequest {
+  recipient_id?: number; // Optional for broadcasts
+  subject?: string;
+  body: string;
+  message_type: MessageType;
+}
+
+export interface KnownTrader {
+  player_id: number;
+  player_name: string;
+  corp_name: string;
+  ship_type: string;
+  last_met_at: string;
+  encounter_count: number;
+}

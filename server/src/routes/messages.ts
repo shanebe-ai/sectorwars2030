@@ -10,11 +10,14 @@ router.use(authenticateToken);
 // Get unread count (before other routes to avoid conflict with :id)
 router.get('/unread-count', messageController.getUnreadCount);
 
-// Get players in sector for composing messages
-router.get('/players-in-sector', messageController.getPlayersInSector);
+// Get known traders (players you've encountered)
+router.get('/known-traders', messageController.getKnownTraders);
 
-// Get inbox
+// Get inbox (direct messages)
 router.get('/inbox', messageController.getInbox);
+
+// Get broadcasts (universe-wide messages)
+router.get('/broadcasts', messageController.getBroadcasts);
 
 // Get sent messages
 router.get('/sent', messageController.getSentMessages);
