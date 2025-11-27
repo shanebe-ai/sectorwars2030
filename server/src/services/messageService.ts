@@ -189,9 +189,10 @@ export async function getBroadcasts(playerId: number): Promise<Message[]> {
  */
 export async function getSentMessages(playerId: number): Promise<Message[]> {
   const result = await pool.query(
-    `SELECT m.*, p.corp_name as recipient_corp_name
+    `SELECT m.*, p.corp_name as recipient_corp_name, c.name as corp_name_for_corporate
      FROM messages m
      LEFT JOIN players p ON m.recipient_id = p.id
+     LEFT JOIN corporations c ON m.corp_id = c.id
      WHERE m.sender_id = $1 AND m.is_deleted_by_sender = FALSE
      ORDER BY m.sent_at DESC`,
     [playerId]
@@ -203,7 +204,7 @@ export async function getSentMessages(playerId: number): Promise<Message[]> {
       if (msg.message_type === 'BROADCAST') {
         recipient_name = '[Universe Broadcast]';
       } else if (msg.message_type === 'CORPORATE') {
-        recipient_name = '[Corporate]';
+        recipient_name = msg.corp_name_for_corporate || '[Corporate]';
       } else {
         recipient_name = '[Deleted Player]';
       }
@@ -399,15 +400,16 @@ export async function getUnreadCounts(playerId: number): Promise<{ inbox: number
     [playerId]
   );
 
-  // Count unread broadcasts (messages after player joined, not deleted by player, not their own deleted ones)
+  // Count unread broadcasts (messages after player joined, not deleted, not read by this player)
   const broadcastResult = await pool.query(
     `SELECT COUNT(*) as count FROM messages m
      LEFT JOIN message_deletions md ON m.id = md.message_id AND md.player_id = $3
+     LEFT JOIN message_reads mr ON m.id = mr.message_id AND mr.player_id = $3
      WHERE m.universe_id = $1
        AND m.message_type = 'BROADCAST'
        AND m.sent_at >= $2
-       AND m.is_read = FALSE
        AND md.message_id IS NULL
+       AND mr.message_id IS NULL
        AND NOT (m.sender_id = $3 AND m.is_deleted_by_sender = TRUE)`,
     [universe_id, player_joined_at, playerId]
   );
@@ -418,10 +420,11 @@ export async function getUnreadCounts(playerId: number): Promise<{ inbox: number
     const corpResult = await pool.query(
       `SELECT COUNT(*) as count FROM messages m
        LEFT JOIN message_deletions md ON m.id = md.message_id AND md.player_id = $2
+       LEFT JOIN message_reads mr ON m.id = mr.message_id AND mr.player_id = $2
        WHERE m.corp_id = $1
          AND m.message_type = 'CORPORATE'
-         AND m.is_read = FALSE
          AND md.message_id IS NULL
+         AND mr.message_id IS NULL
          AND NOT (m.sender_id = $2 AND m.is_deleted_by_sender = TRUE)`,
       [corp_id, playerId]
     );
@@ -433,6 +436,67 @@ export async function getUnreadCounts(playerId: number): Promise<{ inbox: number
     broadcasts: parseInt(broadcastResult.rows[0].count, 10),
     corporate: corporateCount
   };
+}
+
+/**
+ * Mark all broadcasts as read for a player
+ */
+export async function markBroadcastsAsRead(playerId: number): Promise<void> {
+  // Get player's universe and join time
+  const playerResult = await pool.query(
+    `SELECT universe_id, created_at FROM players WHERE id = $1`,
+    [playerId]
+  );
+
+  if (playerResult.rows.length === 0) return;
+
+  const { universe_id, created_at: player_joined_at } = playerResult.rows[0];
+
+  // Insert read records for all unread broadcasts
+  await pool.query(
+    `INSERT INTO message_reads (player_id, message_id)
+     SELECT $1, m.id FROM messages m
+     LEFT JOIN message_deletions md ON m.id = md.message_id AND md.player_id = $1
+     LEFT JOIN message_reads mr ON m.id = mr.message_id AND mr.player_id = $1
+     WHERE m.universe_id = $2
+       AND m.message_type = 'BROADCAST'
+       AND m.sent_at >= $3
+       AND md.message_id IS NULL
+       AND mr.message_id IS NULL
+       AND NOT (m.sender_id = $1 AND m.is_deleted_by_sender = TRUE)
+     ON CONFLICT (player_id, message_id) DO NOTHING`,
+    [playerId, universe_id, player_joined_at]
+  );
+}
+
+/**
+ * Mark all corporate messages as read for a player
+ */
+export async function markCorporateAsRead(playerId: number): Promise<void> {
+  // Get player's corp
+  const corpResult = await pool.query(
+    `SELECT cm.corp_id FROM corp_members cm WHERE cm.player_id = $1`,
+    [playerId]
+  );
+
+  if (corpResult.rows.length === 0) return;
+
+  const { corp_id } = corpResult.rows[0];
+
+  // Insert read records for all unread corporate messages
+  await pool.query(
+    `INSERT INTO message_reads (player_id, message_id)
+     SELECT $1, m.id FROM messages m
+     LEFT JOIN message_deletions md ON m.id = md.message_id AND md.player_id = $1
+     LEFT JOIN message_reads mr ON m.id = mr.message_id AND mr.player_id = $1
+     WHERE m.corp_id = $2
+       AND m.message_type = 'CORPORATE'
+       AND md.message_id IS NULL
+       AND mr.message_id IS NULL
+       AND NOT (m.sender_id = $1 AND m.is_deleted_by_sender = TRUE)
+     ON CONFLICT (player_id, message_id) DO NOTHING`,
+    [playerId, corp_id]
+  );
 }
 
 /**

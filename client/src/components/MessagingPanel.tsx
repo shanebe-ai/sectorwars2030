@@ -81,9 +81,8 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
       const data = await response.json();
       if (response.ok) {
         setMessages(data.messages);
-        // Clear broadcast unread count when viewing (considered "read" in list form)
-        setUnreadCounts(prev => ({ ...prev, broadcasts: 0 }));
-        onUnreadCountChange?.(unreadCounts.inbox + unreadCounts.corporate);
+        // Server marks broadcasts as read, reload counts
+        loadUnreadCounts();
       } else {
         setError(data.error || 'Failed to load broadcasts');
       }
@@ -167,9 +166,8 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
       const data = await response.json();
       if (response.ok) {
         setMessages(data.messages);
-        // Clear corporate unread count when viewing (considered "read" in list form)
-        setUnreadCounts(prev => ({ ...prev, corporate: 0 }));
-        onUnreadCountChange?.(unreadCounts.inbox + unreadCounts.broadcasts);
+        // Server marks corporate messages as read, reload counts
+        loadUnreadCounts();
       } else {
         setError(data.error || 'Failed to load corporate messages');
       }

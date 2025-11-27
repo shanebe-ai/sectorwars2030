@@ -127,6 +127,9 @@ export const getBroadcasts = async (req: Request, res: Response) => {
     }
 
     const messages = await messageService.getBroadcasts(playerId);
+    
+    // Mark all broadcasts as read when viewing the list
+    await messageService.markBroadcastsAsRead(playerId);
 
     res.json({
       success: true,
@@ -317,6 +320,9 @@ export const getCorporateMessages = async (req: Request, res: Response) => {
     }
 
     const messages = await messageService.getCorporateMessages(playerId);
+    
+    // Mark all corporate messages as read when viewing the list
+    await messageService.markCorporateAsRead(playerId);
 
     res.json({
       success: true,
