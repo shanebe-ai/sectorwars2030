@@ -465,11 +465,9 @@ function MessageList({ messages, loading, onOpenMessage, type, formatDateTime }:
             <div>
               <span style={{ color: 'var(--neon-purple)', fontWeight: 'bold' }}>[BROADCAST]</span>
               {' '}
-              <span style={{ color: 'var(--neon-cyan)' }}>{msg.sender_name || '[Unknown]'}</span>
-              {(msg as any).sender_corp && (
-                <span style={{ color: 'var(--text-secondary)' }}> ({(msg as any).sender_corp})</span>
-              )}
-              <span style={{ color: 'var(--text-primary)' }}>: {msg.body}</span>
+              <span style={{ color: 'var(--neon-cyan)', fontWeight: 'bold' }}>{msg.sender_name || '[Unknown]'}</span>
+              {' '}
+              <span style={{ color: 'var(--text-primary)' }}>{msg.body}</span>
             </div>
             <div style={{ whiteSpace: 'nowrap', marginLeft: '1rem', color: 'var(--text-secondary)', fontSize: '11px' }}>
               {formatDateTime(msg.sent_at)}
