@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import SectorView from './SectorView';
 import MessagingPanel from './MessagingPanel';
+import ShipLogPanel from './ShipLogPanel';
 import { API_URL } from '../config/api';
 
 interface GameDashboardProps {
@@ -12,6 +13,7 @@ interface GameDashboardProps {
 export default function GameDashboard({ player: initialPlayer, token, onLogout }: GameDashboardProps) {
   const [player, setPlayer] = useState(initialPlayer);
   const [showMessaging, setShowMessaging] = useState(false);
+  const [showShipLog, setShowShipLog] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Fetch unread message count on mount
@@ -62,6 +64,17 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
             </div>
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              onClick={() => setShowShipLog(true)}
+              className="cyberpunk-button"
+              style={{
+                background: 'rgba(0, 255, 0, 0.1)',
+                borderColor: 'var(--neon-green)',
+                color: 'var(--neon-green)'
+              }}
+            >
+              📋 LOG
+            </button>
             <button
               onClick={() => setShowMessaging(true)}
               className="cyberpunk-button"
@@ -190,6 +203,13 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
           token={token}
           onClose={() => setShowMessaging(false)}
           onUnreadCountChange={setUnreadCount}
+        />
+      )}
+
+      {showShipLog && (
+        <ShipLogPanel
+          token={token}
+          onClose={() => setShowShipLog(false)}
         />
       )}
 

@@ -11,6 +11,7 @@ import sectorRoutes from './routes/sector';
 import portRoutes from './routes/port';
 import messageRoutes from './routes/messages';
 import stardockRoutes from './routes/stardock';
+import shipLogRoutes from './routes/shipLog';
 import { startPortRegeneration } from './services/portService';
 
 dotenv.config();
@@ -84,6 +85,9 @@ app.use('/api/messages', messageRoutes);
 
 // StarDock routes (ship/equipment purchases)
 app.use('/api/stardock', stardockRoutes);
+
+// Ship Log routes (discoveries and notes)
+app.use('/api/shiplogs', shipLogRoutes);
 
 // WebSocket connection handling
 io.on('connection', (socket) => {

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { pool } from '../db/connection';
 import { recordEncounter } from '../services/messageService';
+import { autoLogSector } from '../services/shipLogService';
 
 /**
  * Get sector details including warps
@@ -299,6 +300,34 @@ export const moveToSector = async (req: Request, res: Response) => {
         await recordEncounter(player.id, otherPlayer.id, player.universe_id);
         // Record that the other player met this player
         await recordEncounter(otherPlayer.id, player.id, player.universe_id);
+      }
+
+      // Get destination sector info for auto-logging
+      const destSectorResult = await client.query(
+        `SELECT 
+          s.sector_number, s.name, s.port_type, s.has_planet,
+          pl.name as planet_name,
+          (SELECT COUNT(*) FROM sector_warps sw 
+           JOIN sectors s2 ON sw.sector_id = s2.id 
+           WHERE s2.universe_id = $1 AND (sw.sector_id = s.id OR sw.destination_sector_number = s.sector_number)
+          ) as warp_count
+         FROM sectors s
+         LEFT JOIN planets pl ON pl.sector_id = s.id
+         WHERE s.universe_id = $1 AND s.sector_number = $2`,
+        [player.universe_id, actualDestination]
+      );
+
+      // Auto-log the sector discovery
+      if (destSectorResult.rows[0]) {
+        const sectorInfo = destSectorResult.rows[0];
+        await autoLogSector(player.id, player.universe_id, {
+          sector_number: sectorInfo.sector_number,
+          name: sectorInfo.name,
+          port_type: sectorInfo.port_type,
+          has_planet: sectorInfo.has_planet,
+          planet_name: sectorInfo.planet_name,
+          warp_count: parseInt(sectorInfo.warp_count) || 0
+        });
       }
 
       await client.query('COMMIT');
