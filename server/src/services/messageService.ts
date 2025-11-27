@@ -270,8 +270,17 @@ export async function deleteMessage(messageId: number, playerId: number): Promis
 
   const msg = checkResult.rows[0];
 
-  // Handle broadcasts differently - use message_deletions table
+  // Handle broadcasts differently
   if (msg.message_type === 'BROADCAST') {
+    // If the sender is deleting their own broadcast (from Sent), mark as deleted by sender
+    if (msg.sender_id === playerId) {
+      await pool.query(
+        `UPDATE messages SET is_deleted_by_sender = TRUE WHERE id = $1`,
+        [messageId]
+      );
+      return true;
+    }
+    // Otherwise, use message_deletions table for per-player deletion
     await pool.query(
       `INSERT INTO message_deletions (message_id, player_id)
        VALUES ($1, $2)

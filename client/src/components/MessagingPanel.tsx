@@ -21,6 +21,7 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
   };
 
   const [view, setView] = useState<'inbox' | 'broadcasts' | 'sent' | 'compose' | 'read'>('inbox');
+  const [previousView, setPreviousView] = useState<'inbox' | 'broadcasts' | 'sent'>('inbox');
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [knownTraders, setKnownTraders] = useState<KnownTrader[]>([]);
@@ -188,6 +189,10 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
   };
 
   const handleOpenMessage = async (message: Message) => {
+    // Track where we came from so we can return there after delete
+    if (view === 'inbox' || view === 'broadcasts' || view === 'sent') {
+      setPreviousView(view);
+    }
     setSelectedMessage(message);
     setView('read');
 
@@ -214,11 +219,14 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
       });
       if (response.ok) {
         setSuccess('Message deleted');
-        setView(selectedMessage?.message_type === 'BROADCAST' ? 'broadcasts' : 'inbox');
+        // Return to the view we came from
+        setView(previousView);
         setSelectedMessage(null);
         // Reload the appropriate list
-        if (selectedMessage?.message_type === 'BROADCAST') {
+        if (previousView === 'broadcasts') {
           loadBroadcasts();
+        } else if (previousView === 'sent') {
+          loadSentMessages();
         } else {
           loadInbox();
         }
@@ -379,7 +387,8 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
               message={selectedMessage}
               onReply={handleReply}
               onDelete={handleDeleteMessage}
-              onBack={() => setView('inbox')}
+              onBack={() => setView(previousView)}
+              previousView={previousView}
             />
           )}
         </div>
@@ -503,7 +512,9 @@ function MessageList({ messages, loading, onOpenMessage, type, formatDateTime }:
             </span>
           </div>
           <div style={{ color: 'var(--text-primary)', fontSize: '14px' }}>
-            {msg.subject || '(no subject)'}
+            {msg.message_type === 'BROADCAST' 
+              ? msg.body.substring(0, 60) + (msg.body.length > 60 ? '...' : '')
+              : (msg.subject || '(no subject)')}
           </div>
           {!msg.is_read && type === 'inbox' && (
             <div style={{ marginTop: '5px', color: 'var(--neon-green)', fontSize: '11px' }}>● UNREAD</div>
@@ -676,7 +687,13 @@ function ComposeForm({
 }
 
 // Message View Component
-function MessageView({ message, onReply, onDelete, onBack }: any) {
+function MessageView({ message, onReply, onDelete, onBack, previousView }: any) {
+  const getBackLabel = () => {
+    if (previousView === 'broadcasts') return '◄ BACK TO BROADCASTS';
+    if (previousView === 'sent') return '◄ BACK TO SENT';
+    return '◄ BACK TO INBOX';
+  };
+
   return (
     <div>
       <button
@@ -691,7 +708,7 @@ function MessageView({ message, onReply, onDelete, onBack }: any) {
           cursor: 'pointer'
         }}
       >
-        ◄ Back
+        {getBackLabel()}
       </button>
 
       <div style={{
@@ -712,10 +729,12 @@ function MessageView({ message, onReply, onDelete, onBack }: any) {
             <span style={{ color: 'var(--text-secondary)' }}>Date: </span>
             <span style={{ color: 'var(--text-primary)' }}>{new Date(message.sent_at).toLocaleString()}</span>
           </div>
-          <div>
-            <span style={{ color: 'var(--text-secondary)' }}>Subject: </span>
-            <span style={{ color: 'var(--text-primary)' }}>{message.subject || '(no subject)'}</span>
-          </div>
+          {message.message_type !== 'BROADCAST' && (
+            <div>
+              <span style={{ color: 'var(--text-secondary)' }}>Subject: </span>
+              <span style={{ color: 'var(--text-primary)' }}>{message.subject || '(no subject)'}</span>
+            </div>
+          )}
         </div>
 
         <div style={{
@@ -778,7 +797,7 @@ function MessageView({ message, onReply, onDelete, onBack }: any) {
               fontWeight: 'bold'
             }}
           >
-            ◄ BACK TO BROADCASTS
+            {getBackLabel()}
           </button>
           <button
             onClick={() => onDelete(message.id)}
