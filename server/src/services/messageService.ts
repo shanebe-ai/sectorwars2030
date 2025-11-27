@@ -49,14 +49,35 @@ export async function sendMessage(params: SendMessageParams): Promise<Message> {
     if (recipientId) {
       throw new Error('Broadcasts cannot have a recipient');
     }
+  } else if (messageType === 'CORPORATE') {
+    // Corporate messages require sender to be in a corporation
+    const corpResult = await pool.query(
+      `SELECT cm.corp_id FROM corp_members cm WHERE cm.player_id = $1`,
+      [senderId]
+    );
+    if (corpResult.rows.length === 0) {
+      throw new Error('You must be in a corporation to send corporate messages');
+    }
+  }
+
+  // Get corp_id if sending corporate message
+  let corpId = null;
+  if (messageType === 'CORPORATE') {
+    const corpResult = await pool.query(
+      `SELECT cm.corp_id FROM corp_members cm WHERE cm.player_id = $1`,
+      [senderId]
+    );
+    if (corpResult.rows.length > 0) {
+      corpId = corpResult.rows[0].corp_id;
+    }
   }
 
   // Insert the message
   const insertResult = await pool.query(
-    `INSERT INTO messages (universe_id, sender_id, recipient_id, sender_name, subject, body, message_type)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO messages (universe_id, sender_id, recipient_id, sender_name, subject, body, message_type, corp_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING *`,
-    [sender.universe_id, senderId, recipientId || null, sender.corp_name, subject || null, body, messageType]
+    [sender.universe_id, senderId, recipientId || null, sender.corp_name, subject || null, body, messageType, corpId]
   );
 
   const msg = insertResult.rows[0];
@@ -198,6 +219,13 @@ export async function getSentMessages(playerId: number): Promise<Message[]> {
  * Get a specific message by ID
  */
 export async function getMessage(messageId: number, playerId: number): Promise<Message | null> {
+  // Get player's corp_id
+  const playerResult = await pool.query(
+    `SELECT cm.corp_id FROM corp_members cm WHERE cm.player_id = $1`,
+    [playerId]
+  );
+  const corpId = playerResult.rows.length > 0 ? playerResult.rows[0].corp_id : null;
+
   const result = await pool.query(
     `SELECT m.*,
             sender.corp_name as sender_corp_name,
@@ -205,8 +233,13 @@ export async function getMessage(messageId: number, playerId: number): Promise<M
      FROM messages m
      LEFT JOIN players sender ON m.sender_id = sender.id
      LEFT JOIN players recipient ON m.recipient_id = recipient.id
-     WHERE m.id = $1 AND (m.sender_id = $2 OR m.recipient_id = $2 OR m.message_type = 'BROADCAST')`,
-    [messageId, playerId]
+     WHERE m.id = $1 AND (
+       m.sender_id = $2 
+       OR m.recipient_id = $2 
+       OR m.message_type = 'BROADCAST'
+       OR (m.message_type = 'CORPORATE' AND m.corp_id = $3)
+     )`,
+    [messageId, playerId, corpId]
   );
 
   if (result.rows.length === 0) {
@@ -273,9 +306,9 @@ export async function deleteMessage(messageId: number, playerId: number): Promis
 
   const msg = checkResult.rows[0];
 
-  // Handle broadcasts differently
-  if (msg.message_type === 'BROADCAST') {
-    // If the sender is deleting their own broadcast (from Sent), mark as deleted by sender
+  // Handle broadcasts and corporate messages (shared channel messages)
+  if (msg.message_type === 'BROADCAST' || msg.message_type === 'CORPORATE') {
+    // If the sender is deleting their own message (from Sent), mark as deleted by sender
     if (msg.sender_id === playerId) {
       await pool.query(
         `UPDATE messages SET is_deleted_by_sender = TRUE WHERE id = $1`,
@@ -326,6 +359,136 @@ export async function getUnreadCount(playerId: number): Promise<number> {
   );
 
   return parseInt(result.rows[0].count, 10);
+}
+
+/**
+ * Get detailed unread counts for all channels
+ */
+export async function getUnreadCounts(playerId: number): Promise<{ inbox: number; broadcasts: number; corporate: number }> {
+  // Get player info
+  const playerResult = await pool.query(
+    `SELECT p.universe_id, p.created_at, cm.corp_id
+     FROM players p
+     LEFT JOIN corp_members cm ON p.id = cm.player_id
+     WHERE p.id = $1`,
+    [playerId]
+  );
+
+  if (playerResult.rows.length === 0) {
+    return { inbox: 0, broadcasts: 0, corporate: 0 };
+  }
+
+  const { universe_id, created_at: player_joined_at, corp_id } = playerResult.rows[0];
+
+  // Count unread inbox messages
+  const inboxResult = await pool.query(
+    `SELECT COUNT(*) as count FROM messages
+     WHERE recipient_id = $1 AND is_read = FALSE AND is_deleted_by_recipient = FALSE AND message_type = 'DIRECT'`,
+    [playerId]
+  );
+
+  // Count unread broadcasts (messages after player joined, not deleted by player, not their own deleted ones)
+  const broadcastResult = await pool.query(
+    `SELECT COUNT(*) as count FROM messages m
+     LEFT JOIN message_deletions md ON m.id = md.message_id AND md.player_id = $3
+     WHERE m.universe_id = $1
+       AND m.message_type = 'BROADCAST'
+       AND m.sent_at >= $2
+       AND m.is_read = FALSE
+       AND md.message_id IS NULL
+       AND NOT (m.sender_id = $3 AND m.is_deleted_by_sender = TRUE)`,
+    [universe_id, player_joined_at, playerId]
+  );
+
+  // Count unread corporate messages (if in a corp)
+  let corporateCount = 0;
+  if (corp_id) {
+    const corpResult = await pool.query(
+      `SELECT COUNT(*) as count FROM messages m
+       LEFT JOIN message_deletions md ON m.id = md.message_id AND md.player_id = $2
+       WHERE m.corp_id = $1
+         AND m.message_type = 'CORPORATE'
+         AND m.is_read = FALSE
+         AND md.message_id IS NULL
+         AND NOT (m.sender_id = $2 AND m.is_deleted_by_sender = TRUE)`,
+      [corp_id, playerId]
+    );
+    corporateCount = parseInt(corpResult.rows[0].count, 10);
+  }
+
+  return {
+    inbox: parseInt(inboxResult.rows[0].count, 10),
+    broadcasts: parseInt(broadcastResult.rows[0].count, 10),
+    corporate: corporateCount
+  };
+}
+
+/**
+ * Get player's corporation info
+ */
+export async function getPlayerCorporation(playerId: number): Promise<{ id: number; name: string } | null> {
+  const result = await pool.query(
+    `SELECT c.id, c.name
+     FROM corp_members cm
+     JOIN corporations c ON cm.corp_id = c.id
+     WHERE cm.player_id = $1`,
+    [playerId]
+  );
+
+  if (result.rows.length === 0) {
+    return null;
+  }
+
+  return { id: result.rows[0].id, name: result.rows[0].name };
+}
+
+/**
+ * Get corporate messages for a player's corporation
+ */
+export async function getCorporateMessages(playerId: number): Promise<Message[]> {
+  // Get player's corp
+  const corpResult = await pool.query(
+    `SELECT cm.corp_id FROM corp_members cm WHERE cm.player_id = $1`,
+    [playerId]
+  );
+
+  if (corpResult.rows.length === 0) {
+    return [];
+  }
+
+  const { corp_id } = corpResult.rows[0];
+
+  const result = await pool.query(
+    `SELECT m.*, p.corp_name as sender_corp_name, u.username as sender_username
+     FROM messages m
+     LEFT JOIN players p ON m.sender_id = p.id
+     LEFT JOIN users u ON p.user_id = u.id
+     LEFT JOIN message_deletions md ON m.id = md.message_id AND md.player_id = $2
+     WHERE m.corp_id = $1
+       AND m.message_type = 'CORPORATE'
+       AND md.message_id IS NULL
+       AND NOT (m.sender_id = $2 AND m.is_deleted_by_sender = TRUE)
+     ORDER BY m.sent_at DESC
+     LIMIT 100`,
+    [corp_id, playerId]
+  );
+
+  return result.rows.map(msg => ({
+    id: msg.id,
+    universe_id: msg.universe_id,
+    sender_id: msg.sender_id,
+    recipient_id: msg.recipient_id,
+    sender_name: msg.sender_username || '[Unknown]',
+    sender_corp: msg.sender_corp_name || '[Unknown Corp]',
+    subject: msg.subject,
+    body: msg.body,
+    message_type: msg.message_type,
+    is_read: msg.is_read,
+    is_deleted_by_sender: msg.is_deleted_by_sender,
+    is_deleted_by_recipient: msg.is_deleted_by_recipient,
+    sent_at: msg.sent_at,
+    read_at: msg.read_at
+  }));
 }
 
 /**

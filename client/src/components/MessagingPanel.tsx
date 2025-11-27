@@ -20,14 +20,20 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
     });
   };
 
-  const [view, setView] = useState<'inbox' | 'broadcasts' | 'sent' | 'compose' | 'read'>('inbox');
-  const [previousView, setPreviousView] = useState<'inbox' | 'broadcasts' | 'sent'>('inbox');
+  const [view, setView] = useState<'inbox' | 'broadcasts' | 'corporate' | 'sent' | 'compose' | 'read'>('inbox');
+  const [previousView, setPreviousView] = useState<'inbox' | 'broadcasts' | 'corporate' | 'sent'>('inbox');
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [knownTraders, setKnownTraders] = useState<KnownTrader[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Unread counts per channel
+  const [unreadCounts, setUnreadCounts] = useState({ inbox: 0, broadcasts: 0, corporate: 0 });
+  
+  // Corporation state
+  const [corporation, setCorporation] = useState<{ id: number; name: string } | null>(null);
 
   // Compose form state
   const [messageType, setMessageType] = useState<MessageType>('DIRECT');
@@ -39,6 +45,8 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
   useEffect(() => {
     loadInbox();
     loadKnownTraders();
+    loadUnreadCounts();
+    loadCorporation();
   }, []);
 
   const loadInbox = async () => {
@@ -117,6 +125,55 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
     }
   };
 
+  const loadUnreadCounts = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/messages/unread-count`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (response.ok && data.counts) {
+        setUnreadCounts(data.counts);
+        onUnreadCountChange?.(data.unreadCount);
+      }
+    } catch (err) {
+      // Silent fail
+    }
+  };
+
+  const loadCorporation = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/messages/corporation`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setCorporation(data.corporation);
+      }
+    } catch (err) {
+      // Silent fail
+    }
+  };
+
+  const loadCorporateMessages = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await fetch(`${API_URL}/api/messages/corporate`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setMessages(data.messages);
+      } else {
+        setError(data.error || 'Failed to load corporate messages');
+      }
+    } catch (err) {
+      setError('Network error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleViewChange = (newView: typeof view) => {
     setView(newView);
     setError('');
@@ -127,6 +184,8 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
       loadInbox();
     } else if (newView === 'broadcasts') {
       loadBroadcasts();
+    } else if (newView === 'corporate') {
+      loadCorporateMessages();
     } else if (newView === 'sent') {
       loadSentMessages();
     } else if (newView === 'compose') {
@@ -222,14 +281,17 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
         // Return to the view we came from
         setView(previousView);
         setSelectedMessage(null);
-        // Reload the appropriate list
+        // Reload the appropriate list and update unread counts
         if (previousView === 'broadcasts') {
           loadBroadcasts();
+        } else if (previousView === 'corporate') {
+          loadCorporateMessages();
         } else if (previousView === 'sent') {
           loadSentMessages();
         } else {
           loadInbox();
         }
+        loadUnreadCounts();
       } else {
         const data = await response.json();
         setError(data.error || 'Failed to delete message');
@@ -293,18 +355,30 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
         <div style={{
           display: 'flex',
           borderBottom: '1px solid var(--neon-cyan)',
-          padding: '0 20px'
+          padding: '0 20px',
+          flexWrap: 'wrap'
         }}>
           <TabButton
             label="◄ INBOX"
             active={view === 'inbox'}
             onClick={() => handleViewChange('inbox')}
+            badge={unreadCounts.inbox}
           />
           <TabButton
             label="◉ BROADCASTS"
             active={view === 'broadcasts'}
             onClick={() => handleViewChange('broadcasts')}
+            badge={unreadCounts.broadcasts}
           />
+          {corporation && (
+            <TabButton
+              label="★ CORPORATE"
+              active={view === 'corporate'}
+              onClick={() => handleViewChange('corporate')}
+              color="purple"
+              badge={unreadCounts.corporate}
+            />
+          )}
           <TabButton
             label="► SENT"
             active={view === 'sent'}
@@ -356,6 +430,16 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
             />
           )}
 
+          {view === 'corporate' && (
+            <MessageList
+              messages={messages}
+              loading={loading}
+              onOpenMessage={handleOpenMessage}
+              type="corporate"
+              formatDateTime={formatDateTime}
+            />
+          )}
+
           {view === 'sent' && (
             <MessageList
               messages={messages}
@@ -379,6 +463,7 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
               knownTraders={knownTraders}
               sending={sending}
               onSubmit={handleSendMessage}
+              corporation={corporation}
             />
           )}
 
@@ -398,15 +483,20 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
 }
 
 // Tab Button Component
-function TabButton({ label, active, onClick, color = 'cyan', style = {} }: any) {
-  const activeColor = color === 'green' ? 'var(--neon-green)' : 'var(--neon-cyan)';
+function TabButton({ label, active, onClick, color = 'cyan', style = {}, badge = 0 }: any) {
+  const colorMap: Record<string, { active: string; rgb: string }> = {
+    cyan: { active: 'var(--neon-cyan)', rgb: '0, 255, 255' },
+    green: { active: 'var(--neon-green)', rgb: '0, 255, 0' },
+    purple: { active: 'var(--neon-purple)', rgb: '157, 0, 255' }
+  };
+  const { active: activeColor, rgb } = colorMap[color] || colorMap.cyan;
 
   return (
     <button
       onClick={onClick}
       style={{
         padding: '12px 20px',
-        background: active ? `rgba(${color === 'green' ? '0, 255, 0' : '0, 255, 255'}, 0.1)` : 'transparent',
+        background: active ? `rgba(${rgb}, 0.1)` : 'transparent',
         border: 'none',
         borderBottom: active ? `2px solid ${activeColor}` : '2px solid transparent',
         color: active ? activeColor : 'var(--text-primary)',
@@ -414,10 +504,30 @@ function TabButton({ label, active, onClick, color = 'cyan', style = {} }: any) 
         fontSize: '13px',
         textTransform: 'uppercase',
         fontFamily: 'monospace',
+        position: 'relative',
         ...style
       }}
     >
       {label}
+      {badge > 0 && (
+        <span style={{
+          position: 'absolute',
+          top: '4px',
+          right: '4px',
+          background: 'var(--neon-pink)',
+          color: '#000',
+          borderRadius: '50%',
+          width: '18px',
+          height: '18px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '10px',
+          fontWeight: 'bold'
+        }}>
+          {badge > 9 ? '9+' : badge}
+        </span>
+      )}
     </button>
   );
 }
@@ -436,8 +546,13 @@ function MessageList({ messages, loading, onOpenMessage, type, formatDateTime }:
     );
   }
 
-  // Broadcast chat-style rendering
-  if (type === 'broadcasts') {
+  // Broadcast/Corporate chat-style rendering
+  if (type === 'broadcasts' || type === 'corporate') {
+    const isCorporate = type === 'corporate';
+    const tagColor = isCorporate ? 'var(--neon-green)' : 'var(--neon-purple)';
+    const tagLabel = isCorporate ? '[CORPORATE]' : '[BROADCAST]';
+    const hoverBg = isCorporate ? 'rgba(0, 255, 0, 0.1)' : 'rgba(0, 255, 255, 0.1)';
+    
     return (
       <div style={{
         display: 'flex',
@@ -459,11 +574,11 @@ function MessageList({ messages, loading, onOpenMessage, type, formatDateTime }:
               justifyContent: 'space-between',
               alignItems: 'center'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 255, 255, 0.1)'}
+            onMouseEnter={(e) => e.currentTarget.style.background = hoverBg}
             onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.2)'}
           >
             <div>
-              <span style={{ color: 'var(--neon-purple)', fontWeight: 'bold' }}>[BROADCAST]</span>
+              <span style={{ color: tagColor, fontWeight: 'bold' }}>{tagLabel}</span>
               {' '}
               <span style={{ color: 'var(--neon-cyan)', fontWeight: 'bold' }}>{msg.sender_name || '[Unknown]'}</span>
               {' '}
@@ -536,7 +651,8 @@ function ComposeForm({
   setBody,
   knownTraders,
   sending,
-  onSubmit
+  onSubmit,
+  corporation
 }: any) {
   return (
     <form onSubmit={onSubmit}>
@@ -545,7 +661,7 @@ function ComposeForm({
         <label style={{ display: 'block', marginBottom: '8px', color: 'var(--neon-cyan)' }}>
           Message Type:
         </label>
-        <div style={{ display: 'flex', gap: '15px' }}>
+        <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
           <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
             <input
               type="radio"
@@ -566,6 +682,18 @@ function ComposeForm({
             />
             <span style={{ color: 'var(--neon-purple)' }}>Universe Broadcast</span>
           </label>
+          {corporation && (
+            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+              <input
+                type="radio"
+                value="CORPORATE"
+                checked={messageType === 'CORPORATE'}
+                onChange={(e) => setMessageType(e.target.value as MessageType)}
+                style={{ marginRight: '5px' }}
+              />
+              <span style={{ color: 'var(--neon-green)' }}>Corporate ({corporation.name})</span>
+            </label>
+          )}
         </div>
       </div>
 
@@ -612,7 +740,15 @@ function ComposeForm({
         </div>
       )}
 
-      {messageType !== 'BROADCAST' && (
+      {messageType === 'CORPORATE' && (
+        <div style={{ marginBottom: '20px', padding: '10px', background: 'rgba(0, 255, 0, 0.1)', border: '1px solid var(--neon-green)', borderRadius: '4px' }}>
+          <span style={{ color: 'var(--neon-green)', fontSize: '13px' }}>
+            ★ This message will be visible to all members of {corporation?.name}
+          </span>
+        </div>
+      )}
+
+      {messageType === 'DIRECT' && (
         <div style={{ marginBottom: '20px' }}>
           <label style={{ display: 'block', marginBottom: '8px', color: 'var(--neon-cyan)' }}>
             Subject (optional):
@@ -679,7 +815,7 @@ function ComposeForm({
           textTransform: 'uppercase'
         }}
       >
-        {sending ? 'Sending...' : messageType === 'BROADCAST' ? '◉ BROADCAST MESSAGE' : '► SEND MESSAGE'}
+        {sending ? 'Sending...' : messageType === 'BROADCAST' ? '◉ BROADCAST MESSAGE' : messageType === 'CORPORATE' ? '★ SEND TO CORP' : '► SEND MESSAGE'}
       </button>
     </form>
   );
@@ -689,6 +825,7 @@ function ComposeForm({
 function MessageView({ message, onReply, onDelete, onBack, previousView }: any) {
   const getBackLabel = () => {
     if (previousView === 'broadcasts') return '◄ BACK TO BROADCASTS';
+    if (previousView === 'corporate') return '◄ BACK TO CORPORATE';
     if (previousView === 'sent') return '◄ BACK TO SENT';
     return '◄ BACK TO INBOX';
   };
@@ -723,12 +860,15 @@ function MessageView({ message, onReply, onDelete, onBack, previousView }: any) 
             {message.message_type === 'BROADCAST' && (
               <span style={{ marginLeft: '10px', color: 'var(--neon-purple)' }}>[UNIVERSE BROADCAST]</span>
             )}
+            {message.message_type === 'CORPORATE' && (
+              <span style={{ marginLeft: '10px', color: 'var(--neon-green)' }}>[CORPORATE]</span>
+            )}
           </div>
           <div style={{ marginBottom: '10px' }}>
             <span style={{ color: 'var(--text-secondary)' }}>Date: </span>
             <span style={{ color: 'var(--text-primary)' }}>{new Date(message.sent_at).toLocaleString()}</span>
           </div>
-          {message.message_type !== 'BROADCAST' && (
+          {message.message_type === 'DIRECT' && (
             <div>
               <span style={{ color: 'var(--text-secondary)' }}>Subject: </span>
               <span style={{ color: 'var(--text-primary)' }}>{message.subject || '(no subject)'}</span>
@@ -781,7 +921,7 @@ function MessageView({ message, onReply, onDelete, onBack, previousView }: any) 
         </div>
       )}
 
-      {message.message_type === 'BROADCAST' && (
+      {(message.message_type === 'BROADCAST' || message.message_type === 'CORPORATE') && (
         <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
           <button
             onClick={onBack}
@@ -789,8 +929,8 @@ function MessageView({ message, onReply, onDelete, onBack, previousView }: any) 
               flex: 1,
               padding: '10px',
               background: 'transparent',
-              color: 'var(--neon-cyan)',
-              border: '1px solid var(--neon-cyan)',
+              color: message.message_type === 'CORPORATE' ? 'var(--neon-green)' : 'var(--neon-cyan)',
+              border: `1px solid ${message.message_type === 'CORPORATE' ? 'var(--neon-green)' : 'var(--neon-cyan)'}`,
               borderRadius: '4px',
               cursor: 'pointer',
               fontWeight: 'bold'

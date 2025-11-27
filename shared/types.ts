@@ -213,7 +213,7 @@ export interface WsPortUpdate {
 }
 
 // Message types
-export type MessageType = 'DIRECT' | 'BROADCAST';
+export type MessageType = 'DIRECT' | 'BROADCAST' | 'CORPORATE';
 
 export interface Message {
   id: number;

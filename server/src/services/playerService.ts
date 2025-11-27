@@ -128,11 +128,30 @@ export const createPlayer = async ({
       ]
     );
 
+    const newPlayer = playerResult.rows[0];
+
+    // Create a personal corporation for the player
+    const corpResult = await client.query(
+      `INSERT INTO corporations (universe_id, name, founder_id)
+       VALUES ($1, $2, $3)
+       RETURNING id`,
+      [universeId, corpName, newPlayer.id]
+    );
+
+    const corpId = corpResult.rows[0].id;
+
+    // Add player as founder of their corporation
+    await client.query(
+      `INSERT INTO corp_members (corp_id, player_id, rank)
+       VALUES ($1, $2, 'founder')`,
+      [corpId, newPlayer.id]
+    );
+
     await client.query('COMMIT');
 
-    console.log(`Player created: ${corpName} in universe ${universeId}`);
+    console.log(`Player created: ${corpName} in universe ${universeId} with corporation ID ${corpId}`);
 
-    return playerResult.rows[0];
+    return newPlayer;
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;

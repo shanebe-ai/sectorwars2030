@@ -33,7 +33,7 @@ export const sendMessage = async (req: Request, res: Response) => {
     const { recipientId, subject, body, messageType } = req.body;
 
     // Validate message type
-    const validMessageTypes: MessageType[] = ['DIRECT', 'BROADCAST'];
+    const validMessageTypes: MessageType[] = ['DIRECT', 'BROADCAST', 'CORPORATE'];
     const type: MessageType = messageType || 'DIRECT';
 
     if (!validMessageTypes.includes(type)) {
@@ -272,7 +272,7 @@ export const deleteMessage = async (req: Request, res: Response) => {
 };
 
 /**
- * Get unread message count
+ * Get unread message count (legacy - returns inbox count only)
  * GET /api/messages/unread-count
  */
 export const getUnreadCount = async (req: Request, res: Response) => {
@@ -287,15 +287,72 @@ export const getUnreadCount = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Player not found' });
     }
 
-    const count = await messageService.getUnreadCount(playerId);
+    const counts = await messageService.getUnreadCounts(playerId);
 
     res.json({
       success: true,
-      unreadCount: count
+      unreadCount: counts.inbox + counts.broadcasts + counts.corporate, // Total for badge
+      counts // Detailed counts per channel
     });
   } catch (error) {
     console.error('Error getting unread count:', error);
     res.status(500).json({ error: 'Failed to get unread count' });
+  }
+};
+
+/**
+ * Get corporate messages
+ * GET /api/messages/corporate
+ */
+export const getCorporateMessages = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const playerId = await getPlayerIdFromUser(userId);
+    if (!playerId) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    const messages = await messageService.getCorporateMessages(playerId);
+
+    res.json({
+      success: true,
+      messages
+    });
+  } catch (error) {
+    console.error('Error getting corporate messages:', error);
+    res.status(500).json({ error: 'Failed to get corporate messages' });
+  }
+};
+
+/**
+ * Get player's corporation info
+ * GET /api/messages/corporation
+ */
+export const getPlayerCorporation = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const playerId = await getPlayerIdFromUser(userId);
+    if (!playerId) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    const corporation = await messageService.getPlayerCorporation(playerId);
+
+    res.json({
+      success: true,
+      corporation // null if not in a corporation
+    });
+  } catch (error) {
+    console.error('Error getting corporation:', error);
+    res.status(500).json({ error: 'Failed to get corporation info' });
   }
 };
 

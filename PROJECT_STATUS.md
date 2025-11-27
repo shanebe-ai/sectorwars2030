@@ -236,7 +236,18 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
   - Subject field hidden when composing/viewing broadcasts (not applicable)
   - Broadcasts in Sent show message preview instead of "(no subject)"
   - Improved date/time formatting (e.g., "Nov 27, 3:45 PM")
-  - Dynamic "Back" button returns to correct tab (Inbox/Broadcasts/Sent)
+  - Dynamic "Back" button returns to correct tab (Inbox/Broadcasts/Sent/Corporate)
+- **Corporate Messaging** ✅
+  - CORPORATE message type - alliance chat for corporation members only
+  - Corporate tab only visible if player is in a corporation
+  - Chat-style rendering: `[CORPORATE] PilotName (CorpName): Message` with green theme
+  - Per-player deletion support (same as broadcasts)
+  - Auto-corporation creation: new players get their own corporation on join
+  - Migration 005: Added `corp_id` column to messages, CORPORATE message type
+- **Unread Indicators** ✅
+  - COMMS button badge shows total unread count (all channels)
+  - Individual tab badges: Inbox, Broadcasts, Corporate (pink badges with count)
+  - `getUnreadCounts` API returns detailed counts per channel
 - **Player Encounters** ✅
   - Automatic tracking when players meet in sectors
   - Bidirectional encounter recording
@@ -352,10 +363,18 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
     - Ships entering alien-controlled sectors
     - Combat events (fights, deaths, escape pod launches)
     - Other alien activities and encounters
-- **Corporation Chat Channel (Read/Write):**
+- **Corporation Chat Channel (Read/Write):** ✅ IMPLEMENTED
   - Available to all members of the same corporation
   - Real-time communication between alliance members
-  - Will be implemented alongside corporation/alliance system
+  - Each player starts with their own corporation
+
+**Corporation System - Planned Features (Not Yet Implemented):**
+- **Leave Corporation** - Player can leave their corp (if not founder) to join another
+- **Disband Corporation** - Founder can disband corp (kicks all members)
+- **Invite System** - Founder/officers can invite players to join
+- **Accept/Decline Invites** - Players can accept or decline corp invitations
+- **Corporation Ranks** - Founder, Officer, Member with different permissions
+- **Transfer Ownership** - Founder can transfer ownership to another member
 
 ## In Progress 🚧
 
@@ -474,7 +493,8 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - [ ] Combat system
 - [x] Planet generation (~3% of sectors get claimable planets)
 - [ ] Planet colonization (claim, manage, produce)
-- [ ] Corporation/alliance system
+- [x] Corporation/alliance system (basic - personal corps, corporate chat)
+- [ ] Corporation features: invites, leave corp, join another corp
 - [ ] Fighter/mine deployment
 - [ ] Genesis torpedoes
 
@@ -644,19 +664,22 @@ When implementing new features:
 ---
 
 **Last Updated:** 2025-11-27
-**Status:** Communications System Polished
-**Current Session:** Broadcast messaging refinements and bug fixes
+**Status:** Corporate Messaging Implemented
+**Current Session:** Added corporate chat channel and unread indicators
 **Recent Changes:**
+- ✅ **Corporate Messaging System:**
+  - CORPORATE message type for alliance chat
+  - Corporate tab (only visible if in a corporation)
+  - Auto-corporation creation on player join
+  - Migration 005: corp_id column, CORPORATE type constraint
+- ✅ **Unread Indicators:**
+  - COMMS button badge (total unread)
+  - Per-tab badges (Inbox, Broadcasts, Corporate)
+  - getUnreadCounts API with detailed counts
 - ✅ Network/remote access configuration (IP 37.27.80.77)
-- ✅ API URL abstraction for production deployments
-- ✅ Per-player broadcast deletion feature (message_deletions table)
-- ✅ Broadcasts filtered to only show post-join messages
-- ✅ Chat-style broadcast format: `[BROADCAST] PilotName (CorpName): Message`
-- ✅ Sender can delete own broadcasts (hidden from both Sent and Broadcasts)
-- ✅ Dynamic back button returns to correct tab after viewing message
-- ✅ Broadcasts in Sent show message preview (not "no subject")
-- ✅ Moved utility scripts to server/scripts/
+- ✅ Chat-style format for broadcasts and corporate messages
+- ✅ Dynamic back button returns to correct tab
 **Previous Session:**
-- ✅ Added detailed alien ship/planet scaling specifications by universe size
-- ✅ Documented alien communications channel (read-only, unlock after alien encounter)
-- ✅ Enhanced Communications System with DIRECT and BROADCAST message types
+- ✅ Broadcast messaging refinements and bug fixes
+- ✅ Per-player broadcast deletion feature
+- ✅ API URL abstraction for production deployments

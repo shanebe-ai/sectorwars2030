@@ -13,11 +13,17 @@ router.get('/unread-count', messageController.getUnreadCount);
 // Get known traders (players you've encountered)
 router.get('/known-traders', messageController.getKnownTraders);
 
+// Get player's corporation info
+router.get('/corporation', messageController.getPlayerCorporation);
+
 // Get inbox (direct messages)
 router.get('/inbox', messageController.getInbox);
 
 // Get broadcasts (universe-wide messages)
 router.get('/broadcasts', messageController.getBroadcasts);
+
+// Get corporate messages (alliance chat)
+router.get('/corporate', messageController.getCorporateMessages);
 
 // Get sent messages
 router.get('/sent', messageController.getSentMessages);
