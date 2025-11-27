@@ -229,11 +229,14 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
   - Real-time count updates when reading messages
 - **Broadcast Improvements** ✅
   - Only shows broadcasts sent after player joined universe (no historical spam)
-  - Chat-style rendering (compact, inline messages like a chat log)
-  - Per-player deletion via `message_deletions` table
+  - Chat-style rendering: `[BROADCAST] PilotName (CorpName): Message` with timestamp
+  - Per-player deletion via `message_deletions` table (for others' broadcasts)
+  - Sender deletion via `is_deleted_by_sender` (hides from both Sent and Broadcasts)
   - Delete button available in broadcast message view
-  - Subject field hidden when composing broadcasts
+  - Subject field hidden when composing/viewing broadcasts (not applicable)
+  - Broadcasts in Sent show message preview instead of "(no subject)"
   - Improved date/time formatting (e.g., "Nov 27, 3:45 PM")
+  - Dynamic "Back" button returns to correct tab (Inbox/Broadcasts/Sent)
 - **Player Encounters** ✅
   - Automatic tracking when players meet in sectors
   - Bidirectional encounter recording
@@ -271,6 +274,7 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - ✅ **Fixed: Broadcast message spam** - New players no longer see old broadcasts from before they joined the universe.
 - ✅ **Fixed: Broadcast deletion from Sent** - Senders can now delete their own broadcasts from Sent panel; properly returns to Sent view after deletion.
 - ✅ **Fixed: Broadcast display in Sent** - Broadcasts show message preview instead of "(no subject)" in Sent list and message view.
+- ✅ **Fixed: Sender broadcast deletion from Broadcasts tab** - Sender's own deleted broadcasts now hidden from their Broadcasts view (not just Sent).
 
 ### 14. Port Trading System (FULLY WORKING!)
 - **Port Service** ([server/src/services/portService.ts](server/src/services/portService.ts)) ✅
@@ -640,14 +644,17 @@ When implementing new features:
 ---
 
 **Last Updated:** 2025-11-27
-**Status:** Network Access & Broadcast Improvements
-**Current Session:** Added remote access, broadcast enhancements, per-player deletion
+**Status:** Communications System Polished
+**Current Session:** Broadcast messaging refinements and bug fixes
 **Recent Changes:**
 - ✅ Network/remote access configuration (IP 37.27.80.77)
 - ✅ API URL abstraction for production deployments
 - ✅ Per-player broadcast deletion feature (message_deletions table)
 - ✅ Broadcasts filtered to only show post-join messages
-- ✅ Chat-style compact UI for broadcasts
+- ✅ Chat-style broadcast format: `[BROADCAST] PilotName (CorpName): Message`
+- ✅ Sender can delete own broadcasts (hidden from both Sent and Broadcasts)
+- ✅ Dynamic back button returns to correct tab after viewing message
+- ✅ Broadcasts in Sent show message preview (not "no subject")
 - ✅ Moved utility scripts to server/scripts/
 **Previous Session:**
 - ✅ Added detailed alien ship/planet scaling specifications by universe size
