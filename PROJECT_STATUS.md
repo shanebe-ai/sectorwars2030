@@ -191,6 +191,21 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - **Navigation History** ✅
   - Visited sectors tracked with darker green border styling
   - Previous sector marked with ◄ indicator for easy backtracking
+- **Plot Course / Pathfinding System** ✅
+  - **Pathfinding Service** ([server/src/services/pathfindingService.ts](server/src/services/pathfindingService.ts))
+    - BFS algorithm finds shortest path between sectors
+    - Handles disconnected graphs (returns null if no path exists)
+    - Returns enriched sector data (visited status, points of interest)
+  - **Pathfinding Routes** ([server/src/routes/pathfinding.ts](server/src/routes/pathfinding.ts))
+    - POST /api/pathfinding/plot - Calculate route to destination
+  - **Plot Course UI** (integrated in SectorView)
+    - Input destination sector number
+    - Visual route display with color-coded sectors
+    - Turn cost calculation and warnings
+    - Auto-navigation with smart pause system
+    - Pauses automatically at ports, planets, stardocks, ships
+    - Manual pause/continue controls
+    - Clear button to reset route
 
 ### 15. Ship Communications System (FULLY WORKING!)
 - **Message Service** ([server/src/services/messageService.ts](server/src/services/messageService.ts)) ✅
@@ -385,6 +400,31 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 ## Current Session Context 🎯
 
 **What We Just Did:**
+- ✅ **Plot Course Feature (FULLY WORKING!):**
+  - **Pathfinding Service** ([server/src/services/pathfindingService.ts](server/src/services/pathfindingService.ts))
+    - BFS (Breadth-First Search) algorithm for finding shortest paths
+    - `findPath()` - Returns optimal route between two sectors
+    - `getPathDetails()` - Enriches path with sector information
+  - **Pathfinding Controller** ([server/src/controllers/pathfindingController.ts](server/src/controllers/pathfindingController.ts))
+    - POST `/api/pathfinding/plot` - Calculate route to destination
+  - **SectorView UI Enhancements** ([client/src/components/SectorView.tsx](client/src/components/SectorView.tsx))
+    - Plot Course input panel (cyan theme)
+    - Visual path display showing all sectors in route
+    - Color-coded sector indicators:
+      - Current sector: bright green with ► marker
+      - Visited sectors: darker cyan background
+      - Unvisited sectors: dark background (easier to spot unexplored areas)
+      - Points of interest: yellow border + ● indicator (ports, planets, stardocks, ships)
+    - Distance and turn cost calculation
+    - Remaining turns display (red if insufficient)
+    - Auto-navigation system with "BEGIN AUTO-NAV" button
+    - Pause/Continue controls during auto-travel
+    - **Smart Pause System:**
+      - Auto-pauses when encountering: ports, planets, stardocks, or ships
+      - Shows "POINT OF INTEREST DETECTED" alert
+      - Player can manually pause/continue at any time
+      - 1.5 second delay between warps for visibility
+    - Clear button to reset plotted path
 - ✅ **Ship Log Unread Alert System:**
   - Added `is_read` column to `ship_log` table (migration 008)
   - GET `/api/shiplogs/unread-count` - Get unread log count
