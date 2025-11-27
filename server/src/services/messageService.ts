@@ -424,11 +424,11 @@ export async function getUnreadCounts(playerId: number): Promise<{ inbox: number
 }
 
 /**
- * Get player's corporation info
+ * Get player's corporation info including member count
  */
-export async function getPlayerCorporation(playerId: number): Promise<{ id: number; name: string } | null> {
+export async function getPlayerCorporation(playerId: number): Promise<{ id: number; name: string; memberCount: number } | null> {
   const result = await pool.query(
-    `SELECT c.id, c.name
+    `SELECT c.id, c.name, (SELECT COUNT(*) FROM corp_members WHERE corp_id = c.id) as member_count
      FROM corp_members cm
      JOIN corporations c ON cm.corp_id = c.id
      WHERE cm.player_id = $1`,
@@ -439,7 +439,11 @@ export async function getPlayerCorporation(playerId: number): Promise<{ id: numb
     return null;
   }
 
-  return { id: result.rows[0].id, name: result.rows[0].name };
+  return { 
+    id: result.rows[0].id, 
+    name: result.rows[0].name,
+    memberCount: parseInt(result.rows[0].member_count, 10)
+  };
 }
 
 /**

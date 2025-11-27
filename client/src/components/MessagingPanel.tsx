@@ -32,8 +32,8 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
   // Unread counts per channel
   const [unreadCounts, setUnreadCounts] = useState({ inbox: 0, broadcasts: 0, corporate: 0 });
   
-  // Corporation state
-  const [corporation, setCorporation] = useState<{ id: number; name: string } | null>(null);
+  // Corporation state (includes member count to hide corp chat if only 1 member)
+  const [corporation, setCorporation] = useState<{ id: number; name: string; memberCount: number } | null>(null);
 
   // Compose form state
   const [messageType, setMessageType] = useState<MessageType>('DIRECT');
@@ -81,6 +81,9 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
       const data = await response.json();
       if (response.ok) {
         setMessages(data.messages);
+        // Clear broadcast unread count when viewing (considered "read" in list form)
+        setUnreadCounts(prev => ({ ...prev, broadcasts: 0 }));
+        onUnreadCountChange?.(unreadCounts.inbox + unreadCounts.corporate);
       } else {
         setError(data.error || 'Failed to load broadcasts');
       }
@@ -164,6 +167,9 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
       const data = await response.json();
       if (response.ok) {
         setMessages(data.messages);
+        // Clear corporate unread count when viewing (considered "read" in list form)
+        setUnreadCounts(prev => ({ ...prev, corporate: 0 }));
+        onUnreadCountChange?.(unreadCounts.inbox + unreadCounts.broadcasts);
       } else {
         setError(data.error || 'Failed to load corporate messages');
       }
@@ -370,7 +376,7 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
             onClick={() => handleViewChange('broadcasts')}
             badge={unreadCounts.broadcasts}
           />
-          {corporation && (
+          {corporation && corporation.memberCount > 1 && (
             <TabButton
               label="★ CORPORATE"
               active={view === 'corporate'}
@@ -682,7 +688,7 @@ function ComposeForm({
             />
             <span style={{ color: 'var(--neon-purple)' }}>Universe Broadcast</span>
           </label>
-          {corporation && (
+          {corporation && corporation.memberCount > 1 && (
             <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
               <input
                 type="radio"
