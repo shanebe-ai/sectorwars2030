@@ -269,6 +269,8 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - ✅ **Fixed: Earth planet display** - Added automatic Earth planet creation in Sector 1 during universe generation.
 - ✅ **Fixed: Terra Corp ownership** - Earth displays "Owner: Terra Corp" as unclaimable NPC planet.
 - ✅ **Fixed: Broadcast message spam** - New players no longer see old broadcasts from before they joined the universe.
+- ✅ **Fixed: Broadcast deletion from Sent** - Senders can now delete their own broadcasts from Sent panel; properly returns to Sent view after deletion.
+- ✅ **Fixed: Broadcast display in Sent** - Broadcasts show message preview instead of "(no subject)" in Sent list and message view.
 
 ### 14. Port Trading System (FULLY WORKING!)
 - **Port Service** ([server/src/services/portService.ts](server/src/services/portService.ts)) ✅
