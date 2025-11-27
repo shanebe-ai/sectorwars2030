@@ -128,6 +128,7 @@ export async function getBroadcasts(playerId: number): Promise<Message[]> {
   const { universe_id, created_at: player_joined_at } = playerResult.rows[0];
 
   // Only show broadcasts sent AFTER the player joined the universe
+  // Filter out: messages deleted by others (message_deletions) OR sender's own deleted broadcasts
   const result = await pool.query(
     `SELECT m.*, p.corp_name as sender_corp_name, u.username as sender_username
      FROM messages m
@@ -138,6 +139,7 @@ export async function getBroadcasts(playerId: number): Promise<Message[]> {
        AND m.message_type = 'BROADCAST'
        AND m.sent_at >= $2
        AND md.message_id IS NULL
+       AND NOT (m.sender_id = $3 AND m.is_deleted_by_sender = TRUE)
      ORDER BY m.sent_at DESC
      LIMIT 100`,
     [universe_id, player_joined_at, playerId]
