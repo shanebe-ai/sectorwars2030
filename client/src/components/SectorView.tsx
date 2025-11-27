@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import PortTradingPanel from './PortTradingPanel';
+import { API_URL } from '../config/api';
 
 interface Warp {
   destination: number;
@@ -88,7 +89,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
       setLoading(true);
       setError('');
 
-      const response = await fetch(`http://localhost:3000/api/sectors/${currentSector}`, {
+      const response = await fetch(`${API_URL}/api/sectors/${currentSector}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -119,7 +120,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
     setError('');
 
     try {
-      const response = await fetch('http://localhost:3000/api/sectors/move', {
+      const response = await fetch(`${API_URL}/api/sectors/move`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -490,7 +491,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
           onTradeComplete={async (_updatedPlayer) => {
             // Fetch the full updated player data from server
             try {
-              const response = await fetch(`http://localhost:3000/api/players/${player.id}`, {
+              const response = await fetch(`${API_URL}/api/players/${player.id}`, {
                 headers: {
                   'Authorization': `Bearer ${token}`,
                 },

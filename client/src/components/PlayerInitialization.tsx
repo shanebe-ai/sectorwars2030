@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import UniverseSelector from './UniverseSelector';
 import CorpNameInput from './CorpNameInput';
+import { API_URL } from '../config/api';
 
 interface PlayerInitializationProps {
   token: string;
@@ -26,7 +27,7 @@ export default function PlayerInitialization({
   const handleUniverseSelect = async (universeId: number) => {
     try {
       // Fetch universe details
-      const response = await fetch(`http://localhost:3000/api/universes/${universeId}`);
+      const response = await fetch(`${API_URL}/api/universes/${universeId}`);
       const data = await response.json();
 
       if (response.ok) {
@@ -50,7 +51,7 @@ export default function PlayerInitialization({
     setError('');
 
     try {
-      const response = await fetch('http://localhost:3000/api/players', {
+      const response = await fetch(`${API_URL}/api/players`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -112,11 +112,12 @@ export async function getInbox(playerId: number): Promise<Message[]> {
 
 /**
  * Get broadcast messages for a player's universe
+ * Only shows broadcasts sent after the player joined the universe
  */
 export async function getBroadcasts(playerId: number): Promise<Message[]> {
-  // Get player's universe
+  // Get player's universe and creation time
   const playerResult = await pool.query(
-    `SELECT universe_id FROM players WHERE id = $1`,
+    `SELECT universe_id, created_at FROM players WHERE id = $1`,
     [playerId]
   );
 
@@ -124,16 +125,22 @@ export async function getBroadcasts(playerId: number): Promise<Message[]> {
     return [];
   }
 
-  const { universe_id } = playerResult.rows[0];
+  const { universe_id, created_at: player_joined_at } = playerResult.rows[0];
 
+  // Only show broadcasts sent AFTER the player joined the universe
   const result = await pool.query(
-    `SELECT m.*, p.corp_name as sender_corp_name
+    `SELECT m.*, p.corp_name as sender_corp_name, sender.corp_name as full_sender_name
      FROM messages m
      LEFT JOIN players p ON m.sender_id = p.id
-     WHERE m.universe_id = $1 AND m.message_type = 'BROADCAST'
+     LEFT JOIN players sender ON m.sender_id = sender.id
+     LEFT JOIN message_deletions md ON m.id = md.message_id AND md.player_id = $3
+     WHERE m.universe_id = $1
+       AND m.message_type = 'BROADCAST'
+       AND m.sent_at >= $2
+       AND md.message_id IS NULL
      ORDER BY m.sent_at DESC
      LIMIT 100`,
-    [universe_id]
+    [universe_id, player_joined_at, playerId]
   );
 
   return result.rows.map(msg => ({
@@ -141,7 +148,7 @@ export async function getBroadcasts(playerId: number): Promise<Message[]> {
     universe_id: msg.universe_id,
     sender_id: msg.sender_id,
     recipient_id: msg.recipient_id,
-    sender_name: msg.sender_corp_name || msg.sender_name || '[Deleted Player]',
+    sender_name: msg.full_sender_name || msg.sender_corp_name || msg.sender_name || '[Deleted Player]',
     subject: msg.subject,
     body: msg.body,
     message_type: msg.message_type,
@@ -251,9 +258,9 @@ export async function markAsRead(messageId: number, playerId: number): Promise<b
  * Delete a message (soft delete)
  */
 export async function deleteMessage(messageId: number, playerId: number): Promise<boolean> {
-  // First check if this player is sender or recipient
+  // First check if this player is sender or recipient, and get message type
   const checkResult = await pool.query(
-    `SELECT sender_id, recipient_id FROM messages WHERE id = $1`,
+    `SELECT sender_id, recipient_id, message_type FROM messages WHERE id = $1`,
     [messageId]
   );
 
@@ -263,6 +270,18 @@ export async function deleteMessage(messageId: number, playerId: number): Promis
 
   const msg = checkResult.rows[0];
 
+  // Handle broadcasts differently - use message_deletions table
+  if (msg.message_type === 'BROADCAST') {
+    await pool.query(
+      `INSERT INTO message_deletions (message_id, player_id)
+       VALUES ($1, $2)
+       ON CONFLICT (message_id, player_id) DO NOTHING`,
+      [messageId, playerId]
+    );
+    return true;
+  }
+
+  // Handle DIRECT messages with existing logic
   if (msg.sender_id === playerId) {
     await pool.query(
       `UPDATE messages SET is_deleted_by_sender = TRUE WHERE id = $1`,

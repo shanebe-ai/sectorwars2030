@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { API_URL } from '../config/api';
 
 const logo = `
 ████████╗ ██████╗   █████╗  ██████╗  ███████╗ ██╗    ██╗  █████╗  ██████╗  ███████╗
@@ -52,7 +53,7 @@ export default function Login({ onLogin }: LoginProps) {
         ? { username, email, password }
         : { username, password };
 
-      const response = await fetch(`http://localhost:3000${endpoint}`, {
+      const response = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

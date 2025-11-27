@@ -15,12 +15,18 @@ dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
+
+// CORS allowed origins - support both localhost and network access
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://37.27.80.77:5173',
+  'http://37.27.80.77:5174',
+];
+
 const io = new Server(httpServer, {
   cors: {
-    origin: [
-      process.env.CORS_ORIGIN_CLIENT || 'http://localhost:5173',
-      process.env.CORS_ORIGIN_ADMIN || 'http://localhost:5174',
-    ],
+    origin: allowedOrigins,
     credentials: true,
   },
 });
@@ -29,10 +35,7 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors({
-  origin: [
-    process.env.CORS_ORIGIN_CLIENT || 'http://localhost:5173',
-    process.env.CORS_ORIGIN_ADMIN || 'http://localhost:5174',
-  ],
+  origin: allowedOrigins,
   credentials: true,
 }));
 app.use(express.json());
@@ -97,11 +100,12 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 });
 
 // Start server
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`
 ╔════════════════════════════════════════════════╗
 ║   TradeWars 2030 - Server                     ║
 ║   Port: ${PORT}                                    ║
+║   Host: 0.0.0.0 (all interfaces)              ║
 ║   Environment: ${process.env.NODE_ENV || 'development'}                ║
 ╚════════════════════════════════════════════════╝
   `);

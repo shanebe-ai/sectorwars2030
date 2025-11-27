@@ -227,6 +227,13 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
   - COMMS button in header with unread badge
   - Unread count fetched on mount
   - Real-time count updates when reading messages
+- **Broadcast Improvements** ✅
+  - Only shows broadcasts sent after player joined universe (no historical spam)
+  - Chat-style rendering (compact, inline messages like a chat log)
+  - Per-player deletion via `message_deletions` table
+  - Delete button available in broadcast message view
+  - Subject field hidden when composing broadcasts
+  - Improved date/time formatting (e.g., "Nov 27, 3:45 PM")
 - **Player Encounters** ✅
   - Automatic tracking when players meet in sectors
   - Bidirectional encounter recording
@@ -261,6 +268,7 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - ✅ **Fixed: Warp count bug** - Warps were being doubled (A→B and B→A). Now stored once with bidirectional lookup.
 - ✅ **Fixed: Earth planet display** - Added automatic Earth planet creation in Sector 1 during universe generation.
 - ✅ **Fixed: Terra Corp ownership** - Earth displays "Owner: Terra Corp" as unclaimable NPC planet.
+- ✅ **Fixed: Broadcast message spam** - New players no longer see old broadcasts from before they joined the universe.
 
 ### 14. Port Trading System (FULLY WORKING!)
 - **Port Service** ([server/src/services/portService.ts](server/src/services/portService.ts)) ✅
@@ -299,36 +307,49 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 ## Current Session Context 🎯
 
 **What We Just Did:**
-- ✅ **Enhanced Ship Communications System:**
-  - Added DIRECT and BROADCAST message types
-  - Created player_encounters table for known traders tracking
-  - Updated messageService.ts with broadcasts and known traders
-  - Added GET /api/messages/broadcasts endpoint
-  - Added GET /api/messages/known-traders endpoint
-  - Rebuilt MessagingPanel.tsx with tabs (Inbox/Broadcasts/Sent/Compose)
-  - Added automatic encounter tracking on sector movement
-  - Known traders list shows ship type and encounter count
-  - Universe-wide broadcasts with purple color scheme
+- ✅ **Added Network/Remote Access Configuration:**
+  - Server listens on `0.0.0.0` (all network interfaces)
+  - CORS configured for IP `37.27.80.77` (production server)
+  - Vite dev servers accessible remotely (`host: '0.0.0.0'`)
+  - API URL abstraction via `config/api.ts` and `VITE_API_URL` env variable
+  - Production environment files (`.env.production`) for deployment
+- ✅ **Enhanced Broadcast Messaging:**
+  - Per-player broadcast deletion (`message_deletions` table)
+  - Broadcasts only show messages sent after player joined universe
+  - Chat-style compact UI for broadcasts (inline messages)
+  - Improved date/time formatting
+  - Subject field hidden for broadcasts
 
-**Enhanced Communications Features:**
-- Message any known trader from anywhere (no location restriction)
-- Universe broadcast channel visible to all players
-- Automatic encounter tracking when players meet in sectors
-- Bidirectional encounter recording
-- Known traders dropdown with encounter statistics
-- Direct messages vs. Broadcasts clearly distinguished
-- Broadcast warning when sending to entire universe
-
-**Servers Currently Running:**
-- Backend: http://localhost:3000 (npm run dev in /home/helloai/server)
-- Client: http://localhost:5175 (npm run dev in /home/helloai/client)
-- Admin: http://localhost:5174 (npm run dev in /home/helloai/admin)
+**Servers Currently Running (Network Accessible):**
+- Backend: http://localhost:3000 (or http://37.27.80.77:3000)
+- Client: http://localhost:5173 (or http://37.27.80.77:5173)
+- Admin: http://localhost:5174 (or http://37.27.80.77:5174)
 
 **Ready For:**
 - Aliens with alien planets and ships (NEXT PRIORITY)
 - Combat system implementation
 - Planet colonization (claiming, colonists, production)
 - Port creation system
+
+**Alien System Specifications (Not Yet Implemented):**
+- **Alien Ship & Planet Scaling by Universe Size:**
+  - **0-49 sectors**: 0 alien planets, 1 alien ship (random type)
+  - **50-99 sectors**: 1 alien planet, 1-2 alien ships
+  - **100-499 sectors**: 1-2 alien planets, 3-4 alien ships
+  - **500-999 sectors**: 2-4 alien planets, 3-5 alien ships
+  - **1000+ sectors**: 0.3% alien planets (~3 per 1000 sectors), each with 2-5 alien ships
+- **Alien Communications Channel (Read-Only):**
+  - Appears for players only after entering a sector with an alien planet
+  - Allows monitoring of alien network traffic
+  - Aliens broadcast information about:
+    - Ships crossing paths with alien ships
+    - Ships entering alien-controlled sectors
+    - Combat events (fights, deaths, escape pod launches)
+    - Other alien activities and encounters
+- **Corporation Chat Channel (Read/Write):**
+  - Available to all members of the same corporation
+  - Real-time communication between alliance members
+  - Will be implemented alongside corporation/alliance system
 
 ## In Progress 🚧
 
@@ -546,9 +567,23 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - **Admin Panel**: `http://localhost:5174` - Universe/game management (admin only)
 - **Backend API**: `http://localhost:3000` - REST API + WebSocket server
 
+### Network/Remote Access
+- All servers bind to `0.0.0.0` for network accessibility
+- Production IP: `37.27.80.77` (configured in CORS)
+- API URL configurable via `VITE_API_URL` environment variable
+- Production configs in `.env.production` files
+
 ### Database
 - PostgreSQL on `localhost:5432`
 - Database name: `tradewars`
+
+### Utility Scripts
+Located in `server/scripts/`:
+- **resetPassword.js** - Reset user password for testing
+  ```bash
+  cd server && node scripts/resetPassword.js
+  ```
+  Resets `testplayer` password to `password123`
 
 ## Design Philosophy
 
@@ -603,14 +638,16 @@ When implementing new features:
 ---
 
 **Last Updated:** 2025-11-27
-**Status:** Enhanced Communications System Complete
-**Current Session:** Upgraded messaging with broadcasts and known traders
+**Status:** Network Access & Broadcast Improvements
+**Current Session:** Added remote access, broadcast enhancements, per-player deletion
 **Recent Changes:**
-- ✅ Added message types: DIRECT and BROADCAST
-- ✅ Created player_encounters table for known traders tracking
-- ✅ Implemented automatic encounter tracking on sector movement
-- ✅ Added universe-wide broadcast channel
-- ✅ Rebuilt MessagingPanel with Inbox/Broadcasts/Sent/Compose tabs
-- ✅ Known traders list with encounter statistics
-- ✅ Removed location restriction - message any known trader from anywhere
-- ✅ Added broadcast warnings and purple color scheme for universe messages
+- ✅ Network/remote access configuration (IP 37.27.80.77)
+- ✅ API URL abstraction for production deployments
+- ✅ Per-player broadcast deletion feature (message_deletions table)
+- ✅ Broadcasts filtered to only show post-join messages
+- ✅ Chat-style compact UI for broadcasts
+- ✅ Moved utility scripts to server/scripts/
+**Previous Session:**
+- ✅ Added detailed alien ship/planet scaling specifications by universe size
+- ✅ Documented alien communications channel (read-only, unlock after alien encounter)
+- ✅ Enhanced Communications System with DIRECT and BROADCAST message types

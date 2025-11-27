@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import CreateUniverseModal from './CreateUniverseModal';
+import { API_URL } from '../config/api';
 
 interface Universe {
   id: number;
@@ -31,7 +32,7 @@ export default function UniverseDashboard({ token, user, onLogout }: UniverseDas
 
   const fetchUniverses = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/universes');
+      const response = await fetch(`${API_URL}/api/universes`);
       const data = await response.json();
       setUniverses(data.universes || []);
     } catch (err: any) {
@@ -51,7 +52,7 @@ export default function UniverseDashboard({ token, user, onLogout }: UniverseDas
     }
 
     try {
-      const response = await fetch(`http://localhost:3000/api/universes/${universeId}`, {
+      const response = await fetch(`${API_URL}/api/universes/${universeId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

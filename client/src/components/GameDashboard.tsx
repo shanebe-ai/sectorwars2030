@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import SectorView from './SectorView';
 import MessagingPanel from './MessagingPanel';
+import { API_URL } from '../config/api';
 
 interface GameDashboardProps {
   player: any;
@@ -17,7 +18,7 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
   useEffect(() => {
     const fetchUnreadCount = async () => {
       try {
-        const response = await fetch('http://localhost:3000/api/messages/unread-count', {
+        const response = await fetch(`${API_URL}/api/messages/unread-count`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await response.json();

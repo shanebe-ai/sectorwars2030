@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_URL } from '../config/api';
 
 interface CommodityInfo {
   action: 'buy' | 'sell';
@@ -62,7 +63,7 @@ export default function PortTradingPanel({
       setLoading(true);
       setError('');
 
-      const response = await fetch(`http://localhost:3000/api/ports/${sectorNumber}`, {
+      const response = await fetch(`${API_URL}/api/ports/${sectorNumber}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -98,7 +99,7 @@ export default function PortTradingPanel({
     const action = port.commodities[commodity].action;
 
     try {
-      const response = await fetch('http://localhost:3000/api/ports/trade', {
+      const response = await fetch(`${API_URL}/api/ports/trade`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

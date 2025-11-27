@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Message, MessageType, KnownTrader } from '../../../shared/types';
+import { API_URL } from '../config/api';
 
 interface MessagingPanelProps {
   token: string;
@@ -8,6 +9,17 @@ interface MessagingPanelProps {
 }
 
 export default function MessagingPanel({ token, onClose, onUnreadCountChange }: MessagingPanelProps) {
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
   const [view, setView] = useState<'inbox' | 'broadcasts' | 'sent' | 'compose' | 'read'>('inbox');
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
@@ -32,7 +44,7 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
     try {
       setLoading(true);
       setError('');
-      const response = await fetch('http://localhost:3000/api/messages/inbox', {
+      const response = await fetch(`${API_URL}/api/messages/inbox`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -54,7 +66,7 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
     try {
       setLoading(true);
       setError('');
-      const response = await fetch('http://localhost:3000/api/messages/broadcasts', {
+      const response = await fetch(`${API_URL}/api/messages/broadcasts`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -74,7 +86,7 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
     try {
       setLoading(true);
       setError('');
-      const response = await fetch('http://localhost:3000/api/messages/sent', {
+      const response = await fetch(`${API_URL}/api/messages/sent`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -92,7 +104,7 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
 
   const loadKnownTraders = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/messages/known-traders', {
+      const response = await fetch(`${API_URL}/api/messages/known-traders`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -140,7 +152,7 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
     setError('');
 
     try {
-      const response = await fetch('http://localhost:3000/api/messages', {
+      const response = await fetch(`${API_URL}/api/messages`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -182,7 +194,7 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
     // Mark as read if it's unread and a direct message to us
     if (!message.is_read && message.message_type === 'DIRECT') {
       try {
-        await fetch(`http://localhost:3000/api/messages/${message.id}/read`, {
+        await fetch(`${API_URL}/api/messages/${message.id}/read`, {
           method: 'PUT',
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -195,20 +207,24 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
   };
 
   const handleDeleteMessage = async (messageId: number) => {
-    if (!confirm('Delete this message?')) return;
-
     try {
-      const response = await fetch(`http://localhost:3000/api/messages/${messageId}`, {
+      const response = await fetch(`${API_URL}/api/messages/${messageId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-
       if (response.ok) {
         setSuccess('Message deleted');
-        setView('inbox');
-        loadInbox();
+        setView(selectedMessage?.message_type === 'BROADCAST' ? 'broadcasts' : 'inbox');
+        setSelectedMessage(null);
+        // Reload the appropriate list
+        if (selectedMessage?.message_type === 'BROADCAST') {
+          loadBroadcasts();
+        } else {
+          loadInbox();
+        }
       } else {
-        setError('Failed to delete message');
+        const data = await response.json();
+        setError(data.error || 'Failed to delete message');
       }
     } catch (err) {
       setError('Network error');
@@ -291,6 +307,7 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
             active={view === 'compose'}
             onClick={() => handleViewChange('compose')}
             color="green"
+            style={{ marginLeft: 'auto' }}
           />
         </div>
 
@@ -317,6 +334,7 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
               loading={loading}
               onOpenMessage={handleOpenMessage}
               type="inbox"
+              formatDateTime={formatDateTime}
             />
           )}
 
@@ -326,6 +344,7 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
               loading={loading}
               onOpenMessage={handleOpenMessage}
               type="broadcasts"
+              formatDateTime={formatDateTime}
             />
           )}
 
@@ -335,6 +354,7 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
               loading={loading}
               onOpenMessage={handleOpenMessage}
               type="sent"
+              formatDateTime={formatDateTime}
             />
           )}
 
@@ -369,7 +389,7 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
 }
 
 // Tab Button Component
-function TabButton({ label, active, onClick, color = 'cyan' }: any) {
+function TabButton({ label, active, onClick, color = 'cyan', style = {} }: any) {
   const activeColor = color === 'green' ? 'var(--neon-green)' : 'var(--neon-cyan)';
 
   return (
@@ -384,7 +404,8 @@ function TabButton({ label, active, onClick, color = 'cyan' }: any) {
         cursor: 'pointer',
         fontSize: '13px',
         textTransform: 'uppercase',
-        fontFamily: 'monospace'
+        fontFamily: 'monospace',
+        ...style
       }}
     >
       {label}
@@ -393,7 +414,7 @@ function TabButton({ label, active, onClick, color = 'cyan' }: any) {
 }
 
 // Message List Component
-function MessageList({ messages, loading, onOpenMessage, type }: any) {
+function MessageList({ messages, loading, onOpenMessage, type, formatDateTime }: any) {
   if (loading) {
     return <div style={{ textAlign: 'center', color: 'var(--neon-cyan)' }}>Loading...</div>;
   }
@@ -406,6 +427,51 @@ function MessageList({ messages, loading, onOpenMessage, type }: any) {
     );
   }
 
+  // Broadcast chat-style rendering
+  if (type === 'broadcasts') {
+    return (
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        fontFamily: 'monospace'
+      }}>
+        {messages.map((msg: Message) => (
+          <div
+            key={msg.id}
+            onClick={() => onOpenMessage(msg)}
+            style={{
+              padding: '8px 12px',
+              cursor: 'pointer',
+              background: 'rgba(0, 0, 0, 0.2)',
+              borderRadius: '4px',
+              transition: 'background 0.2s',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 255, 255, 0.1)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.2)'}
+          >
+            <div>
+              <span style={{ color: 'var(--neon-purple)', fontWeight: 'bold' }}>[BROADCAST]</span>
+              {' '}
+              <span style={{ color: 'var(--neon-cyan)' }}>{msg.sender_name || '[Unknown]'}</span>
+              {(msg as any).sender_corp && (
+                <span style={{ color: 'var(--text-secondary)' }}> ({(msg as any).sender_corp})</span>
+              )}
+              <span style={{ color: 'var(--text-primary)' }}>: {msg.body}</span>
+            </div>
+            <div style={{ whiteSpace: 'nowrap', marginLeft: '1rem', color: 'var(--text-secondary)', fontSize: '11px' }}>
+              {formatDateTime(msg.sent_at)}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Regular inbox/sent rendering with borders
   return (
     <div>
       {messages.map((msg: Message) => (
@@ -433,7 +499,7 @@ function MessageList({ messages, loading, onOpenMessage, type }: any) {
               {msg.message_type === 'BROADCAST' && <span style={{ color: 'var(--neon-purple)', marginLeft: '10px' }}>[BROADCAST]</span>}
             </span>
             <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
-              {new Date(msg.sent_at).toLocaleDateString()}
+              {formatDateTime(msg.sent_at)}
             </span>
           </div>
           <div style={{ color: 'var(--text-primary)', fontSize: '14px' }}>
@@ -536,27 +602,29 @@ function ComposeForm({
         </div>
       )}
 
-      <div style={{ marginBottom: '20px' }}>
-        <label style={{ display: 'block', marginBottom: '8px', color: 'var(--neon-cyan)' }}>
-          Subject (optional):
-        </label>
-        <input
-          type="text"
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
-          maxLength={200}
-          style={{
-            width: '100%',
-            padding: '10px',
-            background: 'rgba(0, 0, 0, 0.7)',
-            border: '1px solid var(--neon-cyan)',
-            color: 'var(--text-primary)',
-            borderRadius: '4px',
-            fontFamily: 'monospace'
-          }}
-          placeholder="Message subject..."
-        />
-      </div>
+      {messageType !== 'BROADCAST' && (
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', color: 'var(--neon-cyan)' }}>
+            Subject (optional):
+          </label>
+          <input
+            type="text"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            maxLength={200}
+            style={{
+              width: '100%',
+              padding: '10px',
+              background: 'rgba(0, 0, 0, 0.7)',
+              border: '1px solid var(--neon-cyan)',
+              color: 'var(--text-primary)',
+              borderRadius: '4px',
+              fontFamily: 'monospace'
+            }}
+            placeholder="Message subject..."
+          />
+        </div>
+      )}
 
       <div style={{ marginBottom: '20px' }}>
         <label style={{ display: 'block', marginBottom: '8px', color: 'var(--neon-cyan)' }}>
@@ -696,11 +764,11 @@ function MessageView({ message, onReply, onDelete, onBack }: any) {
       )}
 
       {message.message_type === 'BROADCAST' && (
-        <div style={{ marginTop: '20px' }}>
+        <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
           <button
             onClick={onBack}
             style={{
-              width: '100%',
+              flex: 1,
               padding: '10px',
               background: 'transparent',
               color: 'var(--neon-cyan)',
@@ -711,6 +779,21 @@ function MessageView({ message, onReply, onDelete, onBack }: any) {
             }}
           >
             ◄ BACK TO BROADCASTS
+          </button>
+          <button
+            onClick={() => onDelete(message.id)}
+            style={{
+              flex: 1,
+              padding: '10px',
+              background: 'transparent',
+              color: 'var(--neon-pink)',
+              border: '1px solid var(--neon-pink)',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            ✕ DELETE
           </button>
         </div>
       )}

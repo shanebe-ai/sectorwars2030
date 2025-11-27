@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Login from './components/Login';
 import PlayerInitialization from './components/PlayerInitialization';
 import GameDashboard from './components/GameDashboard';
+import { API_URL } from './config/api';
 import './App.css';
 
 function App() {
@@ -27,7 +28,7 @@ function App() {
 
   const checkForPlayer = async (authToken: string) => {
     try {
-      const response = await fetch('http://localhost:3000/api/players', {
+      const response = await fetch(`${API_URL}/api/players`, {
         headers: {
           'Authorization': `Bearer ${authToken}`,
         },

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_URL } from '../config/api';
 
 interface Universe {
   id: number;
@@ -31,7 +32,7 @@ export default function UniverseSelector({ onSelect, onCancel }: UniverseSelecto
 
   const fetchUniverses = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/universes');
+      const response = await fetch(`${API_URL}/api/universes`);
       const data = await response.json();
 
       // Only show active universes
