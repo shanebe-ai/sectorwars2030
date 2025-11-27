@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { pool } from '../db/connection';
+import { recordEncounter } from '../services/messageService';
 
 /**
  * Get sector details including warps
@@ -100,7 +101,7 @@ export const getSectorDetails = async (req: Request, res: Response) => {
     }));
 
     // Get planet data if sector has a planet
-    let planets = [];
+    let planets: Array<{ id: number; name: string; ownerId: number | null; ownerName: string | null }> = [];
     if (sector.has_planet) {
       const planetsResult = await pool.query(
         `SELECT
@@ -284,6 +285,21 @@ export const moveToSector = async (req: Request, res: Response) => {
           actualDestination
         ]
       );
+
+      // Get other players in the destination sector and record encounters
+      const otherPlayersResult = await client.query(
+        `SELECT id FROM players
+         WHERE universe_id = $1 AND current_sector = $2 AND id != $3 AND is_alive = true`,
+        [player.universe_id, actualDestination, player.id]
+      );
+
+      // Record encounters with all players in the sector (bidirectional)
+      for (const otherPlayer of otherPlayersResult.rows) {
+        // Record that this player met the other player
+        await recordEncounter(player.id, otherPlayer.id, player.universe_id);
+        // Record that the other player met this player
+        await recordEncounter(otherPlayer.id, player.id, player.universe_id);
+      }
 
       await client.query('COMMIT');
 

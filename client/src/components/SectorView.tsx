@@ -487,7 +487,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
             turnsRemaining: player.turnsRemaining,
             shipHoldsMax: player.shipHoldsMax,
           }}
-          onTradeComplete={async (updatedPlayer) => {
+          onTradeComplete={async (_updatedPlayer) => {
             // Fetch the full updated player data from server
             try {
               const response = await fetch(`http://localhost:3000/api/players/${player.id}`, {
