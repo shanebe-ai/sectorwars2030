@@ -106,10 +106,18 @@ export async function claimPlanet(req: Request, res: Response) {
       return res.status(400).json({ error: result.error });
     }
     
+    // Add citadel info to the response (same as getPlanetInfo)
+    const citadelInfo = planetService.CITADEL_LEVELS[result.planet!.citadelLevel];
+    const nextCitadel = result.planet!.citadelLevel < 5 ? planetService.CITADEL_LEVELS[result.planet!.citadelLevel + 1] : null;
+    
     res.json({ 
       success: true, 
       message: `Successfully claimed ${result.planet?.name}!`,
-      planet: result.planet 
+      planet: {
+        ...result.planet,
+        citadelInfo,
+        nextCitadelUpgrade: nextCitadel
+      }
     });
   } catch (error) {
     console.error('Error claiming planet:', error);
