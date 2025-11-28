@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import PortTradingPanel from './PortTradingPanel';
 import PlanetManagementPanel from './PlanetManagementPanel';
+import StarDockPanel from './StarDockPanel';
 import { API_URL } from '../config/api';
 
 interface Warp {
@@ -97,6 +98,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
   const [isPaused, setIsPaused] = useState(false);
   const [currentPathIndex, setCurrentPathIndex] = useState(0);
   const [showPlanetPanel, setShowPlanetPanel] = useState<number | null>(null);
+  const [showStarDock, setShowStarDock] = useState(false);
 
   useEffect(() => {
     loadSectorDetails();
@@ -473,7 +475,44 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
 
         {/* Sector Details */}
         <div style={{ marginBottom: '20px' }}>
-          {sector.hasPort && (
+          {/* StarDock */}
+          {sector.portType === 'STARDOCK' && (
+            <div style={{
+              padding: '15px',
+              background: 'rgba(0, 255, 255, 0.05)',
+              border: '1px solid var(--neon-cyan)',
+              marginBottom: '15px'
+            }}>
+              <div style={{ color: 'var(--neon-cyan)', fontWeight: 'bold', marginBottom: '8px' }}>
+                🚀 STARDOCK DETECTED
+              </div>
+              <div style={{ color: 'var(--text-primary)', fontSize: '14px' }}>
+                <div>Purchase ships, fighters, and shields</div>
+                <div style={{ marginTop: '5px', fontSize: '12px', opacity: 0.7 }}>
+                  Upgrade your vessel • Arm your defenses
+                </div>
+              </div>
+              <button
+                onClick={() => setShowStarDock(true)}
+                className="cyberpunk-button"
+                style={{
+                  marginTop: '12px',
+                  width: '100%',
+                  background: 'rgba(0, 255, 255, 0.2)',
+                  borderColor: 'var(--neon-cyan)',
+                  color: 'var(--neon-cyan)',
+                  padding: '12px',
+                  fontSize: '14px',
+                  fontWeight: 'bold'
+                }}
+              >
+                🚀 DOCK AT STARDOCK
+              </button>
+            </div>
+          )}
+
+          {/* Regular Trading Port */}
+          {sector.hasPort && sector.portType !== 'STARDOCK' && (
             <div style={{
               padding: '15px',
               background: 'rgba(0, 255, 0, 0.05)',
@@ -986,6 +1025,18 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
             loadSectorDetails();
           }}
           onPlayerUpdate={(updatedPlayer) => {
+            onSectorChange(updatedPlayer);
+          }}
+        />
+      )}
+
+      {/* StarDock Panel */}
+      {showStarDock && sector && (
+        <StarDockPanel
+          sectorNumber={sector.sectorNumber}
+          token={token}
+          onClose={() => setShowStarDock(false)}
+          onPurchase={(updatedPlayer) => {
             onSectorChange(updatedPlayer);
           }}
         />
