@@ -119,6 +119,7 @@ export const getUserPlayers = async (req: Request, res: Response) => {
         cargoFuel: p.cargo_fuel,
         cargoOrganics: p.cargo_organics,
         cargoEquipment: p.cargo_equipment,
+        colonists: p.colonists || 0,
         isAlive: p.is_alive,
         createdAt: p.created_at,
       })),
@@ -185,6 +186,7 @@ export const getPlayer = async (req: Request, res: Response) => {
         cargoFuel: player.cargo_fuel,
         cargoOrganics: player.cargo_organics,
         cargoEquipment: player.cargo_equipment,
+        colonists: player.colonists || 0,
         isAlive: player.is_alive,
         lastTurnUpdate: player.last_turn_update,
         createdAt: player.created_at,
@@ -237,6 +239,7 @@ export const checkPlayerInUniverse = async (req: Request, res: Response) => {
               cargoFuel: player.cargo_fuel,
               cargoOrganics: player.cargo_organics,
               cargoEquipment: player.cargo_equipment,
+              colonists: player.colonists || 0,
             }
           : null,
       });

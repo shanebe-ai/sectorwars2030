@@ -179,8 +179,10 @@ export default function PortTradingPanel({
       if (response.ok) {
         setTradeResult(`Purchased ${data.quantity} colonists for ₡${data.totalCost.toLocaleString()} credits`);
         setColonistQty(0);
-        // Refresh player data
-        onTradeComplete(data);
+        // Refresh player data with updated player info
+        if (data.player) {
+          onTradeComplete(data.player);
+        }
       } else {
         setError(data.error || 'Failed to purchase colonists');
       }

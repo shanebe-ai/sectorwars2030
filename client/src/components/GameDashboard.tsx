@@ -200,10 +200,14 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
               <div className="cargo-label" style={{ color: '#70a1ff' }}>⚙ EQUIPMENT</div>
               <div className="cargo-value">{player.cargoEquipment || 0}</div>
             </div>
+            <div className="cargo-box" style={{ borderColor: '#9b59b6' }}>
+              <div className="cargo-label" style={{ color: '#9b59b6' }}>👥 COLONISTS</div>
+              <div className="cargo-value">{player.colonists || 0}</div>
+            </div>
             <div className="cargo-box" style={{ borderColor: 'var(--neon-cyan)' }}>
               <div className="cargo-label" style={{ color: 'var(--neon-cyan)' }}>TOTAL USED</div>
               <div className="cargo-value">
-                {(player.cargoFuel || 0) + (player.cargoOrganics || 0) + (player.cargoEquipment || 0)}/{player.shipHoldsMax}
+                {(player.cargoFuel || 0) + (player.cargoOrganics || 0) + (player.cargoEquipment || 0) + (player.colonists || 0)}/{player.shipHoldsMax}
               </div>
             </div>
           </div>
@@ -222,6 +226,7 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
             cargoFuel: player.cargoFuel || 0,
             cargoOrganics: player.cargoOrganics || 0,
             cargoEquipment: player.cargoEquipment || 0,
+            colonists: player.colonists || 0,
           }}
           onSectorChange={handleSectorChange}
         />

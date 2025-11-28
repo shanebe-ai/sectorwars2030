@@ -421,7 +421,7 @@ const MAX_COLONIST_PURCHASE = 1000; // Max colonists per transaction
 export const buyColonists = async (
   userId: number,
   quantity: number
-): Promise<{ success: boolean; quantity: number; totalCost: number; error?: string }> => {
+): Promise<{ success: boolean; quantity: number; totalCost: number; error?: string; player?: any }> => {
   const client = await pool.connect();
 
   try {
@@ -517,9 +517,30 @@ export const buyColonists = async (
       ]
     );
 
+    // Get updated player data
+    const updatedPlayerResult = await client.query(
+      `SELECT id, credits, turns_remaining, cargo_fuel, cargo_organics, cargo_equipment, colonists, ship_holds_max
+       FROM players WHERE id = $1`,
+      [player.id]
+    );
+
     await client.query('COMMIT');
 
-    return { success: true, quantity: actualQuantity, totalCost: finalCost };
+    const updatedPlayer = updatedPlayerResult.rows[0];
+    return { 
+      success: true, 
+      quantity: actualQuantity, 
+      totalCost: finalCost,
+      player: {
+        credits: updatedPlayer.credits,
+        turnsRemaining: updatedPlayer.turns_remaining,
+        cargoFuel: updatedPlayer.cargo_fuel,
+        cargoOrganics: updatedPlayer.cargo_organics,
+        cargoEquipment: updatedPlayer.cargo_equipment,
+        colonists: updatedPlayer.colonists,
+        shipHoldsMax: updatedPlayer.ship_holds_max
+      }
+    };
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error buying colonists:', error);

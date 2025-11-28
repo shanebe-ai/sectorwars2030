@@ -138,7 +138,8 @@ export const purchaseColonists = async (req: Request, res: Response) => {
       success: true,
       message: `Purchased ${result.quantity.toLocaleString()} colonists for ₡${result.totalCost.toLocaleString()}`,
       quantity: result.quantity,
-      totalCost: result.totalCost
+      totalCost: result.totalCost,
+      player: result.player
     });
   } catch (error: any) {
     console.error('Error purchasing colonists:', error);

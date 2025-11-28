@@ -47,6 +47,7 @@ interface PlayerData {
   cargoFuel: number;
   cargoOrganics: number;
   cargoEquipment: number;
+  colonists: number;
 }
 
 interface PathSector {
@@ -973,7 +974,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
             fuel: player.cargoFuel,
             organics: player.cargoOrganics,
             equipment: player.cargoEquipment,
-            colonists: (player as any).colonists || 0,
+            colonists: player.colonists || 0,
             ship_holds_max: player.shipHoldsMax,
             fighters: (player as any).fighters || 0,
             ship_fighters_max: (player as any).shipFightersMax || 0,
