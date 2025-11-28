@@ -92,6 +92,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
   const [plotError, setPlotError] = useState('');
   const [plotting, setPlotting] = useState(false);
   const [autoNavigating, setAutoNavigating] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [currentPathIndex, setCurrentPathIndex] = useState(0);
 
   useEffect(() => {
@@ -103,6 +104,32 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
       localStorage.setItem(`visitedSectors_${player.id}`, JSON.stringify([...newSet]));
       return newSet;
     });
+    // Clear plot error when moving to a new sector
+    setPlotError('');
+
+    // Update plotted path if we're navigating
+    if (plottedPath && plottedPath.path.length > 0) {
+      const currentIndex = plottedPath.path.indexOf(currentSector);
+      if (currentIndex !== -1 && currentIndex < plottedPath.path.length - 1) {
+        // Update the path to remove sectors we've already passed
+        const remainingPath = plottedPath.path.slice(currentIndex);
+        const remainingSectors = plottedPath.sectors.slice(currentIndex);
+        setPlottedPath({
+          path: remainingPath,
+          sectors: remainingSectors,
+          distance: remainingPath.length - 1
+        });
+        // Reset currentPathIndex to 1 since we're now at index 0 of the new sliced array
+        if (autoNavigating) {
+          setCurrentPathIndex(1);
+        }
+      } else if (currentIndex === plottedPath.path.length - 1) {
+        // We've reached the destination
+        setPlottedPath(null);
+        setDestinationSector('');
+        setAutoNavigating(false);
+      }
+    }
   }, [currentSector]);
 
   const loadSectorDetails = async () => {
@@ -130,12 +157,21 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
     }
   };
 
-  const moveToSector = async (destination: number) => {
+  const moveToSector = async (destination: number, isAutoNav: boolean = false) => {
     if (moving) return;
 
     // Track the sector we're leaving as the previous sector
     setPreviousSector(currentSector);
     localStorage.setItem(`previousSector_${player.id}`, currentSector.toString());
+
+    // Clear plotted path if manually warping (not auto-nav)
+    if (!isAutoNav && plottedPath) {
+      setPlottedPath(null);
+      setDestinationSector('');
+      setAutoNavigating(false);
+      setIsPaused(false);
+      setCurrentPathIndex(0);
+    }
 
     setMoving(true);
     setError('');
@@ -169,9 +205,23 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
         onSectorChange(data.player);
       } else {
         setError(data.error || 'Failed to move');
+        // Stop auto-navigation if there's an error (like no warp connection)
+        if (isAutoNav) {
+          setAutoNavigating(false);
+          setIsPaused(false);
+          setPlottedPath(null);
+          setDestinationSector('');
+        }
       }
     } catch (err) {
       setError('Network error');
+      // Stop auto-navigation on network error
+      if (isAutoNav) {
+        setAutoNavigating(false);
+        setIsPaused(false);
+        setPlottedPath(null);
+        setDestinationSector('');
+      }
     } finally {
       setMoving(false);
     }
@@ -189,6 +239,11 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
       return;
     }
 
+    // Clear any existing auto-navigation state
+    setAutoNavigating(false);
+    setIsPaused(false);
+    setCurrentPathIndex(0);
+
     setPlotting(true);
     setPlotError('');
 
@@ -200,7 +255,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          destination: dest,
+          destinationSector: dest,
         }),
       });
 
@@ -225,22 +280,35 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
     if (!plottedPath || plottedPath.path.length < 2) return;
     setAutoNavigating(true);
     setCurrentPathIndex(1); // Start at index 1 (current sector is index 0)
+
+    // Immediately trigger first move
+    setTimeout(() => {
+      if (plottedPath && plottedPath.path.length > 1) {
+        moveToSector(plottedPath.path[1], true);
+        setCurrentPathIndex(2);
+      }
+    }, 100);
   };
 
   const stopAutoNavigation = () => {
     setAutoNavigating(false);
+    setIsPaused(false);
   };
 
   const continueAutoNavigation = () => {
     if (!plottedPath || !autoNavigating) return;
 
+    // Clear pause state when manually continuing
+    setIsPaused(false);
+
     if (currentPathIndex < plottedPath.path.length) {
       const nextSector = plottedPath.path[currentPathIndex];
-      moveToSector(nextSector);
+      moveToSector(nextSector, true); // Pass true for isAutoNav
       setCurrentPathIndex(prev => prev + 1);
     } else {
       // Reached destination
       setAutoNavigating(false);
+      setIsPaused(false);
       setPlottedPath(null);
       setDestinationSector('');
     }
@@ -251,13 +319,13 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
     setDestinationSector('');
     setPlotError('');
     setAutoNavigating(false);
+    setIsPaused(false);
     setCurrentPathIndex(0);
   };
 
   // Auto-continue navigation when we arrive at a sector
   useEffect(() => {
-    if (autoNavigating && !moving && plottedPath) {
-      // Check if current sector has points of interest
+    if (autoNavigating && !moving && plottedPath && currentPathIndex > 0) {
       const currentPathSector = plottedPath.sectors[currentPathIndex - 1];
 
       if (currentPathSector && (
@@ -266,10 +334,11 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
         currentPathSector.hasStardock ||
         currentPathSector.hasShips
       )) {
-        // Stop for points of interest
-        setAutoNavigating(false);
+        // Pause for points of interest
+        setIsPaused(true);
       } else if (currentPathIndex < plottedPath.path.length) {
         // Continue to next sector after a brief pause
+        setIsPaused(false);
         const timer = setTimeout(() => {
           continueAutoNavigation();
         }, 1500);
@@ -277,6 +346,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
       } else {
         // Reached destination
         setAutoNavigating(false);
+        setIsPaused(false);
       }
     }
   }, [currentSector, autoNavigating, moving]);
@@ -548,53 +618,58 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
             letterSpacing: '1px',
             marginBottom: '12px'
           }}>
-            ► Plot Course
+            {plottedPath && autoNavigating ? '► AUTO-NAVIGATION' : '► Plot Course'}
           </div>
 
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-            <input
-              type="number"
-              value={destinationSector}
-              onChange={(e) => setDestinationSector(e.target.value)}
-              placeholder="Destination sector..."
-              disabled={plotting || autoNavigating}
-              className="cyberpunk-input"
-              style={{
-                flex: 1,
-                padding: '10px',
-                background: 'rgba(0, 0, 0, 0.5)',
-                border: '1px solid var(--neon-cyan)',
-                color: 'var(--text-primary)',
-                fontSize: '14px'
-              }}
-            />
-            <button
-              onClick={plotCourse}
-              disabled={plotting || autoNavigating || !destinationSector}
-              className="cyberpunk-button"
-              style={{
-                background: 'rgba(0, 255, 255, 0.2)',
-                borderColor: 'var(--neon-cyan)',
-                color: 'var(--neon-cyan)',
-                padding: '10px 20px',
-                minWidth: '120px'
-              }}
-            >
-              {plotting ? '⟳ PLOTTING...' : '► PLOT'}
-            </button>
-          </div>
+          {/* Show input only when not actively auto-navigating */}
+          {(!plottedPath || !autoNavigating) && (
+            <>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                <input
+                  type="number"
+                  value={destinationSector}
+                  onChange={(e) => setDestinationSector(e.target.value)}
+                  placeholder="Destination sector..."
+                  disabled={plotting}
+                  className="cyberpunk-input"
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    background: 'rgba(0, 0, 0, 0.5)',
+                    border: '1px solid var(--neon-cyan)',
+                    color: 'var(--text-primary)',
+                    fontSize: '14px'
+                  }}
+                />
+                <button
+                  onClick={plotCourse}
+                  disabled={plotting || !destinationSector}
+                  className="cyberpunk-button"
+                  style={{
+                    background: 'rgba(0, 255, 255, 0.2)',
+                    borderColor: 'var(--neon-cyan)',
+                    color: 'var(--neon-cyan)',
+                    padding: '10px 20px',
+                    minWidth: '120px'
+                  }}
+                >
+                  {plotting ? '⟳ PLOTTING...' : '► PLOT'}
+                </button>
+              </div>
 
-          {plotError && (
-            <div style={{
-              padding: '10px',
-              background: 'rgba(255, 0, 0, 0.1)',
-              border: '1px solid var(--neon-pink)',
-              color: 'var(--neon-pink)',
-              fontSize: '13px',
-              marginBottom: '10px'
-            }}>
-              ✗ {plotError}
-            </div>
+              {plotError && (
+                <div style={{
+                  padding: '10px',
+                  background: 'rgba(255, 0, 0, 0.1)',
+                  border: '1px solid var(--neon-pink)',
+                  color: 'var(--neon-pink)',
+                  fontSize: '13px',
+                  marginBottom: '10px'
+                }}>
+                  ✗ {plotError}
+                </div>
+              )}
+            </>
           )}
 
           {plottedPath && (
@@ -639,12 +714,6 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                   const sectorInfo = plottedPath.sectors[idx];
                   const isVisited = sectorInfo?.visited;
                   const isCurrent = sectorNum === currentSector;
-                  const hasInterest = sectorInfo && (
-                    sectorInfo.hasPort ||
-                    sectorInfo.hasPlanet ||
-                    sectorInfo.hasStardock ||
-                    sectorInfo.hasShips
-                  );
 
                   return (
                     <div
@@ -659,8 +728,6 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                         border: `1px solid ${
                           isCurrent
                             ? 'var(--neon-green)'
-                            : hasInterest
-                            ? 'var(--neon-yellow)'
                             : isVisited
                             ? 'rgba(0, 150, 150, 0.8)'
                             : 'rgba(100, 100, 100, 0.5)'
@@ -678,11 +745,6 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                       }}
                     >
                       {isCurrent && '►'} {sectorNum}
-                      {hasInterest && (
-                        <span style={{ color: 'var(--neon-yellow)', fontSize: '10px' }}>
-                          ●
-                        </span>
-                      )}
                     </div>
                   );
                 })}
@@ -702,11 +764,11 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
               )}
 
               <div style={{ display: 'flex', gap: '10px' }}>
-                {!autoNavigating ? (
+                {!autoNavigating || isPaused ? (
                   <>
                     <button
-                      onClick={startAutoNavigation}
-                      disabled={player.turnsRemaining < 1}
+                      onClick={isPaused ? continueAutoNavigation : startAutoNavigation}
+                      disabled={player.turnsRemaining < 1 || moving}
                       className="cyberpunk-button"
                       style={{
                         flex: 1,
@@ -716,65 +778,58 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                         padding: '10px'
                       }}
                     >
-                      ► BEGIN AUTO-NAV
+                      {isPaused ? '► CONTINUE' : '► BEGIN AUTO-NAV'}
                     </button>
-                    <button
-                      onClick={clearPlottedPath}
-                      className="cyberpunk-button"
-                      style={{
-                        background: 'rgba(255, 0, 0, 0.1)',
-                        borderColor: 'var(--neon-pink)',
-                        color: 'var(--neon-pink)',
-                        padding: '10px'
-                      }}
-                    >
-                      ✗ CLEAR
-                    </button>
+                    {!autoNavigating && (
+                      <button
+                        onClick={clearPlottedPath}
+                        className="cyberpunk-button"
+                        style={{
+                          background: 'rgba(255, 0, 0, 0.1)',
+                          borderColor: 'var(--neon-pink)',
+                          color: 'var(--neon-pink)',
+                          padding: '10px'
+                        }}
+                      >
+                        ✗ CLEAR
+                      </button>
+                    )}
+                    {isPaused && (
+                      <button
+                        onClick={stopAutoNavigation}
+                        className="cyberpunk-button"
+                        style={{
+                          flex: 1,
+                          background: 'rgba(255, 255, 0, 0.1)',
+                          borderColor: 'var(--neon-yellow)',
+                          color: 'var(--neon-yellow)',
+                          padding: '10px'
+                        }}
+                      >
+                        ■ STOP
+                      </button>
+                    )}
                   </>
-                ) : (
-                  <>
-                    <button
-                      onClick={continueAutoNavigation}
-                      disabled={moving}
-                      className="cyberpunk-button"
-                      style={{
-                        flex: 1,
-                        background: 'rgba(0, 255, 0, 0.2)',
-                        borderColor: 'var(--neon-green)',
-                        color: 'var(--neon-green)',
-                        padding: '10px'
-                      }}
-                    >
-                      ► CONTINUE
-                    </button>
-                    <button
-                      onClick={stopAutoNavigation}
-                      className="cyberpunk-button"
-                      style={{
-                        flex: 1,
-                        background: 'rgba(255, 255, 0, 0.1)',
-                        borderColor: 'var(--neon-yellow)',
-                        color: 'var(--neon-yellow)',
-                        padding: '10px'
-                      }}
-                    >
-                      ■ PAUSE
-                    </button>
-                  </>
-                )}
+                ) : null}
               </div>
 
               {autoNavigating && (
                 <div style={{
                   marginTop: '12px',
                   padding: '10px',
-                  background: 'rgba(0, 255, 0, 0.1)',
-                  border: '1px solid var(--neon-green)',
-                  color: 'var(--neon-green)',
+                  background: isPaused
+                    ? 'rgba(255, 255, 0, 0.1)'
+                    : 'rgba(0, 255, 0, 0.1)',
+                  border: isPaused
+                    ? '1px solid var(--neon-yellow)'
+                    : '1px solid var(--neon-green)',
+                  color: isPaused
+                    ? 'var(--neon-yellow)'
+                    : 'var(--neon-green)',
                   fontSize: '12px',
                   textAlign: 'center'
                 }}>
-                  {moving ? '⟳ WARPING...' : sector.hasPort || sector.hasPlanet || sector.players.length > 0
+                  {moving ? '⟳ WARPING...' : isPaused
                     ? '● POINT OF INTEREST DETECTED - AUTO-NAV PAUSED'
                     : '► AUTO-NAV ACTIVE'}
                 </div>

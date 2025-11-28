@@ -400,38 +400,35 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 ## Current Session Context 🎯
 
 **What We Just Did:**
-- ✅ **Plot Course Feature (FULLY WORKING!):**
-  - **Pathfinding Service** ([server/src/services/pathfindingService.ts](server/src/services/pathfindingService.ts))
-    - BFS (Breadth-First Search) algorithm for finding shortest paths
-    - `findPath()` - Returns optimal route between two sectors
-    - `getPathDetails()` - Enriches path with sector information
-  - **Pathfinding Controller** ([server/src/controllers/pathfindingController.ts](server/src/controllers/pathfindingController.ts))
-    - POST `/api/pathfinding/plot` - Calculate route to destination
-  - **SectorView UI Enhancements** ([client/src/components/SectorView.tsx](client/src/components/SectorView.tsx))
-    - Plot Course input panel (cyan theme)
-    - Visual path display showing all sectors in route
-    - Color-coded sector indicators:
-      - Current sector: bright green with ► marker
-      - Visited sectors: darker cyan background
-      - Unvisited sectors: dark background (easier to spot unexplored areas)
-      - Points of interest: yellow border + ● indicator (ports, planets, stardocks, ships)
-    - Distance and turn cost calculation
-    - Remaining turns display (red if insufficient)
-    - Auto-navigation system with "BEGIN AUTO-NAV" button
-    - Pause/Continue controls during auto-travel
-    - **Smart Pause System:**
-      - Auto-pauses when encountering: ports, planets, stardocks, or ships
-      - Shows "POINT OF INTEREST DETECTED" alert
-      - Player can manually pause/continue at any time
-      - 1.5 second delay between warps for visibility
-    - Clear button to reset plotted path
-- ✅ **Ship Log Unread Alert System:**
-  - Added `is_read` column to `ship_log` table (migration 008)
-  - GET `/api/shiplogs/unread-count` - Get unread log count
-  - POST `/api/shiplogs/mark-read` - Mark all logs as read
-  - Badge on LOG button showing unread count (pink badge like COMMS)
-  - Logs automatically marked as read when panel is opened
-- ✅ **Ship Log Sorting Options:**
+- ✅ **Plot Course Auto-Navigation System (FULLY WORKING!):**
+  - **Smart Pause System:**
+    - Auto-pauses only when hitting ports, planets, stardocks, or ships
+    - Shows "POINT OF INTEREST DETECTED" alert with yellow styling
+    - CONTINUE/STOP buttons only appear when actually paused
+    - During active travel through empty sectors: shows only path progress, no buttons
+    - 1.5 second delay between jumps for visibility
+  - **UI State Management:**
+    - Conditional rendering based on `isPaused` state
+    - "BEGIN AUTO-NAV" button when first plotting
+    - No yellow indicators on route preview (no spoilers about what's ahead)
+    - Only shows visited status (darker cyan border) on path sectors
+  - **Bug Fixes:**
+    - Fixed "No warp connection" error during auto-nav (warp validation query corrected)
+    - Fixed 3rd jump failure (path index synchronization issue resolved)
+    - Fixed button state when plotting new course (isPaused properly reset)
+    - Manual warp properly clears plotted path and all navigation state
+    - Previous sector arrow (◄) maintained during and after auto-navigation
+- ✅ **Universe Generation Connectivity Fix:**
+  - Added BFS connectivity check to ensure all sectors reachable from Sol
+  - Automatically connects any unreachable sectors during universe creation
+  - Logs connectivity verification results to console
+  - Guarantees no isolated sector clusters in generated universes
+- **Previous Work:**
+  - ✅ Plot Course pathfinding with BFS algorithm
+  - ✅ Visual route display with sector indicators
+  - ✅ Distance and turn cost calculation
+  - ✅ Ship Log unread alert system
+  - ✅ Ship Log sorting options:
   - 📅 DATE - Sort by discovery date (newest first)
   - 🔢 SECTOR - Sort by sector number (ascending)
   - Purple-themed sort buttons with active state highlighting

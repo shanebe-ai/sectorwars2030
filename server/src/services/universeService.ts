@@ -218,6 +218,82 @@ export async function generateUniverse(config: UniverseConfig) {
     await Promise.all(warpInsertPromises);
     console.log(`Inserted ${warpInsertPromises.length} warp connections`);
 
+    // 4.5. Ensure all sectors are reachable from Sol (sector 1)
+    // Build adjacency list for connectivity check
+    const adjacencyList = new Map<number, Set<number>>();
+    for (let i = 1; i <= maxSectors; i++) {
+      adjacencyList.set(i, new Set<number>());
+    }
+
+    // Populate adjacency list from generated warps (bidirectional)
+    for (const sector of sectors) {
+      for (const dest of sector.warps) {
+        adjacencyList.get(sector.sectorNumber)?.add(dest);
+        adjacencyList.get(dest)?.add(sector.sectorNumber);
+      }
+    }
+
+    // BFS to find all reachable sectors from Sol (sector 1)
+    const reachable = new Set<number>();
+    const queue = [1];
+    reachable.add(1);
+
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      const neighbors = adjacencyList.get(current) || new Set();
+
+      for (const neighbor of neighbors) {
+        if (!reachable.has(neighbor)) {
+          reachable.add(neighbor);
+          queue.push(neighbor);
+        }
+      }
+    }
+
+    // Connect any unreachable sectors
+    const unreachableSectors = [];
+    for (let i = 1; i <= maxSectors; i++) {
+      if (!reachable.has(i)) {
+        unreachableSectors.push(i);
+      }
+    }
+
+    if (unreachableSectors.length > 0) {
+      console.log(`Found ${unreachableSectors.length} unreachable sectors, connecting them...`);
+
+      // For each unreachable sector, connect it to a random reachable sector
+      for (const unreachableSector of unreachableSectors) {
+        // Pick a random sector from the reachable set
+        const reachableArray = Array.from(reachable);
+        const connectTo = reachableArray[Math.floor(Math.random() * reachableArray.length)];
+
+        const unreachableSectorId = sectorIdMap.get(unreachableSector);
+
+        // Create bidirectional warp to connect this sector
+        await client.query(
+          `INSERT INTO sector_warps (sector_id, destination_sector_number, is_two_way)
+           VALUES ($1, $2, TRUE)
+           ON CONFLICT DO NOTHING`,
+          [unreachableSectorId, connectTo]
+        );
+
+        // Add to adjacency list and mark as reachable
+        adjacencyList.get(unreachableSector)?.add(connectTo);
+        adjacencyList.get(connectTo)?.add(unreachableSector);
+        reachable.add(unreachableSector);
+
+        // Update in-memory sector data
+        const sectorData = sectors.find(s => s.sectorNumber === unreachableSector);
+        if (sectorData) {
+          sectorData.warps.push(connectTo);
+        }
+      }
+
+      console.log(`Connected ${unreachableSectors.length} previously unreachable sectors`);
+    } else {
+      console.log(`All sectors are reachable from Sol - connectivity verified!`);
+    }
+
     // 5. Create Earth planet in Sector 1 (Sol) - owned by Terra Corp (unclaimable)
     const sector1Id = sectorIdMap.get(1);
     if (sector1Id) {

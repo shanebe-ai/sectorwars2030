@@ -42,12 +42,12 @@ export const plotCourse = async (req: Request, res: Response) => {
     }
 
     // Get detailed information about the path
-    const pathDetails = await getPathDetails(path, universeId, playerId);
+    const sectors = await getPathDetails(path, universeId, playerId);
 
     res.json({
       success: true,
       path,
-      pathDetails,
+      sectors,
       distance: path.length - 1, // Number of warps (exclude starting sector)
       currentSector,
       destinationSector

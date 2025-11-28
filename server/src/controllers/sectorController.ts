@@ -195,16 +195,27 @@ export const moveToSector = async (req: Request, res: Response) => {
         return res.status(400).json({ error: 'Not enough turns remaining' });
       }
 
-      // Check if the destination sector is connected via a warp (bidirectional check)
-      const warpResult = await client.query(
-        `SELECT id FROM sector_warps
-         WHERE (sector_id = $1 AND destination_sector_number = $2)
-            OR (sector_id IN (SELECT id FROM sectors WHERE sector_number = $2 AND universe_id = $3)
-                AND destination_sector_number = $4)`,
-        [player.current_sector_id, destinationSector, player.universe_id, player.current_sector]
+      // Check if the destination sector is connected via a warp
+      // Check for forward warp (current -> destination)
+      const forwardWarpResult = await client.query(
+        `SELECT sw.id, sw.is_two_way
+         FROM sector_warps sw
+         WHERE sw.sector_id = $1 AND sw.destination_sector_number = $2`,
+        [player.current_sector_id, destinationSector]
       );
 
-      if (warpResult.rows.length === 0) {
+      // Check for reverse warp (destination -> current) if forward doesn't exist
+      const reverseWarpResult = await client.query(
+        `SELECT sw.id, sw.is_two_way
+         FROM sector_warps sw
+         JOIN sectors s ON sw.sector_id = s.id
+         WHERE s.universe_id = $1 AND s.sector_number = $2 AND sw.destination_sector_number = $3 AND sw.is_two_way = true`,
+        [player.universe_id, destinationSector, player.current_sector]
+      );
+
+      const hasWarpConnection = forwardWarpResult.rows.length > 0 || reverseWarpResult.rows.length > 0;
+
+      if (!hasWarpConnection) {
         await client.query('ROLLBACK');
         return res.status(400).json({ error: 'No warp connection to that sector' });
       }

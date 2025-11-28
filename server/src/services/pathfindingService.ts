@@ -20,18 +20,35 @@ export async function findPath(
     return [startSector];
   }
 
-  // Fetch all warps for the universe
+  // Fetch all warps for the universe from sector_warps table
   const warpsResult = await pool.query(
-    `SELECT sector_number, warps FROM sectors WHERE universe_id = $1`,
+    `SELECT s.sector_number as from_sector, sw.destination_sector_number as to_sector, sw.is_two_way
+     FROM sector_warps sw
+     JOIN sectors s ON s.id = sw.sector_id
+     WHERE s.universe_id = $1`,
     [universeId]
   );
 
   // Build adjacency map
   const adjacencyMap = new Map<number, number[]>();
   for (const row of warpsResult.rows) {
-    const sectorNum = row.sector_number;
-    const warps = row.warps || [];
-    adjacencyMap.set(sectorNum, warps);
+    const from = row.from_sector;
+    const to = row.to_sector;
+    const isTwoWay = row.is_two_way;
+
+    // Add forward connection
+    if (!adjacencyMap.has(from)) {
+      adjacencyMap.set(from, []);
+    }
+    adjacencyMap.get(from)!.push(to);
+
+    // Add reverse connection if bidirectional
+    if (isTwoWay) {
+      if (!adjacencyMap.has(to)) {
+        adjacencyMap.set(to, []);
+      }
+      adjacencyMap.get(to)!.push(from);
+    }
   }
 
   // BFS to find shortest path
@@ -117,8 +134,11 @@ export async function getPathDetails(
     sectorNumber: row.sector_number,
     name: row.name,
     portType: row.port_type,
+    hasPort: !!row.port_type,
+    hasStardock: row.port_type === 'STARDOCK',
     hasPlanet: row.has_planet,
     planetName: row.planet_name,
+    hasShips: parseInt(row.other_players) > 0,
     otherPlayers: parseInt(row.other_players) || 0,
     visited: visitedSectors.has(row.sector_number),
     hasPointOfInterest: !!(row.port_type || row.has_planet || parseInt(row.other_players) > 0)
