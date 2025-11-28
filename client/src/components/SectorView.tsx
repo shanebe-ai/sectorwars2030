@@ -1036,8 +1036,22 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
           sectorNumber={sector.sectorNumber}
           token={token}
           onClose={() => setShowStarDock(false)}
-          onPurchase={(updatedPlayer) => {
-            onSectorChange(updatedPlayer);
+          onPurchase={async () => {
+            // Fetch the full updated player data from server after purchase
+            try {
+              const response = await fetch(`${API_URL}/api/players/${player.id}`, {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                },
+              });
+
+              if (response.ok) {
+                const data = await response.json();
+                onSectorChange(data.player);
+              }
+            } catch (err) {
+              console.error('Failed to refresh player data:', err);
+            }
           }}
         />
       )}
