@@ -44,7 +44,7 @@ export async function getPlanetInfo(req: Request, res: Response) {
 
 export async function getPlayerPlanets(req: Request, res: Response) {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).user?.userId;
     
     // Get player from token
     const playerResult = await pool.query(
@@ -81,7 +81,7 @@ export async function getPlayerPlanets(req: Request, res: Response) {
 
 export async function claimPlanet(req: Request, res: Response) {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).user?.userId;
     const planetId = parseInt(req.params.id);
     
     if (isNaN(planetId)) {
@@ -123,7 +123,7 @@ export async function claimPlanet(req: Request, res: Response) {
 
 export async function setProductionType(req: Request, res: Response) {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).user?.userId;
     const planetId = parseInt(req.params.id);
     const { productionType } = req.body;
     
@@ -170,7 +170,7 @@ export async function setProductionType(req: Request, res: Response) {
 
 export async function depositColonists(req: Request, res: Response) {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).user?.userId;
     const planetId = parseInt(req.params.id);
     const { amount } = req.body;
     
@@ -213,7 +213,7 @@ export async function depositColonists(req: Request, res: Response) {
 
 export async function withdrawResources(req: Request, res: Response) {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).user?.userId;
     const planetId = parseInt(req.params.id);
     const { resource, amount } = req.body;
     
@@ -258,7 +258,7 @@ export async function withdrawResources(req: Request, res: Response) {
 
 export async function depositResources(req: Request, res: Response) {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).user?.userId;
     const planetId = parseInt(req.params.id);
     const { resource, amount } = req.body;
     
@@ -307,7 +307,7 @@ export async function depositResources(req: Request, res: Response) {
 
 export async function depositFighters(req: Request, res: Response) {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).user?.userId;
     const planetId = parseInt(req.params.id);
     const { amount } = req.body;
     
@@ -346,7 +346,7 @@ export async function depositFighters(req: Request, res: Response) {
 
 export async function withdrawFighters(req: Request, res: Response) {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).user?.userId;
     const planetId = parseInt(req.params.id);
     const { amount } = req.body;
     
@@ -389,7 +389,7 @@ export async function withdrawFighters(req: Request, res: Response) {
 
 export async function upgradeCitadel(req: Request, res: Response) {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).user?.userId;
     const planetId = parseInt(req.params.id);
     
     if (isNaN(planetId)) {
@@ -435,7 +435,7 @@ export async function upgradeCitadel(req: Request, res: Response) {
 
 export async function depositCredits(req: Request, res: Response) {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).user?.userId;
     const planetId = parseInt(req.params.id);
     const { amount } = req.body;
     
@@ -474,7 +474,7 @@ export async function depositCredits(req: Request, res: Response) {
 
 export async function withdrawCredits(req: Request, res: Response) {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).user?.userId;
     const planetId = parseInt(req.params.id);
     const { amount } = req.body;
     

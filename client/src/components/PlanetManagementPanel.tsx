@@ -387,10 +387,36 @@ export default function PlanetManagementPanel({
     }
   };
 
+  // Full-screen overlay styles
+  const overlayStyle: React.CSSProperties = {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(0, 0, 0, 0.95)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+    backdropFilter: 'blur(4px)',
+  };
+
+  const panelStyle: React.CSSProperties = {
+    background: 'linear-gradient(135deg, rgba(0, 20, 0, 0.98), rgba(0, 40, 20, 0.95))',
+    border: '2px solid var(--neon-green)',
+    boxShadow: '0 0 30px rgba(0, 255, 0, 0.3)',
+    maxWidth: '700px',
+    width: '95%',
+    maxHeight: '90vh',
+    overflowY: 'auto',
+    padding: '20px',
+  };
+
   if (loading) {
     return (
-      <div className="modal-overlay" onClick={onClose}>
-        <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+      <div style={overlayStyle} onClick={onClose}>
+        <div style={panelStyle} onClick={e => e.stopPropagation()}>
           <div style={{ textAlign: 'center', padding: '40px', color: 'var(--neon-cyan)' }}>
             ⟳ Loading planet data...
           </div>
@@ -401,8 +427,8 @@ export default function PlanetManagementPanel({
 
   if (!planet) {
     return (
-      <div className="modal-overlay" onClick={onClose}>
-        <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+      <div style={overlayStyle} onClick={onClose}>
+        <div style={panelStyle} onClick={e => e.stopPropagation()}>
           <div style={{ textAlign: 'center', padding: '40px', color: 'var(--neon-pink)' }}>
             {error || 'Planet not found'}
           </div>
@@ -418,16 +444,10 @@ export default function PlanetManagementPanel({
   const canManage = isOwner;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div style={overlayStyle} onClick={onClose}>
       <div 
-        className="modal-content" 
+        style={panelStyle}
         onClick={e => e.stopPropagation()} 
-        style={{ 
-          maxWidth: '700px',
-          background: 'linear-gradient(135deg, rgba(0, 20, 0, 0.98), rgba(0, 40, 20, 0.95))',
-          border: '2px solid var(--neon-green)',
-          boxShadow: '0 0 30px rgba(0, 255, 0, 0.3)'
-        }}
       >
         {/* Header */}
         <div style={{ 
@@ -449,15 +469,16 @@ export default function PlanetManagementPanel({
           <button 
             onClick={onClose}
             style={{
-              background: 'transparent',
-              border: '1px solid var(--neon-pink)',
-              color: 'var(--neon-pink)',
-              padding: '5px 15px',
+              background: 'rgba(255, 100, 0, 0.2)',
+              border: '1px solid #ff6400',
+              color: '#ff6400',
+              padding: '8px 20px',
               cursor: 'pointer',
-              fontFamily: 'monospace'
+              fontFamily: 'monospace',
+              fontWeight: 'bold'
             }}
           >
-            ✕ CLOSE
+            🚀 TAKE OFF
           </button>
         </div>
 
