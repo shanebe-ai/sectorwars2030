@@ -14,6 +14,7 @@ export interface ShipForSale {
   minesMax: number;
   genesisMax: number;
   cost: number;
+  netCost: number;  // Cost after trade-in value
   description: string;
   canAfford: boolean;
   isCurrentShip: boolean;
@@ -25,6 +26,7 @@ export interface StardockInfo {
   ships: ShipForSale[];
   fighterPrice: number;
   shieldPrice: number;
+  tradeInValue: number;  // Trade-in value of current ship
   player: {
     credits: number;
     currentShip: string;
@@ -48,6 +50,9 @@ export interface PurchaseResult {
     shieldsMax?: number;
   };
 }
+
+// Trade-in value is 70% of ship's original cost
+const TRADE_IN_PERCENTAGE = 0.70;
 
 /**
  * Get StarDock information including ships for sale
@@ -73,6 +78,23 @@ export async function getStardockInfo(userId: number): Promise<StardockInfo | nu
     return null; // Not at a StarDock
   }
 
+  // Get current ship's trade-in value
+  let tradeInValue = 0;
+  if (player.ship_type) {
+    const currentShipResult = await pool.query(
+      `SELECT cost_credits FROM ship_types 
+       WHERE LOWER(name) = LOWER($1) 
+       AND (universe_id IS NULL OR universe_id = $2)
+       LIMIT 1`,
+      [player.ship_type, player.universe_id]
+    );
+    
+    if (currentShipResult.rows.length > 0) {
+      const currentShipCost = parseInt(currentShipResult.rows[0].cost_credits) || 0;
+      tradeInValue = Math.floor(currentShipCost * TRADE_IN_PERCENTAGE);
+    }
+  }
+
   // Get all ship types (global ones with universe_id = NULL)
   const shipsResult = await pool.query(
     `SELECT * FROM ship_types 
@@ -81,20 +103,28 @@ export async function getStardockInfo(userId: number): Promise<StardockInfo | nu
     [player.universe_id]
   );
 
-  const ships: ShipForSale[] = shipsResult.rows.map(ship => ({
-    id: ship.id,
-    name: ship.name,
-    displayName: ship.display_name || ship.name,
-    holds: ship.holds,
-    fightersMax: ship.fighters_max || ship.fighters || 0,
-    shieldsMax: ship.shields_max || ship.shields || 0,
-    minesMax: ship.mines_max || 0,
-    genesisMax: ship.genesis_max || 0,
-    cost: parseInt(ship.cost_credits) || 0,
-    description: ship.description || '',
-    canAfford: parseInt(player.credits) >= (parseInt(ship.cost_credits) || 0),
-    isCurrentShip: player.ship_type?.toLowerCase() === ship.name?.toLowerCase(),
-  }));
+  const playerCredits = parseInt(player.credits);
+  
+  const ships: ShipForSale[] = shipsResult.rows.map(ship => {
+    const shipCost = parseInt(ship.cost_credits) || 0;
+    const netCost = Math.max(0, shipCost - tradeInValue);
+    
+    return {
+      id: ship.id,
+      name: ship.name,
+      displayName: ship.display_name || ship.name,
+      holds: ship.holds,
+      fightersMax: ship.fighters_max || ship.fighters || 0,
+      shieldsMax: ship.shields_max || ship.shields || 0,
+      minesMax: ship.mines_max || 0,
+      genesisMax: ship.genesis_max || 0,
+      cost: shipCost,
+      netCost: netCost,
+      description: ship.description || '',
+      canAfford: playerCredits >= netCost,
+      isCurrentShip: player.ship_type?.toLowerCase() === ship.name?.toLowerCase(),
+    };
+  });
 
   return {
     sectorNumber: player.sector_number,
@@ -102,8 +132,9 @@ export async function getStardockInfo(userId: number): Promise<StardockInfo | nu
     ships,
     fighterPrice: FIGHTER_PRICE,
     shieldPrice: SHIELD_PRICE,
+    tradeInValue,
     player: {
-      credits: parseInt(player.credits),
+      credits: playerCredits,
       currentShip: player.ship_type,
       fighters: player.ship_fighters || 0,
       fightersMax: player.ship_fighters_max || 0,
@@ -115,6 +146,7 @@ export async function getStardockInfo(userId: number): Promise<StardockInfo | nu
 
 /**
  * Purchase a new ship at StarDock
+ * Includes trade-in value for current ship (70% of its cost)
  */
 export async function purchaseShip(userId: number, shipName: string): Promise<PurchaseResult> {
   const client = await pool.connect();
@@ -143,7 +175,7 @@ export async function purchaseShip(userId: number, shipName: string): Promise<Pu
       throw new Error('You must be at a StarDock to purchase ships');
     }
 
-    // Get ship info
+    // Get new ship info
     const shipResult = await client.query(
       `SELECT * FROM ship_types 
        WHERE LOWER(name) = LOWER($1) 
@@ -156,26 +188,47 @@ export async function purchaseShip(userId: number, shipName: string): Promise<Pu
       throw new Error('Ship type not found');
     }
 
-    const ship = shipResult.rows[0];
-    const cost = parseInt(ship.cost_credits) || 0;
+    const newShip = shipResult.rows[0];
+    const newShipCost = parseInt(newShip.cost_credits) || 0;
 
     // Check if already owns this ship
-    if (player.ship_type?.toLowerCase() === ship.name?.toLowerCase()) {
+    if (player.ship_type?.toLowerCase() === newShip.name?.toLowerCase()) {
       throw new Error('You already own this ship');
     }
 
+    // Get current ship's value for trade-in
+    let tradeInValue = 0;
+    if (player.ship_type) {
+      const currentShipResult = await client.query(
+        `SELECT cost_credits FROM ship_types 
+         WHERE LOWER(name) = LOWER($1) 
+         AND (universe_id IS NULL OR universe_id = $2)
+         LIMIT 1`,
+        [player.ship_type, player.universe_id]
+      );
+      
+      if (currentShipResult.rows.length > 0) {
+        const currentShipCost = parseInt(currentShipResult.rows[0].cost_credits) || 0;
+        tradeInValue = Math.floor(currentShipCost * TRADE_IN_PERCENTAGE);
+      }
+    }
+
+    // Calculate net cost (new ship cost minus trade-in value)
+    const netCost = Math.max(0, newShipCost - tradeInValue);
+
     // Check credits
-    if (parseInt(player.credits) < cost) {
-      throw new Error(`Not enough credits. Need ${cost.toLocaleString()}, have ${parseInt(player.credits).toLocaleString()}`);
+    if (parseInt(player.credits) < netCost) {
+      throw new Error(`Not enough credits. Need ${netCost.toLocaleString()} (after ${tradeInValue.toLocaleString()} trade-in), have ${parseInt(player.credits).toLocaleString()}`);
     }
 
     // Calculate cargo to keep (limited by new ship's holds)
-    const currentCargo = player.cargo_fuel + player.cargo_organics + player.cargo_equipment;
-    const newHolds = ship.holds;
+    const currentCargo = player.cargo_fuel + player.cargo_organics + player.cargo_equipment + (player.colonists || 0);
+    const newHolds = newShip.holds;
     
     let newFuel = player.cargo_fuel;
     let newOrganics = player.cargo_organics;
     let newEquipment = player.cargo_equipment;
+    let newColonists = player.colonists || 0;
     
     // If cargo exceeds new ship capacity, reduce proportionally
     if (currentCargo > newHolds) {
@@ -183,11 +236,12 @@ export async function purchaseShip(userId: number, shipName: string): Promise<Pu
       newFuel = Math.floor(player.cargo_fuel * ratio);
       newOrganics = Math.floor(player.cargo_organics * ratio);
       newEquipment = Math.floor(player.cargo_equipment * ratio);
+      newColonists = Math.floor((player.colonists || 0) * ratio);
     }
 
     // Fighters and shields transfer (limited by new ship's max)
-    const newFighters = Math.min(player.ship_fighters || 0, ship.fighters_max || ship.fighters || 0);
-    const newShields = Math.min(player.ship_shields || 0, ship.shields_max || ship.shields || 0);
+    const newFighters = Math.min(player.ship_fighters || 0, newShip.fighters_max || 0);
+    const newShields = Math.min(player.ship_shields || 0, newShip.shields_max || 0);
 
     // Update player
     await client.query(
@@ -199,27 +253,32 @@ export async function purchaseShip(userId: number, shipName: string): Promise<Pu
         ship_shields = $5,
         cargo_fuel = $6,
         cargo_organics = $7,
-        cargo_equipment = $8
-       WHERE id = $9`,
-      [cost, ship.name, ship.holds, newFighters, newShields, newFuel, newOrganics, newEquipment, player.id]
+        cargo_equipment = $8,
+        colonists = $9
+       WHERE id = $10`,
+      [netCost, newShip.name, newShip.holds, newFighters, newShields, newFuel, newOrganics, newEquipment, newColonists, player.id]
     );
 
     // Get updated player
     const updatedResult = await client.query(
-      'SELECT credits, ship_type, ship_holds_max, ship_fighters, ship_shields FROM players WHERE id = $1',
+      'SELECT credits, ship_type, ship_holds_max, ship_fighters, ship_shields, cargo_fuel, cargo_organics, cargo_equipment, colonists FROM players WHERE id = $1',
       [player.id]
     );
 
     await client.query('COMMIT');
 
     const updated = updatedResult.rows[0];
-    const cargoLost = currentCargo - (newFuel + newOrganics + newEquipment);
+    const cargoLost = currentCargo - (newFuel + newOrganics + newEquipment + newColonists);
     const fightersLost = (player.ship_fighters || 0) - newFighters;
     const shieldsLost = (player.ship_shields || 0) - newShields;
 
-    let message = `Purchased ${ship.display_name || ship.name} for ${cost.toLocaleString()} credits!`;
+    let message = `Traded in your ship for ${tradeInValue.toLocaleString()} credits and purchased ${newShip.name} for ${newShipCost.toLocaleString()} credits (net cost: ${netCost.toLocaleString()})!`;
     if (cargoLost > 0 || fightersLost > 0 || shieldsLost > 0) {
-      message += ` (Lost: ${cargoLost > 0 ? `${cargoLost} cargo` : ''}${fightersLost > 0 ? `, ${fightersLost} fighters` : ''}${shieldsLost > 0 ? `, ${shieldsLost} shields` : ''})`;
+      const losses = [];
+      if (cargoLost > 0) losses.push(`${cargoLost} cargo`);
+      if (fightersLost > 0) losses.push(`${fightersLost} fighters`);
+      if (shieldsLost > 0) losses.push(`${shieldsLost} shields`);
+      message += ` Lost: ${losses.join(', ')}`;
     }
 
     return {
@@ -231,6 +290,10 @@ export async function purchaseShip(userId: number, shipName: string): Promise<Pu
         shipHoldsMax: updated.ship_holds_max,
         fighters: updated.ship_fighters,
         shields: updated.ship_shields,
+        cargoFuel: updated.cargo_fuel,
+        cargoOrganics: updated.cargo_organics,
+        cargoEquipment: updated.cargo_equipment,
+        colonists: updated.colonists,
       },
     };
   } catch (error) {

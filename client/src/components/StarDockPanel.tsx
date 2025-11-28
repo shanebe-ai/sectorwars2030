@@ -11,6 +11,7 @@ interface Ship {
   minesMax: number;
   genesisMax: number;
   cost: number;
+  netCost: number;
   description: string;
   canAfford: boolean;
   isCurrentShip: boolean;
@@ -22,6 +23,7 @@ interface StardockInfo {
   ships: Ship[];
   fighterPrice: number;
   shieldPrice: number;
+  tradeInValue: number;
   player: {
     credits: number;
     currentShip: string;
@@ -255,7 +257,7 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
         {/* Player Stats */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
+          gridTemplateColumns: 'repeat(5, 1fr)',
           gap: '10px',
           marginBottom: '20px',
           padding: '15px',
@@ -272,6 +274,12 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
             <div style={{ fontSize: '11px', color: 'rgba(0, 255, 255, 0.6)' }}>SHIP</div>
             <div style={{ color: 'var(--neon-cyan)', fontWeight: 'bold', textTransform: 'uppercase' }}>
               {stardock.player.currentShip}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '11px', color: 'rgba(0, 255, 255, 0.6)' }}>TRADE-IN VALUE</div>
+            <div style={{ color: 'var(--neon-green)', fontWeight: 'bold' }}>
+              ₡{stardock.tradeInValue.toLocaleString()}
             </div>
           </div>
           <div>
@@ -375,14 +383,26 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
                     <span>🛡️ Shields: <strong>{ship.shieldsMax}</strong></span>
                   </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
+                <div style={{ textAlign: 'right', minWidth: '150px' }}>
+                  <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '2px' }}>
+                    List: ₡{ship.cost.toLocaleString()}
+                  </div>
                   <div style={{
-                    color: ship.canAfford ? 'var(--neon-yellow)' : 'var(--neon-pink)',
+                    color: ship.canAfford ? 'var(--neon-green)' : 'var(--neon-pink)',
                     fontWeight: 'bold',
                     fontSize: '18px',
                     marginBottom: '10px'
                   }}>
-                    ₡{ship.cost.toLocaleString()}
+                    {ship.isCurrentShip ? 'OWNED' : (
+                      <>
+                        Net: ₡{ship.netCost.toLocaleString()}
+                        {ship.netCost < ship.cost && (
+                          <div style={{ fontSize: '10px', color: 'var(--neon-green)' }}>
+                            (Save ₡{(ship.cost - ship.netCost).toLocaleString()})
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                   <button
                     onClick={() => purchaseShip(ship.name)}
@@ -400,7 +420,7 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
                       fontWeight: 'bold'
                     }}
                   >
-                    {ship.isCurrentShip ? 'OWNED' : ship.canAfford ? 'BUY' : 'INSUFFICIENT'}
+                    {ship.isCurrentShip ? 'CURRENT' : ship.canAfford ? 'TRADE IN & BUY' : 'INSUFFICIENT'}
                   </button>
                 </div>
               </div>
