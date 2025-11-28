@@ -53,6 +53,8 @@ export default function PortTradingPanel({
     organics: 0,
     equipment: 0,
   });
+  const [colonistQty, setColonistQty] = useState(0);
+  const [buyingColonists, setBuyingColonists] = useState(false);
 
   useEffect(() => {
     loadPortInfo();
@@ -152,6 +154,40 @@ export default function PortTradingPanel({
       setError('Network error');
     } finally {
       setTrading(false);
+    }
+  };
+
+  const buyColonists = async () => {
+    if (buyingColonists || colonistQty <= 0) return;
+
+    setBuyingColonists(true);
+    setError('');
+    setTradeResult(null);
+
+    try {
+      const response = await fetch(`${API_URL}/api/ports/colonists/buy`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ quantity: colonistQty }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setTradeResult(`Purchased ${data.quantity} colonists for ₡${data.totalCost.toLocaleString()} credits`);
+        setColonistQty(0);
+        // Refresh player data
+        onTradeComplete(data);
+      } else {
+        setError(data.error || 'Failed to purchase colonists');
+      }
+    } catch (err) {
+      setError('Network error');
+    } finally {
+      setBuyingColonists(false);
     }
   };
 
@@ -507,6 +543,92 @@ export default function PortTradingPanel({
             );
           })}
         </div>
+
+        {/* Colonist Purchasing - Only at trading ports (not StarDocks) */}
+        {port.portType !== 'STARDOCK' && (
+          <div style={{ 
+            padding: '15px 20px',
+            borderTop: '1px solid rgba(138, 43, 226, 0.3)',
+            background: 'rgba(138, 43, 226, 0.05)'
+          }}>
+            <div style={{ 
+              color: 'var(--neon-purple)', 
+              fontWeight: 'bold', 
+              marginBottom: '10px',
+              fontSize: '14px'
+            }}>
+              👥 COLONIST RECRUITMENT
+            </div>
+            <div style={{ 
+              fontSize: '12px', 
+              color: 'rgba(138, 43, 226, 0.8)', 
+              marginBottom: '10px' 
+            }}>
+              Recruit colonists to transport to your planets. Price: ₡100 each
+            </div>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <input
+                type="number"
+                value={colonistQty || ''}
+                onChange={(e) => setColonistQty(Math.max(0, parseInt(e.target.value) || 0))}
+                placeholder="Quantity..."
+                min="0"
+                max="1000"
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  background: 'rgba(0, 0, 0, 0.5)',
+                  border: '1px solid var(--neon-purple)',
+                  color: 'var(--neon-purple)',
+                  fontFamily: 'monospace',
+                  fontSize: '14px',
+                }}
+              />
+              <button
+                onClick={() => {
+                  const affordable = Math.floor(player.credits / 100);
+                  const spaceAvailable = player.shipHoldsMax - cargoUsed;
+                  setColonistQty(Math.min(1000, affordable, spaceAvailable));
+                }}
+                className="cyberpunk-button"
+                style={{
+                  padding: '8px 12px',
+                  background: 'rgba(138, 43, 226, 0.2)',
+                  borderColor: 'var(--neon-purple)',
+                  color: 'var(--neon-purple)',
+                  fontSize: '12px',
+                }}
+              >
+                MAX
+              </button>
+              <button
+                onClick={buyColonists}
+                disabled={buyingColonists || colonistQty <= 0}
+                className="cyberpunk-button"
+                style={{
+                  padding: '8px 16px',
+                  background: 'rgba(138, 43, 226, 0.2)',
+                  borderColor: 'var(--neon-purple)',
+                  color: 'var(--neon-purple)',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                }}
+              >
+                {buyingColonists ? '⟳' : '► RECRUIT'}
+              </button>
+            </div>
+            {colonistQty > 0 && (
+              <div style={{ 
+                marginTop: '8px', 
+                fontSize: '12px', 
+                color: 'var(--neon-yellow)',
+                textAlign: 'center'
+              }}>
+                Cost: ₡{(colonistQty * 100).toLocaleString()} credits
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Close Button */}
         <div style={{ padding: '0 20px 20px' }}>
