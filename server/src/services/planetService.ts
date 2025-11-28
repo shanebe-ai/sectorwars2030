@@ -164,7 +164,7 @@ export async function claimPlanet(planetId: number, playerId: number): Promise<{
     
     // Check if player is in the same sector
     const playerResult = await client.query(
-      'SELECT current_sector_id, corp_name FROM players WHERE id = $1',
+      'SELECT current_sector, corp_name FROM players WHERE id = $1',
       [playerId]
     );
     
@@ -175,7 +175,8 @@ export async function claimPlanet(planetId: number, playerId: number): Promise<{
     
     const player = playerResult.rows[0];
     
-    if (player.current_sector_id !== planet.sector_id) {
+    // Compare sector numbers (player has current_sector number, planet query includes sector_number)
+    if (player.current_sector !== planet.sector_number) {
       await client.query('ROLLBACK');
       return { success: false, error: 'You must be in the same sector to claim a planet' };
     }
@@ -268,8 +269,10 @@ export async function depositColonists(
     
     // Get planet and check ownership
     const planetResult = await client.query(
-      `SELECT p.owner_id, p.sector_id, p.colonists 
-       FROM planets p WHERE p.id = $1 FOR UPDATE`,
+      `SELECT p.owner_id, p.sector_id, p.colonists, s.sector_number
+       FROM planets p
+       JOIN sectors s ON p.sector_id = s.id
+       WHERE p.id = $1 FOR UPDATE`,
       [planetId]
     );
     
@@ -287,7 +290,7 @@ export async function depositColonists(
     
     // Check if player is in same sector and has colonists
     const playerResult = await client.query(
-      'SELECT current_sector_id, colonists FROM players WHERE id = $1 FOR UPDATE',
+      'SELECT current_sector, colonists FROM players WHERE id = $1 FOR UPDATE',
       [playerId]
     );
     
@@ -298,7 +301,7 @@ export async function depositColonists(
     
     const player = playerResult.rows[0];
     
-    if (player.current_sector_id !== planet.sector_id) {
+    if (player.current_sector !== planet.sector_number) {
       await client.query('ROLLBACK');
       return { success: false, error: 'You must be at the planet to deposit colonists' };
     }
@@ -351,7 +354,7 @@ export async function withdrawResources(
     
     // Get planet and check ownership
     const planetResult = await client.query(
-      `SELECT p.*, s.id as sector_id
+      `SELECT p.*, s.id as sector_id, s.sector_number
        FROM planets p
        JOIN sectors s ON p.sector_id = s.id
        WHERE p.id = $1 FOR UPDATE`,
@@ -386,7 +389,7 @@ export async function withdrawResources(
     
     const player = playerResult.rows[0];
     
-    if (player.current_sector_id !== planet.sector_id) {
+    if (player.current_sector !== planet.sector_number) {
       await client.query('ROLLBACK');
       return { success: false, error: 'You must be at the planet to withdraw resources' };
     }
@@ -446,7 +449,7 @@ export async function depositResources(
     
     // Get planet and check ownership
     const planetResult = await client.query(
-      `SELECT p.*, s.id as sector_id
+      `SELECT p.*, s.id as sector_id, s.sector_number
        FROM planets p
        JOIN sectors s ON p.sector_id = s.id
        WHERE p.id = $1 FOR UPDATE`,
@@ -467,7 +470,7 @@ export async function depositResources(
     
     // Check player location and cargo
     const playerResult = await client.query(
-      'SELECT current_sector_id, fuel, organics, equipment FROM players WHERE id = $1 FOR UPDATE',
+      'SELECT current_sector, fuel, organics, equipment FROM players WHERE id = $1 FOR UPDATE',
       [playerId]
     );
     
@@ -478,7 +481,7 @@ export async function depositResources(
     
     const player = playerResult.rows[0];
     
-    if (player.current_sector_id !== planet.sector_id) {
+    if (player.current_sector !== planet.sector_number) {
       await client.query('ROLLBACK');
       return { success: false, error: 'You must be at the planet to deposit resources' };
     }
@@ -532,8 +535,10 @@ export async function depositFighters(
     
     // Get planet and check ownership
     const planetResult = await client.query(
-      `SELECT p.owner_id, p.sector_id, p.fighters, p.citadel_level
-       FROM planets p WHERE p.id = $1 FOR UPDATE`,
+      `SELECT p.owner_id, p.sector_id, p.fighters, p.citadel_level, s.sector_number
+       FROM planets p
+       JOIN sectors s ON p.sector_id = s.id
+       WHERE p.id = $1 FOR UPDATE`,
       [planetId]
     );
     
@@ -551,7 +556,7 @@ export async function depositFighters(
     
     // Check if player is in same sector and has fighters
     const playerResult = await client.query(
-      'SELECT current_sector_id, fighters FROM players WHERE id = $1 FOR UPDATE',
+      'SELECT current_sector, fighters FROM players WHERE id = $1 FOR UPDATE',
       [playerId]
     );
     
@@ -562,7 +567,7 @@ export async function depositFighters(
     
     const player = playerResult.rows[0];
     
-    if (player.current_sector_id !== planet.sector_id) {
+    if (player.current_sector !== planet.sector_number) {
       await client.query('ROLLBACK');
       return { success: false, error: 'You must be at the planet to deploy fighters' };
     }
@@ -610,8 +615,10 @@ export async function withdrawFighters(
     
     // Get planet and check ownership
     const planetResult = await client.query(
-      `SELECT p.owner_id, p.sector_id, p.fighters
-       FROM planets p WHERE p.id = $1 FOR UPDATE`,
+      `SELECT p.owner_id, p.sector_id, p.fighters, s.sector_number
+       FROM planets p
+       JOIN sectors s ON p.sector_id = s.id
+       WHERE p.id = $1 FOR UPDATE`,
       [planetId]
     );
     
@@ -634,7 +641,7 @@ export async function withdrawFighters(
     
     // Check if player is in same sector and has capacity
     const playerResult = await client.query(
-      `SELECT p.current_sector_id, p.fighters, st.fighters_max
+      `SELECT p.current_sector, p.fighters, st.fighters_max
        FROM players p
        JOIN ship_types st ON p.ship_type_id = st.id
        WHERE p.id = $1 FOR UPDATE`,
@@ -648,7 +655,7 @@ export async function withdrawFighters(
     
     const player = playerResult.rows[0];
     
-    if (player.current_sector_id !== planet.sector_id) {
+    if (player.current_sector !== planet.sector_number) {
       await client.query('ROLLBACK');
       return { success: false, error: 'You must be at the planet to retrieve fighters' };
     }
@@ -696,8 +703,10 @@ export async function upgradeCitadel(
     
     // Get planet and check ownership
     const planetResult = await client.query(
-      `SELECT p.owner_id, p.sector_id, p.citadel_level, p.credits
-       FROM planets p WHERE p.id = $1 FOR UPDATE`,
+      `SELECT p.owner_id, p.sector_id, p.citadel_level, p.credits, s.sector_number
+       FROM planets p
+       JOIN sectors s ON p.sector_id = s.id
+       WHERE p.id = $1 FOR UPDATE`,
       [planetId]
     );
     
@@ -725,7 +734,7 @@ export async function upgradeCitadel(
     
     // Check if player is in same sector
     const playerResult = await client.query(
-      'SELECT current_sector_id, credits FROM players WHERE id = $1 FOR UPDATE',
+      'SELECT current_sector, credits FROM players WHERE id = $1 FOR UPDATE',
       [playerId]
     );
     
@@ -736,7 +745,7 @@ export async function upgradeCitadel(
     
     const player = playerResult.rows[0];
     
-    if (player.current_sector_id !== planet.sector_id) {
+    if (player.current_sector !== planet.sector_number) {
       await client.query('ROLLBACK');
       return { success: false, error: 'You must be at the planet to upgrade the citadel' };
     }
@@ -868,8 +877,10 @@ export async function depositCredits(
     
     // Get planet and check ownership
     const planetResult = await client.query(
-      `SELECT p.owner_id, p.sector_id
-       FROM planets p WHERE p.id = $1 FOR UPDATE`,
+      `SELECT p.owner_id, p.sector_id, s.sector_number
+       FROM planets p
+       JOIN sectors s ON p.sector_id = s.id
+       WHERE p.id = $1 FOR UPDATE`,
       [planetId]
     );
     
@@ -887,7 +898,7 @@ export async function depositCredits(
     
     // Check player credits
     const playerResult = await client.query(
-      'SELECT current_sector_id, credits FROM players WHERE id = $1 FOR UPDATE',
+      'SELECT current_sector, credits FROM players WHERE id = $1 FOR UPDATE',
       [playerId]
     );
     
@@ -898,7 +909,7 @@ export async function depositCredits(
     
     const player = playerResult.rows[0];
     
-    if (player.current_sector_id !== planet.sector_id) {
+    if (player.current_sector !== planet.sector_number) {
       await client.query('ROLLBACK');
       return { success: false, error: 'You must be at the planet to deposit credits' };
     }
@@ -946,8 +957,10 @@ export async function withdrawCredits(
     
     // Get planet and check ownership
     const planetResult = await client.query(
-      `SELECT p.owner_id, p.sector_id, p.credits
-       FROM planets p WHERE p.id = $1 FOR UPDATE`,
+      `SELECT p.owner_id, p.sector_id, p.credits, s.sector_number
+       FROM planets p
+       JOIN sectors s ON p.sector_id = s.id
+       WHERE p.id = $1 FOR UPDATE`,
       [planetId]
     );
     
@@ -970,7 +983,7 @@ export async function withdrawCredits(
     
     // Check player location
     const playerResult = await client.query(
-      'SELECT current_sector_id FROM players WHERE id = $1',
+      'SELECT current_sector FROM players WHERE id = $1',
       [playerId]
     );
     
@@ -979,7 +992,7 @@ export async function withdrawCredits(
       return { success: false, error: 'Player not found' };
     }
     
-    if (playerResult.rows[0].current_sector_id !== planet.sector_id) {
+    if (playerResult.rows[0].current_sector !== planet.sector_number) {
       await client.query('ROLLBACK');
       return { success: false, error: 'You must be at the planet to withdraw credits' };
     }
