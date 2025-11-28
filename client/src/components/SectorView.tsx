@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import PortTradingPanel from './PortTradingPanel';
+import PlanetManagementPanel from './PlanetManagementPanel';
 import { API_URL } from '../config/api';
 
 interface Warp {
@@ -94,6 +95,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
   const [autoNavigating, setAutoNavigating] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [currentPathIndex, setCurrentPathIndex] = useState(0);
+  const [showPlanetPanel, setShowPlanetPanel] = useState<number | null>(null);
 
   useEffect(() => {
     loadSectorDetails();
@@ -518,17 +520,39 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
               </div>
               {sector.planets.map(planet => (
                 <div key={planet.id} style={{
-                  padding: '8px',
+                  padding: '12px',
                   background: 'rgba(0, 0, 0, 0.3)',
-                  marginBottom: '5px',
+                  marginBottom: '8px',
                   fontSize: '13px',
-                  color: 'var(--text-primary)'
+                  color: 'var(--text-primary)',
+                  border: '1px solid rgba(138, 43, 226, 0.3)'
                 }}>
-                  <div style={{ color: 'var(--neon-purple)' }}>
-                    {planet.name}
-                  </div>
-                  <div style={{ fontSize: '11px', opacity: 0.8 }}>
-                    {planet.ownerName ? `Owner: ${planet.ownerName}` : 'Unclaimed'}
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center' 
+                  }}>
+                    <div>
+                      <div style={{ color: 'var(--neon-purple)', fontWeight: 'bold' }}>
+                        🌍 {planet.name}
+                      </div>
+                      <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '3px' }}>
+                        {planet.ownerName ? `Owner: ${planet.ownerName}` : '✨ Unclaimed - Claim it!'}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowPlanetPanel(planet.id)}
+                      className="cyberpunk-button"
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '12px',
+                        background: 'rgba(138, 43, 226, 0.2)',
+                        borderColor: 'var(--neon-purple)',
+                        color: 'var(--neon-purple)'
+                      }}
+                    >
+                      🚀 LAND
+                    </button>
                   </div>
                 </div>
               ))}
@@ -935,6 +959,30 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
             }
           }}
           onClose={() => setShowTrading(false)}
+        />
+      )}
+
+      {/* Planet Management Panel */}
+      {showPlanetPanel && (
+        <PlanetManagementPanel
+          planetId={showPlanetPanel}
+          player={{
+            id: player.id,
+            credits: player.credits,
+            turnsRemaining: player.turnsRemaining,
+            fuel: player.cargoFuel,
+            organics: player.cargoOrganics,
+            equipment: player.cargoEquipment,
+            colonists: (player as any).colonists || 0,
+            ship_holds_max: player.shipHoldsMax,
+            fighters: (player as any).fighters || 0,
+            ship_fighters_max: (player as any).shipFightersMax || 0,
+          }}
+          token={token}
+          onClose={() => setShowPlanetPanel(null)}
+          onPlayerUpdate={(updatedPlayer) => {
+            onSectorChange(updatedPlayer);
+          }}
         />
       )}
 

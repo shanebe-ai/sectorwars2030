@@ -13,6 +13,7 @@ import messageRoutes from './routes/messages';
 import stardockRoutes from './routes/stardock';
 import shipLogRoutes from './routes/shipLog';
 import pathfindingRoutes from './routes/pathfinding';
+import planetRoutes from './routes/planet';
 import { startPortRegeneration } from './services/portService';
 
 dotenv.config();
@@ -92,6 +93,9 @@ app.use('/api/shiplogs', shipLogRoutes);
 
 // Pathfinding routes (plot course)
 app.use('/api/pathfinding', pathfindingRoutes);
+
+// Planet routes (colonization, production)
+app.use('/api/planets', planetRoutes);
 
 // WebSocket connection handling
 io.on('connection', (socket) => {

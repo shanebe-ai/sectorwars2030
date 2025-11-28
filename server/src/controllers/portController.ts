@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { getPortInfo, executeTrade } from '../services/portService';
+import { getPortInfo, executeTrade, buyColonists, getColonistInfo } from '../services/portService';
 
 /**
  * GET /api/ports/:sectorNumber
@@ -86,6 +86,63 @@ export const trade = async (req: Request, res: Response) => {
     }
 
     res.status(500).json({ error: error.message || 'Failed to execute trade' });
+  }
+};
+
+/**
+ * GET /api/ports/colonists
+ * Get colonist purchase information for the current port
+ */
+export const getColonists = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const colonistInfo = await getColonistInfo(userId);
+    res.json(colonistInfo);
+  } catch (error: any) {
+    console.error('Error getting colonist info:', error);
+    res.status(500).json({ error: error.message || 'Failed to get colonist information' });
+  }
+};
+
+/**
+ * POST /api/ports/colonists/buy
+ * Purchase colonists at the current port
+ */
+export const purchaseColonists = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { quantity } = req.body;
+    const qty = parseInt(quantity);
+
+    if (isNaN(qty) || qty <= 0) {
+      return res.status(400).json({ error: 'Invalid quantity. Must be a positive number' });
+    }
+
+    const result = await buyColonists(userId, qty);
+
+    if (!result.success) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    res.json({
+      success: true,
+      message: `Purchased ${result.quantity.toLocaleString()} colonists for ₡${result.totalCost.toLocaleString()}`,
+      quantity: result.quantity,
+      totalCost: result.totalCost
+    });
+  } catch (error: any) {
+    console.error('Error purchasing colonists:', error);
+    res.status(500).json({ error: error.message || 'Failed to purchase colonists' });
   }
 };
 

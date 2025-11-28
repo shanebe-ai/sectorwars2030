@@ -359,7 +359,54 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
   - Merchant Cruiser (250 holds, 250,000 credits, cloaking)
   - Corporate Flagship (500 holds, 1,000,000 credits, cloaking)
 
-### 16. Ship Log System (NEW!)
+### 16. Planet Management System (NEW!)
+- **Planet Service** ([server/src/services/planetService.ts](server/src/services/planetService.ts)) ✅
+  - `getPlanetById()` - Get planet details with production calculation
+  - `getPlayerPlanets()` - Get all planets owned by player
+  - `claimPlanet()` - Claim unclaimed planets
+  - `setProductionType()` - Set fuel, organics, equipment, or balanced
+  - `depositColonists()` / `depositResources()` / `depositFighters()` / `depositCredits()`
+  - `withdrawResources()` / `withdrawFighters()` / `withdrawCredits()`
+  - `upgradeCitadel()` - Upgrade planetary defenses (6 levels)
+  - `calculateAndApplyProduction()` - Auto-calculate resource production
+- **Planet Controller** ([server/src/controllers/planetController.ts](server/src/controllers/planetController.ts)) ✅
+  - GET /api/planets - Get all owned planets
+  - GET /api/planets/:id - Get specific planet info
+  - POST /api/planets/:id/claim - Claim unclaimed planet
+  - PUT /api/planets/:id/production - Set production type
+  - POST /api/planets/:id/citadel/upgrade - Upgrade citadel
+  - POST /api/planets/:id/colonists/deposit - Deposit colonists
+  - POST /api/planets/:id/resources/withdraw - Withdraw resources
+  - POST /api/planets/:id/resources/deposit - Deposit resources
+  - POST /api/planets/:id/fighters/withdraw - Retrieve fighters
+  - POST /api/planets/:id/fighters/deposit - Deploy fighters
+  - POST /api/planets/:id/credits/withdraw - Withdraw credits
+  - POST /api/planets/:id/credits/deposit - Deposit credits
+- **PlanetManagementPanel Component** ([client/src/components/PlanetManagementPanel.tsx](client/src/components/PlanetManagementPanel.tsx)) ✅
+  - Modal interface with tabbed navigation
+  - Overview tab: Statistics, resources, citadel info, production type selector
+  - Resources tab: Deposit/withdraw fuel, organics, equipment
+  - Colonists tab: Deposit colonists from ship to planet
+  - Fighters tab: Deploy/retrieve fighters
+  - Citadel tab: Upgrade citadel with cost display and feature list
+- **Colonist Trading at Ports** ✅
+  - Buy colonists at trading ports (₡100 each, max 1000 per transaction)
+  - GET /api/ports/colonists - Get colonist purchase info
+  - POST /api/ports/colonists/buy - Purchase colonists
+  - Colonists transported in cargo holds
+- **Production Mechanics** ✅
+  - Production rates per 1000 colonists per hour:
+    - Fuel production: 10 fuel, 2 organics, 2 equipment
+    - Organics production: 2 fuel, 10 organics, 2 equipment
+    - Equipment production: 2 fuel, 2 organics, 10 equipment
+    - Balanced: 5 of each
+  - Auto-calculates when planet is visited
+  - Stored resources capped at 1,000,000
+- **Database Migration 009** ✅
+  - Added `colonists` column to players table
+  - Added `owner_name` column to planets table
+
+### 17. Ship Log System
 - **Ship Log Service** ([server/src/services/shipLogService.ts](server/src/services/shipLogService.ts)) ✅
   - `autoLogSector()` - Auto-logs discoveries when entering sectors
   - `addManualNote()` - Add custom notes to any sector
@@ -400,58 +447,52 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 ## Current Session Context 🎯
 
 **What We Just Did:**
-- ✅ **Plot Course Auto-Navigation System (FULLY WORKING!):**
-  - **Smart Pause System:**
-    - Auto-pauses only when hitting ports, planets, stardocks, or ships
-    - Shows "POINT OF INTEREST DETECTED" alert with yellow styling
-    - CONTINUE/STOP buttons only appear when actually paused
-    - During active travel through empty sectors: shows only path progress, no buttons
-    - 1.5 second delay between jumps for visibility
-  - **UI State Management:**
-    - Conditional rendering based on `isPaused` state
-    - "BEGIN AUTO-NAV" button when first plotting
-    - No yellow indicators on route preview (no spoilers about what's ahead)
-    - Only shows visited status (darker cyan border) on path sectors
-  - **Bug Fixes:**
-    - Fixed "No warp connection" error during auto-nav (warp validation query corrected)
-    - Fixed 3rd jump failure (path index synchronization issue resolved)
-    - Fixed button state when plotting new course (isPaused properly reset)
-    - Manual warp properly clears plotted path and all navigation state
-    - Previous sector arrow (◄) maintained during and after auto-navigation
-- ✅ **Universe Generation Connectivity Fix:**
-  - Added BFS connectivity check to ensure all sectors reachable from Sol
-  - Automatically connects any unreachable sectors during universe creation
-  - Logs connectivity verification results to console
-  - Guarantees no isolated sector clusters in generated universes
-- **Previous Work:**
-  - ✅ Plot Course pathfinding with BFS algorithm
-  - ✅ Visual route display with sector indicators
-  - ✅ Distance and turn cost calculation
-  - ✅ Ship Log unread alert system
-  - ✅ Ship Log sorting options:
-  - 📅 DATE - Sort by discovery date (newest first)
-  - 🔢 SECTOR - Sort by sector number (ascending)
-  - Purple-themed sort buttons with active state highlighting
-- ✅ **Editable StarDocks in Universe Generation:**
-  - StarDocks field added to Create Universe Modal (admin panel)
-  - Default value: `Math.max(1, Math.floor(maxSectors / 500))`
-  - Auto-updates when Max Sectors changes
-  - Admin can manually override the default count
-  - Server accepts `stardockCount` parameter in universe creation API
-- ✅ **Universal Credit System (₡):**
-  - Replaced all `$` signs with ₡ (colón symbol) for credits
-  - Updated port trading panel, game dashboard, and all price displays
-  - Term "credits" explicitly mentioned where appropriate
+- ✅ **Planet Management System (FULLY WORKING!):**
+  - **Backend Implementation:**
+    - `planetService.ts` - Complete planet management service
+    - `planetController.ts` - API endpoints for all planet operations
+    - `planet.ts` routes registered at `/api/planets`
+    - Migration 009: Added `colonists` column to players table
+  - **Planet Features:**
+    - **Claim Planets:** Land on unclaimed planets and claim them as yours
+    - **Production System:** Set production type (fuel, organics, equipment, balanced)
+    - **Auto-Production:** Planets produce resources based on colonist population over time
+    - **Colonist Management:** Buy colonists at ports, transport to planets
+    - **Resource Transfer:** Deposit/withdraw fuel, organics, equipment from planets
+    - **Fighter Deployment:** Station fighters on planets for defense
+    - **Credits Treasury:** Store credits on planets
+    - **Citadel Defense System:** 6 levels (0-5) with escalating costs and features
+      - Level 0: No citadel (colonists only defense)
+      - Level 1: Basic Quasar Cannon (₡50,000)
+      - Level 2: Enhanced shields (₡100,000)
+      - Level 3: Atmospheric defense (₡250,000)
+      - Level 4: Transporter beam (₡500,000)
+      - Level 5: Interdictor generator (₡1,000,000)
+  - **Client UI:**
+    - `PlanetManagementPanel.tsx` - Full planet management modal
+    - Tabbed interface: Overview, Resources, Colonists, Fighters, Citadel
+    - "🚀 LAND" button on planets in SectorView
+    - Production type selector
+    - Resource deposit/withdraw forms
+    - Citadel upgrade with cost display
+  - **Colonist Trading:**
+    - Buy colonists at trading ports (₡100 each)
+    - `/api/ports/colonists` - Get colonist purchase info
+    - `/api/ports/colonists/buy` - Purchase colonists
+    - Colonists use cargo space like other commodities
+- **Previous Session:**
+  - ✅ Plot Course Auto-Navigation System with smart pause
+  - ✅ Universe Generation Connectivity Fix (BFS verification)
+  - ✅ Ship Log unread alerts and sorting
 
 **Servers Currently Running (Network Accessible):**
 - Backend: http://localhost:3000 (or http://37.27.80.77:3000)
-- Client: http://localhost:5173 (or http://37.27.80.77:5173)
+- Client: http://localhost:5175 (or http://37.27.80.77:5175)
 - Admin: http://localhost:5174 (or http://37.27.80.77:5174)
 
 **Ready For:**
-- Aliens with alien planets and ships (NEXT PRIORITY)
 - Combat system implementation
-- Planet colonization (claiming, colonists, production)
+- Aliens with alien planets and ships
 - Port creation system
 
 **Alien System Specifications (Not Yet Implemented):**

@@ -409,6 +409,164 @@ export const executeTrade = async (
   }
 };
 
+// Colonist trading configuration
+const COLONIST_PRICE = 100;       // Credits per colonist
+const MAX_COLONIST_PURCHASE = 1000; // Max colonists per transaction
+
+/**
+ * Buy colonists at a port
+ * Colonists can be bought at any port (not StarDocks)
+ * They use cargo space like other commodities
+ */
+export const buyColonists = async (
+  userId: number,
+  quantity: number
+): Promise<{ success: boolean; quantity: number; totalCost: number; error?: string }> => {
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Get player details
+    const playerResult = await client.query(
+      `SELECT
+        p.id,
+        p.universe_id,
+        p.current_sector,
+        p.credits,
+        p.turns_remaining,
+        p.ship_holds_max,
+        p.cargo_fuel,
+        p.cargo_organics,
+        p.cargo_equipment,
+        p.colonists,
+        s.port_type
+      FROM players p
+      JOIN sectors s ON s.universe_id = p.universe_id AND s.sector_number = p.current_sector
+      WHERE p.user_id = $1`,
+      [userId]
+    );
+
+    if (playerResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return { success: false, quantity: 0, totalCost: 0, error: 'Player not found' };
+    }
+
+    const player = playerResult.rows[0];
+
+    // Check if sector has a port (not StarDock)
+    if (!player.port_type || player.port_type === 'STARDOCK') {
+      await client.query('ROLLBACK');
+      return { success: false, quantity: 0, totalCost: 0, error: 'Colonists can only be purchased at trading ports' };
+    }
+
+    // Check turns
+    if (player.turns_remaining <= 0) {
+      await client.query('ROLLBACK');
+      return { success: false, quantity: 0, totalCost: 0, error: 'Not enough turns remaining' };
+    }
+
+    // Calculate current cargo usage (colonists use cargo space)
+    const currentCargo = player.cargo_fuel + player.cargo_organics + player.cargo_equipment + player.colonists;
+    const cargoSpace = player.ship_holds_max - currentCargo;
+
+    // Limit quantity
+    let actualQuantity = Math.min(quantity, MAX_COLONIST_PURCHASE);
+    actualQuantity = Math.min(actualQuantity, cargoSpace);
+
+    const totalCost = actualQuantity * COLONIST_PRICE;
+
+    if (totalCost > player.credits) {
+      actualQuantity = Math.floor(player.credits / COLONIST_PRICE);
+      if (actualQuantity <= 0) {
+        await client.query('ROLLBACK');
+        return { success: false, quantity: 0, totalCost: 0, error: 'Insufficient credits' };
+      }
+    }
+
+    if (actualQuantity <= 0) {
+      await client.query('ROLLBACK');
+      return { success: false, quantity: 0, totalCost: 0, error: 'No cargo space available' };
+    }
+
+    const finalCost = actualQuantity * COLONIST_PRICE;
+
+    // Update player
+    await client.query(
+      `UPDATE players SET
+        colonists = colonists + $1,
+        credits = credits - $2,
+        turns_remaining = turns_remaining - 1
+      WHERE id = $3`,
+      [actualQuantity, finalCost, player.id]
+    );
+
+    // Log the event
+    await client.query(
+      `INSERT INTO game_events (universe_id, player_id, event_type, event_data, sector_number)
+       VALUES ($1, $2, 'colonist_purchase', $3, $4)`,
+      [
+        player.universe_id,
+        player.id,
+        JSON.stringify({
+          quantity: actualQuantity,
+          pricePerUnit: COLONIST_PRICE,
+          totalCost: finalCost,
+        }),
+        player.current_sector,
+      ]
+    );
+
+    await client.query('COMMIT');
+
+    return { success: true, quantity: actualQuantity, totalCost: finalCost };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error buying colonists:', error);
+    return { success: false, quantity: 0, totalCost: 0, error: 'Failed to purchase colonists' };
+  } finally {
+    client.release();
+  }
+};
+
+/**
+ * Get colonist info for a port
+ */
+export const getColonistInfo = async (
+  userId: number
+): Promise<{ available: boolean; price: number; maxPurchase: number; playerColonists: number; cargoSpace: number }> => {
+  const result = await pool.query(
+    `SELECT
+      p.colonists,
+      p.ship_holds_max,
+      p.cargo_fuel,
+      p.cargo_organics,
+      p.cargo_equipment,
+      s.port_type
+    FROM players p
+    JOIN sectors s ON s.universe_id = p.universe_id AND s.sector_number = p.current_sector
+    WHERE p.user_id = $1`,
+    [userId]
+  );
+
+  if (result.rows.length === 0) {
+    return { available: false, price: COLONIST_PRICE, maxPurchase: 0, playerColonists: 0, cargoSpace: 0 };
+  }
+
+  const player = result.rows[0];
+  const currentCargo = player.cargo_fuel + player.cargo_organics + player.cargo_equipment + player.colonists;
+  const cargoSpace = player.ship_holds_max - currentCargo;
+  const available = player.port_type && player.port_type !== 'STARDOCK';
+
+  return {
+    available,
+    price: COLONIST_PRICE,
+    maxPurchase: Math.min(MAX_COLONIST_PURCHASE, cargoSpace),
+    playerColonists: player.colonists || 0,
+    cargoSpace
+  };
+};
+
 // Port regeneration configuration
 const PORT_REGEN_BASE = 500;      // Base units regenerated per cycle
 const PORT_REGEN_MAX = 15000;     // Maximum port stock
