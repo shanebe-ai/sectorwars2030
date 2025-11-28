@@ -980,7 +980,11 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
             ship_fighters_max: (player as any).shipFightersMax || 0,
           }}
           token={token}
-          onClose={() => setShowPlanetPanel(null)}
+          onClose={() => {
+            setShowPlanetPanel(null);
+            // Reload sector details to get updated planet ownership
+            loadSectorDetails();
+          }}
           onPlayerUpdate={(updatedPlayer) => {
             onSectorChange(updatedPlayer);
           }}
