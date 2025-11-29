@@ -706,12 +706,50 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - **BBB** - Buys all (rare, good for dumping cargo)
 
 ### Ship Progression
-1. **Escape Pod** (5 holds) - Emergency only
-2. **Scout** (20 holds) - Starting ship
-3. **Trader** (60 holds) - Early upgrade
-4. **Freighter** (125 holds) - Mid-game
-5. **Merchant Cruiser** (250 holds) - Advanced
-6. **Corporate Flagship** (500 holds) - Ultimate trader
+| Ship | Holds | Fighters | Shields | Cost | Trade-in (70%) |
+|------|-------|----------|---------|------|----------------|
+| Escape Pod | 5 | 0 | 0 | ₡0 | ₡0 |
+| Scout | 20 | 10 | 10 | ₡10,000 | ₡7,000 |
+| Trader | 60 | 20 | 20 | ₡50,000 | ₡35,000 |
+| Freighter | 125 | 40 | 40 | ₡125,000 | ₡87,500 |
+| Merchant Cruiser | 250 | 80 | 80 | ₡250,000 | ₡175,000 |
+| Corporate Flagship | 500 | 150 | 150 | ₡500,000 | ₡350,000 |
+
+### Economy Balance (Tuned 2025-11-29)
+
+**Trading Prices:**
+| Commodity | Buy From Port | Sell To Port | Profit/Unit |
+|-----------|---------------|--------------|-------------|
+| Fuel | ₡10 | ₡34 | ₡24 (3.4x) |
+| Organics | ₡17 | ₡60 | ₡43 (3.5x) |
+| Equipment | ₡28 | ₡94 | ₡66 (3.4x) |
+
+**StarDock Prices:**
+- Fighters: ₡200 each
+- Shields: ₡100 each
+- Colonists: ₡100 each (at ports)
+
+**Planet Production (per 1000 colonists per hour):**
+| Type | Fuel | Organics | Equipment |
+|------|------|----------|-----------|
+| Fuel Focus | 10 | 2 | 2 |
+| Organics Focus | 2 | 10 | 2 |
+| Equipment Focus | 2 | 2 | 10 |
+| Balanced | 5 | 5 | 5 |
+
+**Citadel Costs (cumulative):**
+- Level 1: ₡50,000 (Basic Quasar Cannon)
+- Level 2: ₡150,000 (Enhanced Shields)
+- Level 3: ₡400,000 (Atmospheric Defense)
+- Level 4: ₡900,000 (Transporter Beam)
+- Level 5: ₡1,900,000 (Interdictor Generator)
+
+**Economy Design Goals:**
+- Trading is primary income (~₡1.3K-₡33K per trip)
+- Ship upgrades every ~30-70 turns of active play
+- Planets are long-term investments (~5 day ROI)
+- Combat gear costs ~2-3 trade runs for full loadout
+- Citadels are expensive end-game money sinks
 
 ### Default Universe Configuration
 - 1000 sectors default
@@ -828,16 +866,23 @@ When implementing new features:
 ---
 
 **Last Updated:** 2025-11-29
-**Status:** StarDock System Complete - Ready for Combat
-**Current Session:** StarDock bug fixes and polish
+**Status:** Economy Balanced - Ready for Combat
+**Current Session:** Economy balance pass
 **Next Priority:** Combat System
 **Recent Changes:**
+- ✅ **Economy Balance Pass (COMPLETE!):**
+  - Planet production nerfed 10x (was OP - ₡113K/hr → ₡11K/hr with 10K colonists)
+  - Fighter price doubled: ₡100 → ₡200 each
+  - Shield price doubled: ₡50 → ₡100 each
+  - Full economy analysis documented in Game Mechanics Reference
+  - ROI for planets now ~5 days instead of ~12 hours
+  - Combat gear now costs 2-3 trade runs for full loadout
 - ✅ **StarDock System (COMPLETE!):**
   - Full-screen StarDockPanel component with Ships and Equipment tabs
   - Ship trade-in system (70% value of current ship)
   - Net cost display (ship price minus trade-in)
-  - Fighter purchase (₡100/ea) with MAX button
-  - Shield purchase (₡50/ea) with MAX button
+  - Fighter purchase (₡200/ea) with MAX button
+  - Shield purchase (₡100/ea) with MAX button
   - Current ship shown as "YOUR SHIP" with equipped status
   - Fixed duplicate "scout" ship in database
   - Fixed FOR UPDATE error on fighter/shield purchase
