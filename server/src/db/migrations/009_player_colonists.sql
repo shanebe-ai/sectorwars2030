@@ -24,3 +24,4 @@ SET owner_name = 'Terra Corp'
 WHERE name = 'Earth' AND owner_name IS NULL;
 
 
+

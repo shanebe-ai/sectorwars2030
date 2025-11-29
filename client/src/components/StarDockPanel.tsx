@@ -384,44 +384,70 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
                   </div>
                 </div>
                 <div style={{ textAlign: 'right', minWidth: '150px' }}>
-                  <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '2px' }}>
-                    List: ₡{ship.cost.toLocaleString()}
-                  </div>
-                  <div style={{
-                    color: ship.canAfford ? 'var(--neon-green)' : 'var(--neon-pink)',
-                    fontWeight: 'bold',
-                    fontSize: '18px',
-                    marginBottom: '10px'
-                  }}>
-                    {ship.isCurrentShip ? 'OWNED' : (
-                      <>
+                  {ship.isCurrentShip ? (
+                    <>
+                      <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '2px' }}>
+                        Value: ₡{ship.cost.toLocaleString()}
+                      </div>
+                      <div style={{
+                        color: 'var(--neon-cyan)',
+                        fontWeight: 'bold',
+                        fontSize: '18px',
+                        marginBottom: '10px'
+                      }}>
+                        YOUR SHIP
+                      </div>
+                      <button
+                        disabled
+                        style={{
+                          padding: '8px 20px',
+                          background: 'rgba(0, 255, 255, 0.1)',
+                          border: '1px solid var(--neon-cyan)',
+                          color: 'var(--neon-cyan)',
+                          cursor: 'not-allowed',
+                          fontFamily: 'monospace',
+                          fontWeight: 'bold',
+                          opacity: 0.7
+                        }}
+                      >
+                        ✓ EQUIPPED
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '2px' }}>
+                        List: ₡{ship.cost.toLocaleString()}
+                      </div>
+                      <div style={{
+                        color: ship.canAfford ? 'var(--neon-green)' : 'var(--neon-pink)',
+                        fontWeight: 'bold',
+                        fontSize: '18px',
+                        marginBottom: '10px'
+                      }}>
                         Net: ₡{ship.netCost.toLocaleString()}
                         {ship.netCost < ship.cost && (
                           <div style={{ fontSize: '10px', color: 'var(--neon-green)' }}>
                             (Save ₡{(ship.cost - ship.netCost).toLocaleString()})
                           </div>
                         )}
-                      </>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => purchaseShip(ship.name)}
-                    disabled={purchasing || ship.isCurrentShip || !ship.canAfford}
-                    style={{
-                      padding: '8px 20px',
-                      background: ship.isCurrentShip ? 'rgba(100, 100, 100, 0.3)' :
-                        ship.canAfford ? 'rgba(0, 255, 0, 0.2)' : 'rgba(255, 0, 100, 0.2)',
-                      border: `1px solid ${ship.isCurrentShip ? '#666' :
-                        ship.canAfford ? 'var(--neon-green)' : 'var(--neon-pink)'}`,
-                      color: ship.isCurrentShip ? '#666' :
-                        ship.canAfford ? 'var(--neon-green)' : 'var(--neon-pink)',
-                      cursor: ship.isCurrentShip || !ship.canAfford ? 'not-allowed' : 'pointer',
-                      fontFamily: 'monospace',
-                      fontWeight: 'bold'
-                    }}
-                  >
-                    {ship.isCurrentShip ? 'CURRENT' : ship.canAfford ? 'TRADE IN & BUY' : 'INSUFFICIENT'}
-                  </button>
+                      </div>
+                      <button
+                        onClick={() => purchaseShip(ship.name)}
+                        disabled={purchasing || !ship.canAfford}
+                        style={{
+                          padding: '8px 20px',
+                          background: ship.canAfford ? 'rgba(0, 255, 0, 0.2)' : 'rgba(255, 0, 100, 0.2)',
+                          border: `1px solid ${ship.canAfford ? 'var(--neon-green)' : 'var(--neon-pink)'}`,
+                          color: ship.canAfford ? 'var(--neon-green)' : 'var(--neon-pink)',
+                          cursor: !ship.canAfford ? 'not-allowed' : 'pointer',
+                          fontFamily: 'monospace',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        {ship.canAfford ? 'TRADE IN & BUY' : 'INSUFFICIENT'}
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
