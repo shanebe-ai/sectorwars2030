@@ -307,6 +307,10 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - ✅ **Fixed: Sender broadcast deletion from Broadcasts tab** - Sender's own deleted broadcasts now hidden from their Broadcasts view (not just Sent).
 - ✅ **Fixed: Corporate messages in Sent** - Corporate messages now show actual corp name instead of "[Corporate]" or "Deleted User".
 - ✅ **Fixed: Unread badges persistence** - Broadcasts/corporate read status now tracked per-user in database, badges don't reappear on COMMS reopen.
+- ✅ **Fixed: StarDock duplicate ship** - Removed duplicate lowercase "scout" (₡0) from ship_types table, only proper "Scout" (₡10,000) remains.
+- ✅ **Fixed: StarDock owned ship display** - Current ship now shows "YOUR SHIP" with value instead of confusing net cost calculation.
+- ✅ **Fixed: StarDock fighter/shield max** - Max values now fetched from ship_types table via JOIN (not stored in players table).
+- ✅ **Fixed: StarDock FOR UPDATE error** - Split queries to avoid "FOR UPDATE cannot be applied to nullable side of outer join" PostgreSQL error.
 
 ### 14. Port Trading System (FULLY WORKING - TW2002 FAITHFUL!)
 - **Port Service** ([server/src/services/portService.ts](server/src/services/portService.ts)) ✅
@@ -335,10 +339,10 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
   - SectorView passes player cargo data to trading panel
   - Cargo limits enforced by ship_holds_max
 
-### 15. StarDock System (NEW!)
+### 15. StarDock System (FULLY WORKING!)
 - **StarDock Service** ([server/src/services/stardockService.ts](server/src/services/stardockService.ts)) ✅
-  - `getStardockInfo()` - Get ships for sale, fighter/shield prices
-  - `purchaseShip()` - Buy new ships (cargo/fighters/shields transfer)
+  - `getStardockInfo()` - Get ships for sale, fighter/shield prices, trade-in value
+  - `purchaseShip()` - Buy new ships with trade-in (70% of current ship value)
   - `purchaseFighters()` - Buy fighters (100 credits each)
   - `purchaseShields()` - Buy shields (50 credits each)
 - **StarDock Generation** ✅
@@ -348,16 +352,29 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
   - Named "StarDock Alpha-1", "StarDock Alpha-2", etc.
 - **StarDock Routes** ([server/src/routes/stardock.ts](server/src/routes/stardock.ts)) ✅
   - GET /api/stardock - Get StarDock info (if at one)
-  - POST /api/stardock/ship - Purchase a ship
+  - POST /api/stardock/ship - Purchase a ship (with trade-in)
   - POST /api/stardock/fighters - Purchase fighters
   - POST /api/stardock/shields - Purchase shields
+- **StarDockPanel Component** ([client/src/components/StarDockPanel.tsx](client/src/components/StarDockPanel.tsx)) ✅
+  - Full-screen modal interface matching cyberpunk theme
+  - Ships tab: All ships with specs, pricing, trade-in savings
+  - Equipment tab: Buy fighters (₡100/ea) and shields (₡50/ea)
+  - Shows current ship as "YOUR SHIP" with value
+  - Net cost calculation (ship price minus trade-in value)
+  - MAX button for fighter/shield quantity
+  - Real-time player stats update
+- **Ship Trade-In System** ✅
+  - Trade-in value = 70% of current ship cost
+  - Net cost displayed for all ships
+  - Cargo/fighters/shields transfer to new ship (limited by capacity)
+  - Lost cargo/equipment warning message
 - **Ship Types Available** (from [server/src/db/seedShipTypes.ts](server/src/db/seedShipTypes.ts)):
-  - Escape Pod (5 holds, 0 cost - emergency)
-  - Scout (20 holds, 1,000 credits)
-  - Trader (60 holds, 10,000 credits)
-  - Freighter (125 holds, 50,000 credits)
-  - Merchant Cruiser (250 holds, 250,000 credits, cloaking)
-  - Corporate Flagship (500 holds, 1,000,000 credits, cloaking)
+  - Escape Pod (5 holds, 0 fighters, 0 shields, ₡0)
+  - Scout (20 holds, 10 fighters, 10 shields, ₡10,000)
+  - Trader (60 holds, 20 fighters, 20 shields, ₡50,000)
+  - Freighter (125 holds, 40 fighters, 40 shields, ₡125,000)
+  - Merchant Cruiser (250 holds, 80 fighters, 80 shields, ₡250,000)
+  - Corporate Flagship (500 holds, 150 fighters, 150 shields, ₡500,000)
 
 ### 16. Planet Management System (NEW!)
 - **Planet Service** ([server/src/services/planetService.ts](server/src/services/planetService.ts)) ✅
@@ -810,11 +827,21 @@ When implementing new features:
 
 ---
 
-**Last Updated:** 2025-11-28
-**Status:** Planet Management Complete - Ready for Combat
-**Current Session:** Planet management system implementation
+**Last Updated:** 2025-11-29
+**Status:** StarDock System Complete - Ready for Combat
+**Current Session:** StarDock bug fixes and polish
 **Next Priority:** Combat System
 **Recent Changes:**
+- ✅ **StarDock System (COMPLETE!):**
+  - Full-screen StarDockPanel component with Ships and Equipment tabs
+  - Ship trade-in system (70% value of current ship)
+  - Net cost display (ship price minus trade-in)
+  - Fighter purchase (₡100/ea) with MAX button
+  - Shield purchase (₡50/ea) with MAX button
+  - Current ship shown as "YOUR SHIP" with equipped status
+  - Fixed duplicate "scout" ship in database
+  - Fixed FOR UPDATE error on fighter/shield purchase
+  - Ship stats (fighter/shield max) fetched from ship_types table
 - ✅ **Planet Management System (COMPLETE!):**
   - Claim unclaimed planets
   - Set production type (fuel, organics, equipment, balanced)
@@ -832,4 +859,4 @@ When implementing new features:
   - Universe connectivity verification
 **Previous Session:**
 - ✅ Ship log system with unread alerts
-- ✅ StarDock ship purchasing
+- ✅ Port trading system with colonist recruitment
