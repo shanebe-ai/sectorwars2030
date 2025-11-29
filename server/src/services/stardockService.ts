@@ -302,22 +302,31 @@ export async function purchaseFighters(userId: number, quantity: number): Promis
   try {
     await client.query('BEGIN');
 
-    // Get player info
+    // Get player info and lock player row
     const playerResult = await client.query(
-      `SELECT p.*, s.port_type, st.fighters_max
+      `SELECT p.*, s.port_type
        FROM players p
        JOIN sectors s ON s.universe_id = p.universe_id AND s.sector_number = p.current_sector
-       LEFT JOIN ship_types st ON LOWER(st.name) = LOWER(p.ship_type) AND (st.universe_id IS NULL OR st.universe_id = p.universe_id)
        WHERE p.user_id = $1
-       FOR UPDATE`,
+       FOR UPDATE OF p`,
       [userId]
     );
-
+    
     if (playerResult.rows.length === 0) {
       throw new Error('Player not found');
     }
 
     const player = playerResult.rows[0];
+    
+    // Get ship max fighters separately (no lock needed on ship_types)
+    const shipResult = await client.query(
+      `SELECT fighters_max FROM ship_types 
+       WHERE LOWER(name) = LOWER($1) AND (universe_id IS NULL OR universe_id = $2)
+       LIMIT 1`,
+      [player.ship_type, player.universe_id]
+    );
+    
+    const maxFighters = shipResult.rows[0]?.fighters_max || 0;
 
     // Check if at StarDock
     if (player.port_type !== 'STARDOCK') {
@@ -325,7 +334,6 @@ export async function purchaseFighters(userId: number, quantity: number): Promis
     }
 
     const currentFighters = player.ship_fighters || 0;
-    const maxFighters = player.fighters_max || 0;
     const availableSpace = maxFighters - currentFighters;
 
     if (availableSpace <= 0) {
@@ -385,14 +393,13 @@ export async function purchaseShields(userId: number, quantity: number): Promise
   try {
     await client.query('BEGIN');
 
-    // Get player info
+    // Get player info and lock player row
     const playerResult = await client.query(
-      `SELECT p.*, s.port_type, st.shields_max
+      `SELECT p.*, s.port_type
        FROM players p
        JOIN sectors s ON s.universe_id = p.universe_id AND s.sector_number = p.current_sector
-       LEFT JOIN ship_types st ON LOWER(st.name) = LOWER(p.ship_type) AND (st.universe_id IS NULL OR st.universe_id = p.universe_id)
        WHERE p.user_id = $1
-       FOR UPDATE`,
+       FOR UPDATE OF p`,
       [userId]
     );
 
@@ -402,13 +409,22 @@ export async function purchaseShields(userId: number, quantity: number): Promise
 
     const player = playerResult.rows[0];
 
+    // Get ship max shields separately (no lock needed on ship_types)
+    const shipResult = await client.query(
+      `SELECT shields_max FROM ship_types 
+       WHERE LOWER(name) = LOWER($1) AND (universe_id IS NULL OR universe_id = $2)
+       LIMIT 1`,
+      [player.ship_type, player.universe_id]
+    );
+    
+    const maxShields = shipResult.rows[0]?.shields_max || 0;
+
     // Check if at StarDock
     if (player.port_type !== 'STARDOCK') {
       throw new Error('You must be at a StarDock to purchase shields');
     }
 
     const currentShields = player.ship_shields || 0;
-    const maxShields = player.shields_max || 0;
     const availableSpace = maxShields - currentShields;
 
     if (availableSpace <= 0) {
