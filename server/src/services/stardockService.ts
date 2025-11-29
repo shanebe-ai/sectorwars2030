@@ -58,11 +58,13 @@ const TRADE_IN_PERCENTAGE = 0.70;
  * Get StarDock information including ships for sale
  */
 export async function getStardockInfo(userId: number): Promise<StardockInfo | null> {
-  // Get player info and current sector
+  // Get player info and current sector, join with ship_types to get ship max stats
   const playerResult = await pool.query(
-    `SELECT p.*, s.port_type, s.name as sector_name, s.sector_number
+    `SELECT p.*, s.port_type, s.name as sector_name, s.sector_number,
+            st.fighters_max as ship_fighters_max, st.shields_max as ship_shields_max, st.cost_credits as current_ship_cost
      FROM players p
      JOIN sectors s ON s.universe_id = p.universe_id AND s.sector_number = p.current_sector
+     LEFT JOIN ship_types st ON LOWER(st.name) = LOWER(p.ship_type) AND (st.universe_id IS NULL OR st.universe_id = p.universe_id)
      WHERE p.user_id = $1`,
     [userId]
   );
@@ -78,22 +80,9 @@ export async function getStardockInfo(userId: number): Promise<StardockInfo | nu
     return null; // Not at a StarDock
   }
 
-  // Get current ship's trade-in value
-  let tradeInValue = 0;
-  if (player.ship_type) {
-    const currentShipResult = await pool.query(
-      `SELECT cost_credits FROM ship_types 
-       WHERE LOWER(name) = LOWER($1) 
-       AND (universe_id IS NULL OR universe_id = $2)
-       LIMIT 1`,
-      [player.ship_type, player.universe_id]
-    );
-    
-    if (currentShipResult.rows.length > 0) {
-      const currentShipCost = parseInt(currentShipResult.rows[0].cost_credits) || 0;
-      tradeInValue = Math.floor(currentShipCost * TRADE_IN_PERCENTAGE);
-    }
-  }
+  // Calculate trade-in value from current ship cost (already fetched in main query)
+  const currentShipCost = parseInt(player.current_ship_cost) || 0;
+  const tradeInValue = Math.floor(currentShipCost * TRADE_IN_PERCENTAGE);
 
   // Get all ship types (global ones with universe_id = NULL)
   const shipsResult = await pool.query(
