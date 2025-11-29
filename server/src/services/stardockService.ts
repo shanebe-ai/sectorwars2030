@@ -1,8 +1,8 @@
 import { pool } from '../db/connection';
 
-// Fighter and shield prices
-const FIGHTER_PRICE = 100;   // 100 credits per fighter
-const SHIELD_PRICE = 50;     // 50 credits per shield point
+// Fighter and shield prices (balanced so full loadout = ~2-3 trade runs)
+const FIGHTER_PRICE = 200;   // 200 credits per fighter
+const SHIELD_PRICE = 100;    // 100 credits per shield point
 
 export interface ShipForSale {
   id: number;

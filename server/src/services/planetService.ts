@@ -44,12 +44,13 @@ export const CITADEL_LEVELS: CitadelUpgrade[] = [
   { level: 5, name: 'Maximum Citadel', cost: 1000000, description: 'Interdictor generator', features: ['Quasar cannon', 'Enhanced shields', 'Atmospheric defense', 'Transporter beam', 'Interdictor'] },
 ];
 
-// Production rates per 1000 colonists per hour (10× balanced for meaningful passive income)
+// Production rates per 1000 colonists per hour (balanced for meaningful but not OP passive income)
+// 10K colonists on equipment = ~₡11K/hour instead of ~₡113K/hour
 const PRODUCTION_RATES = {
-  fuel: { fuel: 100, organics: 20, equipment: 20 },
-  organics: { fuel: 20, organics: 100, equipment: 20 },
-  equipment: { fuel: 20, organics: 20, equipment: 100 },
-  balanced: { fuel: 50, organics: 50, equipment: 50 },
+  fuel: { fuel: 10, organics: 2, equipment: 2 },
+  organics: { fuel: 2, organics: 10, equipment: 2 },
+  equipment: { fuel: 2, organics: 2, equipment: 10 },
+  balanced: { fuel: 5, organics: 5, equipment: 5 },
 };
 
 // ============================================================================
