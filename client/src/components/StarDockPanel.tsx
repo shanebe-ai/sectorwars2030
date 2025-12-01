@@ -68,6 +68,8 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
   const [message, setMessage] = useState('');
   const [fighterQty, setFighterQty] = useState(0);
   const [shieldQty, setShieldQty] = useState(0);
+  const [beaconQty, setBeaconQty] = useState(0);
+  const [beaconInfo, setBeaconInfo] = useState<{ price: number; currentCount: number; maxCapacity: number } | null>(null);
 
   // Banking state
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
@@ -82,6 +84,7 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
 
   useEffect(() => {
     loadStardockInfo();
+    loadBeaconInfo();
   }, [sectorNumber]);
 
   const loadStardockInfo = async () => {
@@ -122,6 +125,55 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
       }
     } catch (err) {
       console.error('Failed to load banking info:', err);
+    }
+  };
+
+  const loadBeaconInfo = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/beacons/info`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setBeaconInfo(data);
+      }
+    } catch (err) {
+      console.error('Failed to load beacon info:', err);
+    }
+  };
+
+  const purchaseBeacons = async () => {
+    if (beaconQty <= 0) return;
+    
+    setPurchasing(true);
+    setMessage('');
+    setError('');
+    
+    try {
+      const response = await fetch(`${API_URL}/api/beacons/purchase`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ quantity: beaconQty })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setMessage(data.message);
+        setBeaconQty(0);
+        loadStardockInfo();
+        loadBeaconInfo();
+        onPurchase(data.player);
+      } else {
+        setError(data.error || 'Failed to purchase beacons');
+      }
+    } catch (err) {
+      setError('Network error');
+    } finally {
+      setPurchasing(false);
     }
   };
 
@@ -802,6 +854,97 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
                 </button>
               </div>
             </div>
+
+            {/* Beacons */}
+            {beaconInfo && (
+              <div style={{
+                padding: '20px',
+                background: 'rgba(0, 0, 0, 0.3)',
+                border: '1px solid rgba(0, 200, 255, 0.3)'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '15px'
+                }}>
+                  <div>
+                    <div style={{ color: 'var(--neon-cyan)', fontWeight: 'bold', fontSize: '16px' }}>
+                      📡 BEACONS
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
+                      Personal message transmitters for marking sectors
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ color: 'var(--neon-yellow)', fontWeight: 'bold' }}>
+                      ₡{beaconInfo.price}/each
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>
+                      Current: {beaconInfo.currentCount}/{beaconInfo.maxCapacity}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <input
+                    type="number"
+                    value={beaconQty || ''}
+                    onChange={e => setBeaconQty(Math.max(0, Math.min(beaconInfo.maxCapacity - beaconInfo.currentCount, parseInt(e.target.value) || 0)))}
+                    placeholder="Quantity..."
+                    min="0"
+                    max={beaconInfo.maxCapacity - beaconInfo.currentCount}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      background: 'rgba(0, 0, 0, 0.5)',
+                      border: '1px solid var(--neon-cyan)',
+                      color: 'var(--neon-cyan)',
+                      fontFamily: 'monospace'
+                    }}
+                  />
+                  <button
+                    onClick={() => {
+                      const maxCanBuy = beaconInfo.maxCapacity - beaconInfo.currentCount;
+                      const maxAffordable = Math.floor((stardock?.player.credits || 0) / beaconInfo.price);
+                      setBeaconQty(Math.min(maxCanBuy, maxAffordable));
+                    }}
+                    style={{
+                      padding: '10px 15px',
+                      background: 'rgba(0, 200, 255, 0.2)',
+                      border: '1px solid var(--neon-cyan)',
+                      color: 'var(--neon-cyan)',
+                      cursor: 'pointer',
+                      fontFamily: 'monospace'
+                    }}
+                  >
+                    MAX
+                  </button>
+                  <button
+                    onClick={purchaseBeacons}
+                    disabled={purchasing || beaconQty <= 0}
+                    style={{
+                      padding: '10px 20px',
+                      background: beaconQty > 0 ? 'rgba(0, 200, 255, 0.2)' : 'rgba(100, 100, 100, 0.2)',
+                      border: `1px solid ${beaconQty > 0 ? 'var(--neon-cyan)' : '#666'}`,
+                      color: beaconQty > 0 ? 'var(--neon-cyan)' : '#666',
+                      cursor: beaconQty > 0 ? 'pointer' : 'not-allowed',
+                      fontFamily: 'monospace',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    BUY (₡{(beaconQty * beaconInfo.price).toLocaleString()})
+                  </button>
+                </div>
+                <div style={{ 
+                  marginTop: '10px', 
+                  fontSize: '11px', 
+                  color: 'rgba(255,255,255,0.5)',
+                  fontStyle: 'italic'
+                }}>
+                  Capacity: Escape Pod (1) • Scout/Trader (5) • Larger ships (15)
+                </div>
+              </div>
+            )}
           </div>
         )}
 

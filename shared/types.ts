@@ -46,6 +46,11 @@ export interface Player {
   is_alive: boolean;
   last_turn_update: string;
   created_at: string;
+  // Combat stats
+  kills?: number;
+  deaths?: number;
+  in_escape_pod?: boolean;
+  last_combat_at?: string;
 }
 
 export type PortType = 'BBS' | 'BSB' | 'SBB' | 'SSB' | 'SBS' | 'BSS' | 'SSS' | 'BBB' | 'STARDOCK';
@@ -309,4 +314,119 @@ export interface BankingTransferRequest {
   recipientId: number;
   amount: number;
   memo?: string;
+}
+
+// Combat types
+export interface CombatRound {
+  round: number;
+  attackerFighters: number;
+  defenderFighters: number;
+  attackerShields: number;
+  defenderShields: number;
+  attackerDamageDealt: number;
+  defenderDamageDealt: number;
+  description: string;
+}
+
+export interface CombatResult {
+  winner: 'attacker' | 'defender' | 'draw';
+  rounds: number;
+  attackerFightersLost: number;
+  defenderFightersLost: number;
+  attackerShieldsLost: number;
+  defenderShieldsLost: number;
+  defenderDestroyed: boolean;
+  attackerDestroyed: boolean;
+  creditsLooted: number;
+  creditsLostByAttacker: number;
+  cargoLooted: {
+    fuel: number;
+    organics: number;
+    equipment: number;
+  };
+  cargoLostByAttacker: {
+    fuel: number;
+    organics: number;
+    equipment: number;
+  };
+  colonistsLostAttacker: number;
+  colonistsLostDefender: number;
+  attackerEscapeSector: number | null;
+  defenderEscapeSector: number | null;
+  message: string;
+  combatLog: CombatRound[];
+}
+
+export interface AttackableTarget {
+  id: number;
+  corpName: string;
+  username: string;
+  shipType: string;
+  fighters: number;
+  shields: number;
+  alignment: number;
+  inSafeZone: boolean;
+}
+
+export interface CombatHistoryEntry {
+  id: number;
+  sectorNumber: number;
+  attacker: {
+    id: number;
+    name: string;
+    username: string;
+    ship: string;
+  };
+  defender: {
+    id: number;
+    name: string;
+    username: string;
+    ship: string;
+  };
+  winnerId: number | null;
+  creditsLooted: number;
+  cargoLooted: any;
+  rounds: number;
+  attackerFightersLost: number;
+  defenderFightersLost: number;
+  defenderDestroyed: boolean;
+  isAttacker: boolean;
+  createdAt: string;
+}
+
+export interface AttackRequest {
+  targetId: number;
+}
+
+// Beacon types
+export interface Beacon {
+  id: number;
+  ownerId: number;
+  ownerName: string;
+  universeId: number;
+  sectorNumber: number;
+  message: string;
+  createdAt: string;
+}
+
+// Deployed Fighters types
+export interface DeployedFighters {
+  id: number;
+  ownerId: number;
+  ownerName: string;
+  fighterCount: number;
+  deployedAt: string;
+  isOwn?: boolean;
+}
+
+// Floating Cargo types  
+export interface FloatingCargo {
+  id: number;
+  sectorNumber: number;
+  fuel: number;
+  organics: number;
+  equipment: number;
+  colonists: number;
+  source: 'combat' | 'jettison';
+  expiresAt: string;
 }

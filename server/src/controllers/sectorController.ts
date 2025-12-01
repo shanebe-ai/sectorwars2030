@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { pool } from '../db/connection';
 import { recordEncounter } from '../services/messageService';
 import { autoLogSector } from '../services/shipLogService';
+import { emitSectorEvent } from '../index';
 
 /**
  * Get sector details including warps
@@ -88,6 +89,7 @@ export const getSectorDetails = async (req: Request, res: Response) => {
         p.ship_type,
         p.alignment,
         p.ship_fighters,
+        p.ship_shields,
         u.username
       FROM players p
       JOIN users u ON p.user_id = u.id
@@ -101,6 +103,7 @@ export const getSectorDetails = async (req: Request, res: Response) => {
       shipType: p.ship_type,
       alignment: p.alignment,
       fighters: p.ship_fighters,
+      shields: p.ship_shields,
       username: p.username
     }));
 
@@ -138,31 +141,386 @@ export const getSectorDetails = async (req: Request, res: Response) => {
       }));
     }
 
+    // Get floating cargo in sector
+    const cargoResult = await pool.query(
+      `SELECT id, fuel, organics, equipment, colonists, source_event, created_at
+       FROM sector_cargo 
+       WHERE universe_id = $1 AND sector_number = $2 
+       AND expires_at > NOW()
+       AND (fuel > 0 OR organics > 0 OR equipment > 0 OR colonists > 0)`,
+      [universeId, sectorNumber]
+    );
+
+    const floatingCargo = cargoResult.rows.map(c => ({
+      id: c.id,
+      fuel: c.fuel,
+      organics: c.organics,
+      equipment: c.equipment,
+      colonists: c.colonists,
+      source: c.source_event,
+      createdAt: c.created_at
+    }));
+
+    // Get beacons in sector
+    let beacons: any[] = [];
+    try {
+      const beaconResult = await pool.query(
+        `SELECT id, owner_id, owner_name, message, created_at
+         FROM sector_beacons
+         WHERE universe_id = $1 AND sector_number = $2
+         ORDER BY created_at DESC`,
+        [universeId, sectorNumber]
+      );
+
+      beacons = beaconResult.rows.map(b => ({
+        id: b.id,
+        ownerId: b.owner_id,
+        ownerName: b.owner_name || 'Unknown',
+        message: b.message || '',
+        createdAt: b.created_at
+      }));
+    } catch (beaconError: any) {
+      console.error('Error fetching beacons:', beaconError);
+      // Continue without beacons rather than crashing
+      beacons = [];
+    }
+
+    // Get deployed fighters in sector
+    const deployedFightersResult = await pool.query(
+      `SELECT id, owner_id, owner_name, fighter_count, deployed_at
+       FROM sector_fighters
+       WHERE universe_id = $1 AND sector_number = $2 AND fighter_count > 0
+       ORDER BY fighter_count DESC`,
+      [universeId, sectorNumber]
+    );
+
+    const deployedFighters = deployedFightersResult.rows.map(f => ({
+      id: f.id,
+      ownerId: f.owner_id,
+      ownerName: f.owner_name,
+      fighterCount: f.fighter_count,
+      deployedAt: f.deployed_at,
+      isOwn: f.owner_id === playerId
+    }));
+
+    // Check for hostile fighters (not owned by player)
+    const hostileFighters = deployedFighters.filter(f => !f.isOwn);
+
+    // Auto-log sector when viewing current sector (for initial spawn and returning visits)
+    if (parseInt(sectorNumber as string) === currentSector) {
+      // Get planet name if exists
+      const planetName = planets.length > 0 ? planets[0].name : undefined;
+      
+      // Fire and forget - don't block the response
+      autoLogSector(playerId, universeId, {
+        sector_number: sector.sector_number,
+        name: sector.name,
+        port_type: sector.port_type,
+        has_planet: sector.has_planet,
+        planet_name: planetName,
+        warp_count: warps.length
+      }).catch(err => console.error('Failed to auto-log sector:', err));
+    }
+
     res.json({
       sector: {
         sectorNumber: sector.sector_number,
         name: sector.name,
+        region: sector.region,
         portType: sector.port_type,
         hasPort: !!sector.port_type,
         portClass: sector.port_class,
         hasPlanet: sector.has_planet,
-        hasBeacon: sector.has_beacon,
+        hasBeacon: beacons.length > 0,
         fightersCount: sector.fighters_count,
         minesCount: sector.mines_count,
         warps,
         players,
-        planets
+        planets,
+        floatingCargo,
+        beacons,
+        deployedFighters,
+        hasHostileFighters: hostileFighters.length > 0,
+        hostileFighterCount: hostileFighters.reduce((sum, f) => sum + f.fighterCount, 0)
       }
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error getting sector details:', error);
-    res.status(500).json({ error: 'Failed to get sector details' });
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', {
+      sectorNumber: req.params.sectorNumber,
+      userId: (req as any).user?.userId,
+      message: error.message
+    });
+    res.status(500).json({ 
+      error: 'Failed to get sector details',
+      details: error.message || 'Unknown error'
+    });
   }
 };
 
 /**
  * Move player to a new sector
  */
+/**
+ * Scan an adjoining sector (costs 1 turn, shows sector info without moving)
+ * POST /api/sectors/scan/:sectorNumber
+ */
+export const scanSector = async (req: Request, res: Response) => {
+  try {
+    const { sectorNumber } = req.params;
+    const userId = (req as any).user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const targetSector = parseInt(sectorNumber);
+    if (isNaN(targetSector)) {
+      return res.status(400).json({ error: 'Invalid sector number' });
+    }
+
+    // Get player data
+    const playerResult = await pool.query(
+      `SELECT id, universe_id, current_sector, turns_remaining
+       FROM players WHERE user_id = $1 FOR UPDATE`,
+      [userId]
+    );
+
+    if (playerResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    const player = playerResult.rows[0];
+
+    // Check turns
+    if (player.turns_remaining < 1) {
+      return res.status(400).json({ error: 'Not enough turns to scan' });
+    }
+
+    // Verify target sector is connected to current sector
+    const currentSectorResult = await pool.query(
+      `SELECT id FROM sectors WHERE universe_id = $1 AND sector_number = $2`,
+      [player.universe_id, player.current_sector]
+    );
+
+    if (currentSectorResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Current sector not found' });
+    }
+
+    const currentSectorId = currentSectorResult.rows[0].id;
+
+    // Check warp connection
+    const warpResult = await pool.query(
+      `SELECT 1 FROM sector_warps sw
+       WHERE (sw.sector_id = $1 AND sw.destination_sector_number = $2)
+       OR EXISTS (
+         SELECT 1 FROM sector_warps sw2
+         JOIN sectors s ON sw2.sector_id = s.id
+         WHERE s.universe_id = $3 AND s.sector_number = $2 
+         AND sw2.destination_sector_number = $4 AND sw2.is_two_way = true
+       )`,
+      [currentSectorId, targetSector, player.universe_id, player.current_sector]
+    );
+
+    if (warpResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Sector is not adjacent to your current location' });
+    }
+
+    // Get target sector details
+    const sectorResult = await pool.query(
+      `SELECT
+        s.id,
+        s.sector_number,
+        s.name,
+        s.region,
+        s.port_type,
+        s.port_fuel_pct,
+        s.port_organics_pct,
+        s.port_equipment_pct,
+        s.port_class,
+        s.has_planet,
+        s.fighters_count,
+        s.mines_count,
+        s.has_beacon
+      FROM sectors s
+      WHERE s.universe_id = $1 AND s.sector_number = $2`,
+      [player.universe_id, targetSector]
+    );
+
+    if (sectorResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Target sector not found' });
+    }
+
+    const sector = sectorResult.rows[0];
+
+    // Get ships in sector with details
+    const shipsResult = await pool.query(
+      `SELECT
+        p.id,
+        p.corp_name,
+        p.ship_type,
+        p.ship_fighters,
+        p.ship_shields,
+        u.username
+      FROM players p
+      JOIN users u ON p.user_id = u.id
+      WHERE p.universe_id = $1 AND p.current_sector = $2 AND p.is_alive = true`,
+      [player.universe_id, targetSector]
+    );
+    const ships = shipsResult.rows.map(s => ({
+      id: s.id,
+      corpName: s.corp_name,
+      username: s.username,
+      shipType: s.ship_type,
+      fighters: s.ship_fighters,
+      shields: s.ship_shields
+    }));
+
+    // Get deployed fighters with owner info
+    const fightersResult = await pool.query(
+      `SELECT
+        sf.owner_id,
+        sf.owner_name,
+        sf.fighter_count
+      FROM sector_fighters sf
+      WHERE sf.universe_id = $1 AND sf.sector_number = $2 AND sf.fighter_count > 0`,
+      [player.universe_id, targetSector]
+    );
+    const deployedFighters = fightersResult.rows.map(f => ({
+      ownerId: f.owner_id,
+      ownerName: f.owner_name,
+      fighterCount: f.fighter_count
+    }));
+
+    // Get warps from target sector
+    const warpsResult = await pool.query(
+      `SELECT DISTINCT
+        CASE
+          WHEN sw.sector_id = $1 THEN sw.destination_sector_number
+          ELSE (SELECT sector_number FROM sectors WHERE id = sw.sector_id)
+        END as destination
+       FROM sector_warps sw
+       JOIN sectors s ON sw.sector_id = s.id
+       WHERE s.universe_id = $2 AND (sw.sector_id = $1 OR sw.destination_sector_number = $3)
+       ORDER BY destination`,
+      [sector.id, player.universe_id, targetSector]
+    );
+    const warps = warpsResult.rows.map(w => w.destination);
+
+    // Get planet info if exists
+    let planetInfo = null;
+    if (sector.has_planet) {
+      const planetResult = await pool.query(
+        `SELECT name, owner_id, owner_name FROM planets WHERE sector_id = $1`,
+        [sector.id]
+      );
+      if (planetResult.rows.length > 0) {
+        planetInfo = {
+          name: planetResult.rows[0].name,
+          ownerId: planetResult.rows[0].owner_id,
+          ownerName: planetResult.rows[0].owner_name
+        };
+      }
+    }
+
+    // Get beacons in sector (but don't show messages in scan)
+    const beaconsResult = await pool.query(
+      `SELECT id, owner_id, owner_name, created_at
+       FROM sector_beacons
+       WHERE universe_id = $1 AND sector_number = $2
+       ORDER BY created_at DESC`,
+      [player.universe_id, targetSector]
+    );
+    const beacons = beaconsResult.rows.map(b => ({
+      id: b.id,
+      ownerId: b.owner_id,
+      ownerName: b.owner_name,
+      createdAt: b.created_at
+    }));
+
+    // Get floating cargo in sector
+    const cargoResult = await pool.query(
+      `SELECT id, fuel, organics, equipment, colonists, source_event, created_at
+       FROM sector_cargo 
+       WHERE universe_id = $1 AND sector_number = $2 
+       AND expires_at > NOW()
+       AND (fuel > 0 OR organics > 0 OR equipment > 0 OR colonists > 0)`,
+      [player.universe_id, targetSector]
+    );
+    const floatingCargo = cargoResult.rows.map(c => ({
+      id: c.id,
+      fuel: c.fuel,
+      organics: c.organics,
+      equipment: c.equipment,
+      colonists: c.colonists,
+      source: c.source_event,
+      createdAt: c.created_at
+    }));
+
+    // Deduct turn
+    await pool.query(
+      `UPDATE players SET turns_remaining = turns_remaining - 1 WHERE id = $1`,
+      [player.id]
+    );
+
+    // Build port info with buy/sell flags
+    let portInfo = null;
+    if (sector.port_type) {
+      const portType = sector.port_type;
+      const buyFlags = {
+        fuel: portType[0] === 'B',
+        organics: portType[1] === 'B',
+        equipment: portType[2] === 'B'
+      };
+      const sellFlags = {
+        fuel: portType[0] === 'S',
+        organics: portType[1] === 'S',
+        equipment: portType[2] === 'S'
+      };
+      portInfo = {
+        type: portType,
+        class: sector.port_class,
+        buyFlags,
+        sellFlags,
+        fuelPct: sector.port_fuel_pct,
+        organicsPct: sector.port_organics_pct,
+        equipmentPct: sector.port_equipment_pct
+      };
+    }
+
+    res.json({
+      scan: {
+        sectorNumber: sector.sector_number,
+        name: sector.name,
+        region: sector.region,
+        portInfo,
+        planetInfo,
+        ships,
+        deployedFighters,
+        beacons,
+        hasBeacon: beacons.length > 0,
+        floatingCargo,
+        fightersCount: sector.fighters_count || 0,
+        minesCount: sector.mines_count || 0,
+        warps
+      }
+    });
+  } catch (error: any) {
+    console.error('Error scanning sector:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', {
+      sectorNumber: req.params.sectorNumber,
+      userId: (req as any).user?.userId,
+      message: error.message
+    });
+    res.status(500).json({ 
+      error: 'Failed to scan sector',
+      details: error.message || 'Unknown error'
+    });
+  }
+};
+
 export const moveToSector = async (req: Request, res: Response) => {
   try {
     const { destinationSector } = req.body;
@@ -358,6 +716,45 @@ export const moveToSector = async (req: Request, res: Response) => {
       await client.query('COMMIT');
 
       const updatedPlayer = updateResult.rows[0];
+
+      // Check for beacons in destination sector and broadcast their messages
+      const beaconsResult = await pool.query(
+        `SELECT owner_name, message FROM sector_beacons
+         WHERE universe_id = $1 AND sector_number = $2`,
+        [player.universe_id, actualDestination]
+      );
+
+      // Emit WebSocket event to players in the destination sector
+      emitSectorEvent(player.universe_id, actualDestination, 'ship_entered', {
+        playerId: player.id,
+        corpName: updatedPlayer.corp_name,
+        shipType: updatedPlayer.ship_type,
+        fromSector: player.current_sector,
+        timestamp: new Date().toISOString()
+      });
+
+      // Broadcast beacon messages to all players in the sector (including the entering player)
+      // Small delay to ensure WebSocket room join completes first
+      setTimeout(() => {
+        if (beaconsResult.rows.length > 0) {
+          for (const beacon of beaconsResult.rows) {
+            emitSectorEvent(player.universe_id, actualDestination, 'beacon_message', {
+              ownerName: beacon.owner_name,
+              message: beacon.message,
+              timestamp: new Date().toISOString()
+            });
+          }
+        }
+      }, 100);
+
+      // Also notify the sector they left
+      emitSectorEvent(player.universe_id, player.current_sector, 'ship_left', {
+        playerId: player.id,
+        corpName: updatedPlayer.corp_name,
+        shipType: updatedPlayer.ship_type,
+        toSector: actualDestination,
+        timestamp: new Date().toISOString()
+      });
 
       res.json({
         success: true,

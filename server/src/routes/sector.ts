@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticateToken } from '../middleware/auth';
-import { getSectorDetails, moveToSector } from '../controllers/sectorController';
+import { getSectorDetails, moveToSector, scanSector } from '../controllers/sectorController';
 
 const router = express.Router();
 
@@ -18,5 +18,11 @@ router.get('/:sectorNumber', getSectorDetails);
  * Move player to a new sector
  */
 router.post('/move', moveToSector);
+
+/**
+ * POST /api/sectors/scan/:sectorNumber
+ * Scan an adjoining sector (costs 1 turn, shows sector info without moving)
+ */
+router.post('/scan/:sectorNumber', scanSector);
 
 export default router;

@@ -3,6 +3,7 @@ import SectorView from './SectorView';
 import MessagingPanel from './MessagingPanel';
 import ShipLogPanel from './ShipLogPanel';
 import { API_URL } from '../config/api';
+import { useSocketNotifications } from '../hooks/useSocketNotifications';
 
 interface GameDashboardProps {
   player: any;
@@ -16,6 +17,14 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
   const [showShipLog, setShowShipLog] = useState(false);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [unreadLogCount, setUnreadLogCount] = useState(0);
+
+  // WebSocket notifications for sector events
+  const { notifications, dismissNotification } = useSocketNotifications({
+    universeId: player?.universeId || null,
+    sectorNumber: player?.currentSector || null,
+    playerId: player?.id || null,
+    enabled: !!player
+  });
 
   // Fetch unread message and log counts on mount
   useEffect(() => {
@@ -49,6 +58,84 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
   };
   return (
     <div className="cyberpunk-container">
+      {/* Real-time Sector Notifications */}
+      {notifications.length > 0 && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          zIndex: 9999,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
+          maxWidth: '400px'
+        }}>
+          {notifications.map(notification => (
+            <div
+              key={notification.id}
+              style={{
+                padding: '12px 40px 12px 15px',
+                background: notification.type === 'combat_occurred' 
+                  ? 'rgba(255, 20, 147, 0.95)' 
+                  : notification.type === 'ship_entered'
+                  ? 'rgba(255, 200, 0, 0.95)'
+                  : notification.type === 'escape_pod_arrived'
+                  ? 'rgba(255, 100, 0, 0.95)'
+                  : notification.type === 'beacon_message'
+                  ? 'rgba(0, 200, 255, 0.95)'
+                  : 'rgba(0, 200, 200, 0.95)',
+                border: `2px solid ${
+                  notification.type === 'combat_occurred' 
+                    ? 'var(--neon-pink)' 
+                    : notification.type === 'ship_entered'
+                    ? 'var(--neon-yellow)'
+                    : notification.type === 'beacon_message'
+                    ? 'var(--neon-cyan)'
+                    : 'var(--neon-cyan)'
+                }`,
+                color: '#000',
+                fontSize: '13px',
+                fontWeight: 'bold',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
+                animation: 'slideIn 0.3s ease-out',
+                position: 'relative'
+              }}
+            >
+              {notification.message}
+              <button
+                onClick={() => dismissNotification(notification.id)}
+                style={{
+                  position: 'absolute',
+                  top: '5px',
+                  right: '8px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#000',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  opacity: 0.7
+                }}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <style>{`
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      `}</style>
+
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         {/* Header */}
         <div style={{

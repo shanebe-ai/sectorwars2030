@@ -468,25 +468,51 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 ## Current Session Context 🎯
 
 **What We Just Did:**
-- ✅ **TerraSpace Safe Zone (BACKEND COMPLETE - UI PENDING!):**
-  - **Universe Generation Changes:**
-    - Sectors 1-10 labeled as "TerraSpace" region
-    - Linear/branching warp path through TerraSpace (not fully random)
-    - Only sectors 8-10 have exits to the wider universe (11+)
-    - No ports in TerraSpace (safe training zone)
-    - No planets except Sol (Earth) in sector 1
-    - StarDock always placed in sector 5 ("StarDock TerraSpace")
-    - `region` column added to sectors table
-  - **Combat Restrictions (READY FOR COMBAT SYSTEM):**
-    - TerraSpace marked as safe zone (region = 'TerraSpace')
-    - Combat system will check sector.region before allowing attacks
-    - Database and backend ready for combat restriction logic
-  - **Files Modified:**
-    - `server/src/services/universeService.ts` - TerraSpace generation logic
-    - `server/src/controllers/sectorController.ts` - Added region field
-    - `shared/types.ts` - Added region to Sector interface
-    - `server/src/db/migrations/010_banking_system.sql` - Added region column
+- ✅ **Combat System (FULLY WORKING!):**
+  - **Database Migration 011:**
+    - Added `kills`, `deaths`, `in_escape_pod`, `last_combat_at` to players table
+    - Enhanced `combat_log` with rounds, fighter/shield losses, destruction tracking
+    - New indexes for combat history queries
+  - **Combat Service** ([server/src/services/combatService.ts](server/src/services/combatService.ts)):
+    - `canAttack()` - Validates attack (same sector, has fighters, not in TerraSpace)
+    - `executeAttack()` - Full combat simulation with loot calculation
+    - `simulateCombat()` - Round-by-round combat with damage/shield mechanics
+    - `getCombatHistory()` - Player combat history
+    - `getAttackableTargets()` - List attackable players in sector
+    - `clearEscapePodStatus()` - Reset after ship upgrade
+  - **Combat Controller & Routes** ([server/src/routes/combat.ts](server/src/routes/combat.ts)):
+    - POST `/api/combat/attack` - Attack another player
+    - GET `/api/combat/targets` - Get attackable targets in sector
+    - GET `/api/combat/history` - Get combat history
+    - GET `/api/combat/can-attack/:targetId` - Check if can attack
+  - **Combat Panel UI** ([client/src/components/CombatPanel.tsx](client/src/components/CombatPanel.tsx)):
+    - Full-screen modal with cyberpunk pink theme
+    - ASCII art ship battle visualization
+    - Animated combat rounds with damage display
+    - Victory/Defeat banners with loot summary
+    - Pre-combat target stats and warning
+  - **SectorView Integration:**
+    - Attack buttons on all non-self players in sector
+    - Grayed out with tooltip in TerraSpace (safe zone)
+    - Shows fighter/shield count for targets
+    - Post-combat sector refresh
+  - **Combat Mechanics:**
+    - 3 turns per attack
+    - Round-based combat (max 10 rounds)
+    - Fighters deal damage (80-120% of count)
+    - Shields absorb damage before fighters
+    - Winner = side with remaining fighters
+    - Loser destruction = respawn in Escape Pod at Sol
+    - 50% loot (credits + cargo) on kill
+    - Alignment -100 for killing
+    - TerraSpace (sectors 1-10) = combat disabled
 
+**Previous Session:**
+- ✅ **TerraSpace Safe Zone (COMPLETE!):**
+  - Sectors 1-10 labeled as "TerraSpace" region
+  - StarDock in sector 5, no ports/planets except Earth
+  - Combat disabled in TerraSpace (enforced by backend)
+  - Green safe zone banner in UI
 - ✅ **StarDock Banking System (FULLY WORKING!):**
   - **Database Schema (Migration 010):**
     - `bank_accounts` table - Personal and corporate accounts
@@ -542,14 +568,14 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 
 **Servers Currently Running (Network Accessible):**
 - Backend: http://localhost:3000 (or http://37.27.80.77:3000)
-- Client: http://localhost:5175 (or http://37.27.80.77:5175)
+- Client: http://localhost:5173 (or http://37.27.80.77:5173)
 - Admin: http://localhost:5174 (or http://37.27.80.77:5174)
 
 **Ready For:**
-- **TESTING NOW:** TerraSpace generation, visual indicators, and Banking system ready for testing
-- Combat system implementation (with TerraSpace combat restrictions)
+- **TESTING NOW:** Combat system ready for testing! Attack other players outside TerraSpace.
 - Aliens with alien planets and ships
 - Port creation system
+- Fighter/mine deployment in sectors
 
 **Alien System Specifications (Not Yet Implemented):**
 - **Alien Ship & Planet Scaling by Universe Size:**
@@ -581,19 +607,19 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 
 ## In Progress 🚧
 
-### Completed: Port Trading System ✅
+### Completed: Combat System ✅
 **All tasks completed:**
-1. ✅ **Test Sector Navigation** - End-to-end browser testing
-2. ✅ **Port Trading Backend** - API endpoints for buy/sell commodities
-3. ✅ **Port Trading UI** - Interactive trading interface with ASCII art
-4. ✅ **Cargo Management** - Display and manage ship holds
-5. ✅ **Price Calculations** - Dynamic pricing based on supply/demand
+1. ✅ **Combat Backend** - Attack/defend mechanics, damage calculation
+2. ✅ **Combat UI** - ASCII art battle animations with round-by-round display
+3. ✅ **Loot System** - 50% credits and cargo looting on kills
+4. ✅ **TerraSpace Integration** - Combat disabled in safe zone (sectors 1-10)
+5. ✅ **Death/Respawn System** - Escape pod respawn at Sol
 
-### Next Major Feature: Combat System
+### Next Major Feature: Alien System
 **Priority Order:**
-1. **Combat Backend** - Attack/defend mechanics, fighter deployment
-2. **Combat UI** - ASCII art battle animations
-3. **Loot System** - Credits and cargo looting after victories
+1. **Alien NPC Ships** - AI-controlled ships that patrol sectors
+2. **Alien Planets** - NPC-controlled planets with defenses
+3. **Alien Communications** - Read-only channel for intercepting alien traffic
 
 ### Upcoming: Planet Colonization System
 **Based on TradeWars 2002 mechanics:**
@@ -905,10 +931,20 @@ When implementing new features:
 ---
 
 **Last Updated:** 2025-12-01
-**Status:** Banking & Messaging Bugs Fixed - Ready for Combat
-**Current Session:** Banking arithmetic fix, messaging display fixes, encounter recording
-**Next Priority:** Combat System
+**Status:** Combat System Enhanced, Beacon System, Sector Fighters, Floating Cargo, Deep Scan, UI Improvements Complete!
+**Current Session:** Enhanced combat, beacons, sector fighters, floating cargo, deep scan, UI notifications, beacon fixes, universe generation fixes
+**Next Priority:** Comprehensive Testing / Alien System
 **Recent Changes:**
+- ✅ **Combat System (2025-12-01):**
+  - Full player-vs-player combat with round-based mechanics
+  - Combat Service: canAttack(), executeAttack(), simulateCombat()
+  - Combat Routes: POST /api/combat/attack, GET /api/combat/targets, history
+  - CombatPanel UI with ASCII art battle animations
+  - Attack buttons in SectorView for players in same sector
+  - TerraSpace (sectors 1-10) combat protection enforced
+  - Death/respawn: Escape Pod at Sol, 50% loot to winner
+  - Database migration 011 for combat tracking columns
+  - Shared types: CombatResult, CombatRound, AttackableTarget
 - ✅ **Banking Arithmetic Fix (2025-12-01):**
   - Fixed string concatenation bug in banking deposits/withdrawals/transfers
   - PostgreSQL returns NUMERIC columns as strings, causing "10" + 1 = "101" instead of 11
@@ -965,6 +1001,77 @@ When implementing new features:
   - Smart pause at points of interest
   - Path index synchronization fix
   - Universe connectivity verification
+- ✅ **Enhanced Combat System (2025-12-01):**
+  - **Shield Mechanics:** Each shield point absorbs 2 damage (shields protect fighters)
+  - **Combat Randomness:** 50-150% damage variation, 10% critical hit chance (2x damage), 15% dodge chance (50% damage reduction)
+  - **Mutual Destruction:** Both attacker and defender can be destroyed in combat
+  - **Escape Pod System:** Destroyed players respawn in random adjacent sector (or Sol if none) in escape pod
+  - **Colonist Deaths:** All colonists on destroyed ship are lost with notification message
+  - **Cargo Looting:** Winner takes all cargo, excess cargo floats in sector if winner's hold is full
+  - **WebSocket Events:** `combat_occurred` and `escape_pod_arrived` events broadcast to sector
+  - **Database Migration 011:** Added `kills`, `deaths`, `escape_pod_count`, `in_escape_pod` columns
+- ✅ **Floating Cargo System (2025-12-01):**
+  - **Database Migration 012:** Created `sector_cargo` table for floating cargo
+  - **Cargo Service:** Handles pickup, jettison, partial pickup, expiration (24 hours)
+  - **Combat Loot:** Excess cargo from combat floats in sector
+  - **Priority Pickup:** Equipment > Organics > Fuel (smart cargo prioritization)
+  - **Sector Display:** Floating cargo shown in SectorView with pickup button
+  - **API Routes:** GET /api/cargo, POST /api/cargo/pickup
+- ✅ **Beacon System (2025-12-01):**
+  - **Database Migration 013:** Created `beacons` table, added `ship_beacons_max` to ship_types, `ship_beacons` to players
+  - **Beacon Service:** Purchase (₡500/ea), launch (255 char message), attack (0-5 fighter loss), retrieve
+  - **Capacity by Ship:** Escape Pod (1), Scout/Trader (5), Larger ships (15)
+  - **Beacon Display:** Shows in sector with owner name and message
+  - **Attack System:** Attack other players' beacons, lose 0-5 fighters, owner gets inbox notification
+  - **Inbox Notification:** "From: [Player]'s Beacon", "Attacker: [username] ([corp])" format
+  - **TerraSpace Restriction:** Beacons cannot be launched in sectors 1-10 (safe zone)
+  - **WebSocket Broadcasting:** Beacon messages broadcast to all players in sector when ship arrives
+  - **API Routes:** GET /api/beacons/info, POST /api/beacons/purchase, POST /api/beacons/launch, POST /api/beacons/attack, POST /api/beacons/retrieve
+  - **StarDock Integration:** Purchase beacons in Equipment tab
+- ✅ **Sector Fighter Deployment System (2025-12-01):**
+  - **Database Migration 014:** Created `sector_fighters` table for stationed fighters
+  - **Fighter Service:** Deploy, retrieve, attack stationed fighters, retreat with damage
+  - **Max Deployment:** 500 fighters per player per sector
+  - **Combat:** Attack stationed fighters uses same combat mechanics as player combat
+  - **Retreat Option:** When entering sector with hostile fighters, can retreat (0-10% damage) or attack
+  - **Hostile Encounter Modal:** Shows on sector entry with retreat/attack options
+  - **Owner Notifications:** Fighter owners receive inbox messages when attacked
+  - **TerraSpace Restriction:** Cannot deploy fighters in safe zone
+  - **API Routes:** GET /api/sector-fighters, POST /api/sector-fighters/deploy, POST /api/sector-fighters/retrieve, POST /api/sector-fighters/attack, POST /api/sector-fighters/retreat
+- ✅ **Deep Sector Scan Feature (2025-12-01):**
+  - **Scan Adjoining Sector:** Costs 1 turn, shows detailed sector info without moving
+  - **Enhanced Scan Results:** Shows ships (names, corps, ship types, fighters, shields), ports (type, buy/sell flags), planets (name, owner), stationed fighters (owner, count), beacons (owner, encrypted message), floating cargo, warps, sector defenses
+  - **Scan Modal:** Full detailed display with color-coded sections
+  - **API Route:** POST /api/sectors/scan/:sectorNumber
+- ✅ **UI Notification System (2025-12-01):**
+  - **Removed Browser Alerts:** All `alert()` calls replaced with in-panel UI notifications
+  - **Success Messages:** Green panels for successful actions (beacon launch, retreat, etc.)
+  - **Attack Results:** Color-coded panels (green=victory, orange=retreat) with detailed combat stats
+  - **Beacon Attack Results:** Pink panel showing attack outcome and fighter losses
+  - **Auto-Dismiss:** All notifications auto-dismiss after 8-10 seconds with manual dismiss button
+  - **Beacon Broadcasting:** Beacon messages appear as WebSocket toast notifications (no alerts)
+- ✅ **Ship Log Auto-Logging Fix (2025-12-01):**
+  - Ship log now logs sector on initial load (not just when moving)
+  - Auto-logs SOL, ports, StarDocks, planets, dead-ends when viewing current sector
+  - Fixes issue where starting sector wasn't logged until leaving
+- ✅ **Combat System Enhancements (2025-12-01):**
+  - **Combat Messages:** Now show "PlayerName (CorpName)" format instead of just "CorpName"
+  - **Escape Pod Distance:** Escape pods now warp 1-3 jumps away (not just adjacent sectors)
+  - **Escape Pod UI:** Shows prominent escape pod message with destination, auto-closes combat panel after 6 seconds
+  - **Combat Notifications:** WebSocket messages show "PlayerName (CorpName)'s ship was DESTROYED!" format
+  - **Async Combat:** Combat simulation now uses async escape sector calculation with BFS pathfinding
+- ✅ **Beacon System Fixes (2025-12-01):**
+  - **Beacon Retrieval:** Fixed beacon count not updating after retrieval - now updates immediately from API response
+  - **Beacon Message Sender:** Fixed inbox messages showing "[Deleted Player]" - now shows "{PlayerName}'s Beacon - Sector {Number}"
+  - **Beacon Attack:** Fixed PostgreSQL "FOR UPDATE cannot be applied to nullable side of outer join" error
+  - **Beacon Attack Error Handling:** Improved error handling to prevent server crashes, returns error objects instead of throwing
+  - **Beacon UI:** Removed browser alerts, all beacon actions use in-panel UI notifications
+- ✅ **Universe Generation TerraSpace Fixes (2025-12-01):**
+  - **TerraSpace Warp Rules:** Only sectors 5-10 can have warps outside TerraSpace (not sectors 1-4)
+  - **Sectors 1-4:** Exclusively intra-TerraSpace warps (sectors 1-10 only)
+  - **Sectors 5-10:** Mixed warps - 1-3 out of TerraSpace + 2-4 within TerraSpace (total 3-7 warps)
+  - **Warp Validation:** Added validation to prevent sectors 1-4 from warping outside TerraSpace
+  - **Connectivity Check:** Fixed unreachable sector connection to respect TerraSpace rules
 **Previous Session:**
 - ✅ Ship log system with unread alerts
 - ✅ Port trading system with colonist recruitment

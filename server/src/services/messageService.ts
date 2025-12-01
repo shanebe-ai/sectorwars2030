@@ -122,12 +122,16 @@ export async function getInbox(playerId: number): Promise<Message[]> {
 
   return result.rows.map(msg => {
     let sender_name: string;
-    if (msg.sender_username) {
+    // If sender_name is already set in database (e.g., for beacon messages), use it
+    if (msg.sender_name && msg.sender_id === null) {
+      sender_name = msg.sender_name;
+    } else if (msg.sender_username) {
       // Format as "Username (CorporationName)"
       const corpName = msg.sender_corporation_name || msg.sender_corp_name;
       sender_name = `${msg.sender_username} (${corpName})`;
     } else {
-      sender_name = '[Deleted Player]';
+      // Fallback: use stored sender_name if available, otherwise "[Deleted Player]"
+      sender_name = msg.sender_name || '[Deleted Player]';
     }
     return {
       id: msg.id,

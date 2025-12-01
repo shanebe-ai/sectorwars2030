@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import PortTradingPanel from './PortTradingPanel';
 import PlanetManagementPanel from './PlanetManagementPanel';
 import StarDockPanel from './StarDockPanel';
+import CombatPanel from './CombatPanel';
 import { API_URL } from '../config/api';
 
 interface Warp {
@@ -15,6 +16,7 @@ interface Player {
   shipType: string;
   alignment: number;
   fighters: number;
+  shields: number;
   username: string;
 }
 
@@ -25,9 +27,37 @@ interface Planet {
   ownerName: string | null;
 }
 
+interface FloatingCargo {
+  id: number;
+  fuel: number;
+  organics: number;
+  equipment: number;
+  colonists: number;
+  source: string;
+  createdAt: string;
+}
+
+interface Beacon {
+  id: number;
+  ownerId: number;
+  ownerName: string;
+  message: string;
+  createdAt: string;
+}
+
+interface DeployedFighter {
+  id: number;
+  ownerId: number;
+  ownerName: string;
+  fighterCount: number;
+  deployedAt: string;
+  isOwn: boolean;
+}
+
 interface Sector {
   sectorNumber: number;
   name: string | null;
+  region?: string;
   portType: string | null;
   hasPort: boolean;
   portClass: number;
@@ -38,6 +68,22 @@ interface Sector {
   warps: Warp[];
   players: Player[];
   planets: Planet[];
+  floatingCargo?: FloatingCargo[];
+  beacons?: Beacon[];
+  deployedFighters?: DeployedFighter[];
+  hasHostileFighters?: boolean;
+  hostileFighterCount?: number;
+}
+
+interface CombatTarget {
+  id: number;
+  corpName: string;
+  username: string;
+  shipType: string;
+  fighters: number;
+  shields: number;
+  alignment: number;
+  inSafeZone: boolean;
 }
 
 interface PlayerData {
@@ -78,6 +124,9 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
   const [sector, setSector] = useState<Sector | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [beaconAttackResult, setBeaconAttackResult] = useState<{message: string, fightersLost: number} | null>(null);
+  const [fighterAttackResult, setFighterAttackResult] = useState<{message: string, attackerWon: boolean, losses: any} | null>(null);
   const [moving, setMoving] = useState(false);
   const [showTrading, setShowTrading] = useState(false);
   const [previousSector, setPreviousSector] = useState<number | null>(() => {
@@ -99,9 +148,26 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
   const [currentPathIndex, setCurrentPathIndex] = useState(0);
   const [showPlanetPanel, setShowPlanetPanel] = useState<number | null>(null);
   const [showStarDock, setShowStarDock] = useState(false);
+  const [combatTarget, setCombatTarget] = useState<CombatTarget | null>(null);
+  const [pickingUpCargo, setPickingUpCargo] = useState<number | null>(null);
+  const [showBeaconLaunch, setShowBeaconLaunch] = useState(false);
+  const [beaconMessage, setBeaconMessage] = useState('');
+  const [launchingBeacon, setLaunchingBeacon] = useState(false);
+  const [attackingBeacon, setAttackingBeacon] = useState<number | null>(null);
+  const [showDeployFighters, setShowDeployFighters] = useState(false);
+  const [deployFighterCount, setDeployFighterCount] = useState(0);
+  const [deployingFighters, setDeployingFighters] = useState(false);
+  const [attackingDeployment, setAttackingDeployment] = useState<number | null>(null);
+  const [showHostileEncounter, setShowHostileEncounter] = useState(false);
+  const [hostileEncounterData, setHostileEncounterData] = useState<{fighters: DeployedFighter[], totalCount: number} | null>(null);
+  const [beaconInfo, setBeaconInfo] = useState<{current: number, max: number} | null>(null);
+  const [showScanSector, setShowScanSector] = useState(false);
+  const [scanningSector, setScanningSector] = useState(false);
+  const [scannedSector, setScannedSector] = useState<any | null>(null);
 
   useEffect(() => {
     loadSectorDetails();
+    loadBeaconInfo();
     // Mark current sector as visited
     setVisitedSectors(prev => {
       const newSet = new Set(prev);
@@ -148,17 +214,82 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
         },
       });
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to load sector' }));
+        console.error('Sector load error:', { status: response.status, error: errorData });
+        setError(errorData.error || errorData.details || 'Failed to load sector');
+        setLoading(false);
+        return;
+      }
+
+      const data = await response.json();
+
+      if (data.sector) {
+        setSector(data.sector);
+      } else {
+        setError('Invalid sector data received');
+      }
+    } catch (err: any) {
+      console.error('Sector load network error:', err);
+      setError(`Network error: ${err.message || 'Failed to connect to server'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadBeaconInfo = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/beacons/info`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setBeaconInfo({
+          current: data.currentCount || 0,
+          max: data.maxCapacity || 0
+        });
+      }
+    } catch (err) {
+      // Silent fail
+    }
+  };
+
+  const scanAdjoiningSector = async (sectorNumber: number) => {
+    if (player.turnsRemaining < 1) {
+      setError('Not enough turns to scan');
+      return;
+    }
+    
+    setScanningSector(true);
+    setError('');
+    try {
+      const response = await fetch(`${API_URL}/api/sectors/scan/${sectorNumber}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
       const data = await response.json();
 
       if (response.ok) {
-        setSector(data.sector);
+        setScannedSector(data.scan);
+        setShowScanSector(true);
+        // Refresh player to update turns
+        const playerResponse = await fetch(`${API_URL}/api/players/${player.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (playerResponse.ok) {
+          const playerData = await playerResponse.json();
+          onSectorChange(playerData.player);
+        }
       } else {
-        setError(data.error || 'Failed to load sector');
+        setError(data.error || 'Failed to scan sector');
       }
     } catch (err) {
       setError('Network error');
     } finally {
-      setLoading(false);
+      setScanningSector(false);
     }
   };
 
@@ -328,6 +459,339 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
     setCurrentPathIndex(0);
   };
 
+  const pickupFloatingCargo = async (cargoId: number) => {
+    setPickingUpCargo(cargoId);
+    try {
+      const response = await fetch(`${API_URL}/api/cargo/pickup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ cargoId }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Refresh sector to update floating cargo display
+        loadSectorDetails();
+        // Refresh player data
+        const playerResponse = await fetch(`${API_URL}/api/players/${player.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (playerResponse.ok) {
+          const playerData = await playerResponse.json();
+          onSectorChange(playerData.player);
+        }
+      } else {
+        setError(data.error || 'Failed to pick up cargo');
+      }
+    } catch (err) {
+      setError('Network error');
+    } finally {
+      setPickingUpCargo(null);
+    }
+  };
+
+  const launchBeacon = async () => {
+    if (!beaconMessage.trim()) {
+      setError('Beacon message cannot be empty');
+      return;
+    }
+    setLaunchingBeacon(true);
+    try {
+      const response = await fetch(`${API_URL}/api/beacons/launch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ message: beaconMessage }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setShowBeaconLaunch(false);
+        setBeaconMessage('');
+        loadSectorDetails();
+        loadBeaconInfo(); // Refresh beacon count
+        // Refresh player data
+        const playerResponse = await fetch(`${API_URL}/api/players/${player.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (playerResponse.ok) {
+          const playerData = await playerResponse.json();
+          onSectorChange(playerData.player);
+        }
+        setSuccessMessage(data.message || `Beacon launched in Sector ${currentSector}!`);
+        setTimeout(() => setSuccessMessage(null), 8000);
+      } else {
+        setError(data.error || 'Failed to launch beacon');
+      }
+    } catch (err) {
+      setError('Network error');
+    } finally {
+      setLaunchingBeacon(false);
+    }
+  };
+
+  const handleAttackBeacon = async (beaconId: number) => {
+    setAttackingBeacon(beaconId);
+    try {
+      const response = await fetch(`${API_URL}/api/beacons/attack`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ beaconId }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setBeaconAttackResult({
+          message: data.message,
+          fightersLost: data.fightersLost || 0
+        });
+        setTimeout(() => setBeaconAttackResult(null), 10000);
+        
+        // Refresh player data first, then sector
+        try {
+          const playerResponse = await fetch(`${API_URL}/api/players/${player.id}`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+          if (playerResponse.ok) {
+            const playerData = await playerResponse.json();
+            onSectorChange(playerData.player);
+          }
+        } catch (playerErr) {
+          console.error('Failed to refresh player data:', playerErr);
+        }
+        
+        // Reload sector after a short delay to ensure backend has updated
+        setTimeout(() => {
+          loadSectorDetails();
+        }, 500);
+      } else {
+        const errorMsg = data.error || data.message || data.details || 'Failed to attack beacon';
+        console.error('Beacon attack error:', { status: response.status, data });
+        setError(errorMsg);
+        setBeaconAttackResult(null);
+        // Reload sector even on error to ensure UI is in sync
+        setTimeout(() => {
+          loadSectorDetails();
+        }, 500);
+      }
+    } catch (err: any) {
+      console.error('Beacon attack network error:', err);
+      setError(`Network error: ${err.message || 'Failed to connect to server'}`);
+      setBeaconAttackResult(null);
+      // Reload sector even on error to ensure UI is in sync
+      loadSectorDetails();
+    } finally {
+      setAttackingBeacon(null);
+    }
+  };
+
+  const handleRetrieveBeacon = async (beaconId: number) => {
+    try {
+      const response = await fetch(`${API_URL}/api/beacons/retrieve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ beaconId }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Update beacon info immediately from response
+        if (data.beaconsOnShip !== undefined && beaconInfo) {
+          setBeaconInfo({
+            ...beaconInfo,
+            current: data.beaconsOnShip
+          });
+        } else {
+          // Fallback: refresh beacon info
+          loadBeaconInfo();
+        }
+        // Refresh sector details to remove beacon from list
+        loadSectorDetails();
+        // Refresh player data
+        const playerResponse = await fetch(`${API_URL}/api/players/${player.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (playerResponse.ok) {
+          const playerData = await playerResponse.json();
+          onSectorChange(playerData.player);
+        }
+        setSuccessMessage(data.message || 'Beacon retrieved successfully!');
+        setTimeout(() => setSuccessMessage(null), 5000);
+      } else {
+        setError(data.error || 'Failed to retrieve beacon');
+      }
+    } catch (err) {
+      setError('Network error');
+    }
+  };
+
+  const handleDeployFighters = async () => {
+    if (deployFighterCount <= 0) return;
+    setDeployingFighters(true);
+    try {
+      const response = await fetch(`${API_URL}/api/sector-fighters/deploy`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ count: deployFighterCount }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setShowDeployFighters(false);
+        setDeployFighterCount(0);
+        loadSectorDetails();
+        const playerResponse = await fetch(`${API_URL}/api/players/${player.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (playerResponse.ok) {
+          const playerData = await playerResponse.json();
+          onSectorChange(playerData.player);
+        }
+      } else {
+        setError(data.error || 'Failed to deploy fighters');
+      }
+    } catch (err) {
+      setError('Network error');
+    } finally {
+      setDeployingFighters(false);
+    }
+  };
+
+  const handleRetrieveFighters = async (count: number) => {
+    try {
+      const response = await fetch(`${API_URL}/api/sector-fighters/retrieve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ count }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        loadSectorDetails();
+        const playerResponse = await fetch(`${API_URL}/api/players/${player.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (playerResponse.ok) {
+          const playerData = await playerResponse.json();
+          onSectorChange(playerData.player);
+        }
+      } else {
+        setError(data.error || 'Failed to retrieve fighters');
+      }
+    } catch (err) {
+      setError('Network error');
+    }
+  };
+
+  const handleAttackDeployedFighters = async (deploymentId: number) => {
+    setAttackingDeployment(deploymentId);
+    try {
+      const response = await fetch(`${API_URL}/api/sector-fighters/attack`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ deploymentId }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setShowHostileEncounter(false);
+        setHostileEncounterData(null);
+        loadSectorDetails();
+        const playerResponse = await fetch(`${API_URL}/api/players/${player.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (playerResponse.ok) {
+          const playerData = await playerResponse.json();
+          onSectorChange(playerData.player);
+        }
+        setFighterAttackResult({
+          message: data.message,
+          attackerWon: data.attackerWon,
+          losses: {
+            fighters: data.attackerFightersLost,
+            shields: data.attackerShieldsLost,
+            defenderFighters: data.defenderFightersLost
+          }
+        });
+        setTimeout(() => setFighterAttackResult(null), 10000);
+      } else {
+        setError(data.error || 'Failed to attack fighters');
+      }
+    } catch (err) {
+      setError('Network error');
+    } finally {
+      setAttackingDeployment(null);
+    }
+  };
+
+  const handleRetreat = async (destinationSector: number) => {
+    try {
+      const response = await fetch(`${API_URL}/api/sector-fighters/retreat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ destinationSector }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setShowHostileEncounter(false);
+        setHostileEncounterData(null);
+        onSectorChange(data.player);
+        setSuccessMessage(data.message);
+        setTimeout(() => setSuccessMessage(null), 8000);
+      } else {
+        setError(data.error || 'Failed to retreat');
+      }
+    } catch (err) {
+      setError('Network error');
+    }
+  };
+
+  // Check for hostile fighters when sector loads
+  useEffect(() => {
+    if (sector && sector.hasHostileFighters && sector.deployedFighters) {
+      const hostileFighters = sector.deployedFighters.filter(f => !f.isOwn);
+      if (hostileFighters.length > 0) {
+        setHostileEncounterData({
+          fighters: hostileFighters,
+          totalCount: sector.hostileFighterCount || 0
+        });
+        setShowHostileEncounter(true);
+      }
+    }
+  }, [sector?.sectorNumber]);
+
   // Auto-continue navigation when we arrive at a sector
   useEffect(() => {
     if (autoNavigating && !moving && plottedPath && currentPathIndex > 0) {
@@ -444,6 +908,129 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
         </div>
       )}
 
+      {/* Success Message */}
+      {successMessage && (
+        <div style={{
+          margin: '20px 20px 0 20px',
+          padding: '15px',
+          background: 'rgba(0, 255, 0, 0.2)',
+          border: '2px solid var(--neon-green)',
+          color: 'var(--neon-green)',
+          fontWeight: 'bold',
+          fontSize: '14px',
+          textAlign: 'center',
+          boxShadow: '0 0 20px rgba(0, 255, 0, 0.3)',
+          position: 'relative'
+        }}>
+          ✓ {successMessage}
+          <button
+            onClick={() => setSuccessMessage(null)}
+            style={{
+              position: 'absolute',
+              top: '5px',
+              right: '10px',
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--neon-green)',
+              fontSize: '18px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* Beacon Attack Result */}
+      {beaconAttackResult && (
+        <div style={{
+          margin: '20px 20px 0 20px',
+          padding: '15px',
+          background: 'rgba(255, 20, 147, 0.2)',
+          border: '2px solid var(--neon-pink)',
+          color: 'var(--neon-pink)',
+          fontWeight: 'bold',
+          fontSize: '14px',
+          boxShadow: '0 0 20px rgba(255, 20, 147, 0.3)',
+          position: 'relative'
+        }}>
+          <div style={{ marginBottom: '8px' }}>
+            ⚔️ BEACON ATTACK RESULT
+          </div>
+          <div style={{ fontSize: '13px', marginBottom: '5px' }}>
+            {beaconAttackResult.message}
+          </div>
+          {beaconAttackResult.fightersLost > 0 && (
+            <div style={{ fontSize: '12px', opacity: 0.9 }}>
+              Fighters Lost: {beaconAttackResult.fightersLost}
+            </div>
+          )}
+          <button
+            onClick={() => setBeaconAttackResult(null)}
+            style={{
+              position: 'absolute',
+              top: '5px',
+              right: '10px',
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--neon-pink)',
+              fontSize: '18px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* Fighter Attack Result */}
+      {fighterAttackResult && (
+        <div style={{
+          margin: '20px 20px 0 20px',
+          padding: '15px',
+          background: fighterAttackResult.attackerWon 
+            ? 'rgba(0, 255, 0, 0.2)' 
+            : 'rgba(255, 100, 0, 0.2)',
+          border: `2px solid ${fighterAttackResult.attackerWon ? 'var(--neon-green)' : '#ff6b00'}`,
+          color: fighterAttackResult.attackerWon ? 'var(--neon-green)' : '#ff6b00',
+          fontWeight: 'bold',
+          fontSize: '14px',
+          boxShadow: fighterAttackResult.attackerWon 
+            ? '0 0 20px rgba(0, 255, 0, 0.3)' 
+            : '0 0 20px rgba(255, 100, 0, 0.3)',
+          position: 'relative'
+        }}>
+          <div style={{ marginBottom: '8px' }}>
+            {fighterAttackResult.attackerWon ? '✅ VICTORY!' : '⚠️ RETREAT'}
+          </div>
+          <div style={{ fontSize: '13px', marginBottom: '8px' }}>
+            {fighterAttackResult.message}
+          </div>
+          <div style={{ fontSize: '12px', opacity: 0.9 }}>
+            <div>Your Losses: {fighterAttackResult.losses.fighters} fighters, {fighterAttackResult.losses.shields} shields</div>
+            <div>Enemy Losses: {fighterAttackResult.losses.defenderFighters} fighters</div>
+          </div>
+          <button
+            onClick={() => setFighterAttackResult(null)}
+            style={{
+              position: 'absolute',
+              top: '5px',
+              right: '10px',
+              background: 'transparent',
+              border: 'none',
+              color: fighterAttackResult.attackerWon ? 'var(--neon-green)' : '#ff6b00',
+              fontSize: '18px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       <div style={{ padding: '20px' }}>
         {/* ASCII Art Sector Visualization */}
         <div style={{
@@ -493,6 +1080,218 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
               </div>
             </div>
           )}
+
+          {/* Action Buttons */}
+          <div style={{ marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {/* Launch Beacon Button */}
+            {beaconInfo && (
+              <>
+                {!showBeaconLaunch ? (
+                  <button
+                    onClick={() => {
+                      if (sector.region === 'TerraSpace') {
+                        setError('Beacons cannot be launched in TerraSpace (safe zone)');
+                        return;
+                      }
+                      setShowBeaconLaunch(true);
+                    }}
+                    disabled={beaconInfo.current === 0 || sector.region === 'TerraSpace'}
+                    className="cyberpunk-button"
+                    style={{
+                      padding: '8px 12px',
+                      fontSize: '12px',
+                      background: beaconInfo.current > 0 && sector.region !== 'TerraSpace' 
+                        ? 'rgba(0, 200, 255, 0.2)' 
+                        : 'rgba(100, 100, 100, 0.2)',
+                      borderColor: beaconInfo.current > 0 && sector.region !== 'TerraSpace' 
+                        ? 'var(--neon-cyan)' 
+                        : '#666',
+                      color: beaconInfo.current > 0 && sector.region !== 'TerraSpace' 
+                        ? 'var(--neon-cyan)' 
+                        : '#666',
+                      cursor: beaconInfo.current > 0 && sector.region !== 'TerraSpace' ? 'pointer' : 'not-allowed'
+                    }}
+                  >
+                    📡 LAUNCH BEACON ({beaconInfo.current}/{beaconInfo.max})
+                  </button>
+                ) : (
+                  <div style={{
+                    padding: '10px',
+                    background: 'rgba(0, 200, 255, 0.1)',
+                    border: '1px solid var(--neon-cyan)',
+                    fontSize: '11px'
+                  }}>
+                    <div style={{ color: 'var(--neon-cyan)', marginBottom: '8px', fontWeight: 'bold' }}>
+                      📡 BEACON MESSAGE
+                    </div>
+                    <textarea
+                      value={beaconMessage}
+                      onChange={(e) => setBeaconMessage(e.target.value.slice(0, 255))}
+                      placeholder="Enter message (max 255 chars)..."
+                      style={{
+                        width: '100%',
+                        minHeight: '60px',
+                        padding: '8px',
+                        background: 'rgba(0, 0, 0, 0.5)',
+                        border: '1px solid var(--neon-cyan)',
+                        color: 'var(--text-primary)',
+                        fontSize: '11px',
+                        resize: 'vertical',
+                        marginBottom: '6px'
+                      }}
+                    />
+                    <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginBottom: '8px', textAlign: 'right' }}>
+                      {beaconMessage.length}/255
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        onClick={launchBeacon}
+                        disabled={launchingBeacon || !beaconMessage.trim()}
+                        className="cyberpunk-button"
+                        style={{
+                          flex: 1,
+                          padding: '6px',
+                          fontSize: '10px',
+                          background: 'rgba(0, 255, 0, 0.2)',
+                          borderColor: 'var(--neon-green)',
+                          color: 'var(--neon-green)'
+                        }}
+                      >
+                        {launchingBeacon ? '⟳...' : 'LAUNCH'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowBeaconLaunch(false);
+                          setBeaconMessage('');
+                        }}
+                        className="cyberpunk-button"
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '10px',
+                          background: 'rgba(255, 0, 0, 0.1)',
+                          borderColor: 'var(--neon-pink)',
+                          color: 'var(--neon-pink)'
+                        }}
+                      >
+                        CANCEL
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Scan Adjoining Sector Button */}
+            {sector.warps.length > 0 && (
+              <button
+                onClick={() => setShowScanSector(true)}
+                disabled={player.turnsRemaining < 1}
+                className="cyberpunk-button"
+                style={{
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  background: player.turnsRemaining >= 1 
+                    ? 'rgba(255, 200, 0, 0.2)' 
+                    : 'rgba(100, 100, 100, 0.2)',
+                  borderColor: player.turnsRemaining >= 1 
+                    ? 'var(--neon-yellow)' 
+                    : '#666',
+                  color: player.turnsRemaining >= 1 
+                    ? 'var(--neon-yellow)' 
+                    : '#666',
+                  cursor: player.turnsRemaining >= 1 ? 'pointer' : 'not-allowed'
+                }}
+              >
+                🔍 SCAN ADJOINING SECTOR (1 turn)
+              </button>
+            )}
+
+            {/* Deploy Fighters Button */}
+            {sector.region !== 'TerraSpace' && (player as any).shipFighters > 0 && (
+              <>
+                {!showDeployFighters ? (
+                  <button
+                    onClick={() => setShowDeployFighters(true)}
+                    className="cyberpunk-button"
+                    style={{
+                      padding: '8px 12px',
+                      fontSize: '12px',
+                      background: 'rgba(255, 100, 0, 0.2)',
+                      borderColor: '#ff6b00',
+                      color: '#ff6b00',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    ⚔ DEPLOY FIGHTERS ({(player as any).shipFighters} on ship)
+                  </button>
+                ) : (
+                  <div style={{
+                    padding: '10px',
+                    background: 'rgba(255, 100, 0, 0.1)',
+                    border: '1px solid #ff6b00',
+                    fontSize: '11px'
+                  }}>
+                    <div style={{ color: '#ff6b00', marginBottom: '8px', fontWeight: 'bold' }}>
+                      ⚔ DEPLOY FIGHTERS
+                    </div>
+                    <input
+                      type="number"
+                      value={deployFighterCount}
+                      onChange={(e) => setDeployFighterCount(Math.max(0, Math.min(parseInt(e.target.value) || 0, (player as any).shipFighters, 500)))}
+                      placeholder="Count..."
+                      min="1"
+                      max={Math.min((player as any).shipFighters, 500)}
+                      style={{
+                        width: '100%',
+                        padding: '6px',
+                        background: 'rgba(0, 0, 0, 0.5)',
+                        border: '1px solid #ff6b00',
+                        color: 'var(--text-primary)',
+                        fontSize: '11px',
+                        marginBottom: '6px'
+                      }}
+                    />
+                    <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                      Max 500 per sector
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        onClick={handleDeployFighters}
+                        disabled={deployingFighters || deployFighterCount <= 0}
+                        className="cyberpunk-button"
+                        style={{
+                          flex: 1,
+                          padding: '6px',
+                          fontSize: '10px',
+                          background: 'rgba(0, 255, 0, 0.2)',
+                          borderColor: 'var(--neon-green)',
+                          color: 'var(--neon-green)'
+                        }}
+                      >
+                        {deployingFighters ? '⟳...' : 'DEPLOY'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowDeployFighters(false);
+                          setDeployFighterCount(0);
+                        }}
+                        className="cyberpunk-button"
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '10px',
+                          background: 'rgba(255, 0, 0, 0.1)',
+                          borderColor: 'var(--neon-pink)',
+                          color: 'var(--neon-pink)'
+                        }}
+                      >
+                        CANCEL
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
         {/* Sector Details */}
@@ -660,6 +1459,334 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
             </div>
           )}
 
+          {/* Floating Cargo */}
+          {sector.floatingCargo && sector.floatingCargo.length > 0 && (
+            <div style={{
+              padding: '15px',
+              background: 'rgba(255, 215, 0, 0.05)',
+              border: '1px solid var(--neon-yellow)',
+              marginBottom: '15px'
+            }}>
+              <div style={{ color: 'var(--neon-yellow)', fontWeight: 'bold', marginBottom: '10px' }}>
+                📦 FLOATING CARGO DETECTED ({sector.floatingCargo.length})
+              </div>
+              {sector.floatingCargo.map(cargo => {
+                const totalCargo = cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists;
+                return (
+                  <div key={cargo.id} style={{
+                    padding: '10px',
+                    background: 'rgba(0, 0, 0, 0.3)',
+                    marginBottom: '8px',
+                    border: '1px solid rgba(255, 215, 0, 0.3)'
+                  }}>
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center',
+                      marginBottom: '8px'
+                    }}>
+                      <div style={{ color: 'var(--neon-yellow)', fontSize: '13px' }}>
+                        {cargo.source === 'combat' ? '💥 Combat Wreckage' : 
+                         cargo.source === 'jettison' ? '🚮 Jettisoned Cargo' : '📦 Cargo'}
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        {totalCargo} units total
+                      </div>
+                    </div>
+                    <div style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: 'repeat(4, 1fr)', 
+                      gap: '8px',
+                      fontSize: '12px',
+                      marginBottom: '10px'
+                    }}>
+                      {cargo.fuel > 0 && (
+                        <div style={{ color: '#ff9800' }}>⛽ {cargo.fuel}</div>
+                      )}
+                      {cargo.organics > 0 && (
+                        <div style={{ color: '#4caf50' }}>🌿 {cargo.organics}</div>
+                      )}
+                      {cargo.equipment > 0 && (
+                        <div style={{ color: '#2196f3' }}>⚙️ {cargo.equipment}</div>
+                      )}
+                      {cargo.colonists > 0 && (
+                        <div style={{ color: '#9c27b0' }}>👥 {cargo.colonists}</div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => pickupFloatingCargo(cargo.id)}
+                      disabled={pickingUpCargo === cargo.id}
+                      className="cyberpunk-button"
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        fontSize: '12px',
+                        background: 'rgba(255, 215, 0, 0.2)',
+                        borderColor: 'var(--neon-yellow)',
+                        color: 'var(--neon-yellow)'
+                      }}
+                    >
+                      {pickingUpCargo === cargo.id ? '⟳ PICKING UP...' : '► PICK UP CARGO'}
+                    </button>
+                  </div>
+                );
+              })}
+              <div style={{ 
+                fontSize: '11px', 
+                color: 'var(--text-secondary)', 
+                marginTop: '8px',
+                textAlign: 'center'
+              }}>
+                Cargo will expire in 24 hours • Limited by your cargo hold capacity
+              </div>
+            </div>
+          )}
+
+          {/* Beacons */}
+          {sector.beacons && sector.beacons.length > 0 && (
+            <div style={{
+              padding: '15px',
+              background: 'rgba(0, 200, 255, 0.05)',
+              border: '1px solid var(--neon-cyan)',
+              marginBottom: '15px'
+            }}>
+              <div style={{ color: 'var(--neon-cyan)', fontWeight: 'bold', marginBottom: '10px' }}>
+                📡 BEACONS DETECTED ({sector.beacons.length})
+              </div>
+              {sector.beacons.map(beacon => (
+                <div key={beacon.id} style={{
+                  padding: '12px',
+                  background: 'rgba(0, 0, 0, 0.4)',
+                  marginBottom: '10px',
+                  border: beacon.ownerId === currentPlayerId 
+                    ? '1px solid var(--neon-green)' 
+                    : '1px solid rgba(0, 200, 255, 0.3)'
+                }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'flex-start',
+                    marginBottom: '8px'
+                  }}>
+                    <div style={{ 
+                      color: beacon.ownerId === currentPlayerId ? 'var(--neon-green)' : 'var(--neon-cyan)', 
+                      fontSize: '12px',
+                      fontWeight: 'bold'
+                    }}>
+                      📡 {beacon.ownerName}'s Beacon
+                      {beacon.ownerId === currentPlayerId && ' (YOURS)'}
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      {beacon.ownerId === currentPlayerId ? (
+                        <button
+                          onClick={() => handleRetrieveBeacon(beacon.id)}
+                          className="cyberpunk-button"
+                          style={{
+                            padding: '4px 8px',
+                            fontSize: '10px',
+                            background: 'rgba(0, 255, 0, 0.2)',
+                            borderColor: 'var(--neon-green)',
+                            color: 'var(--neon-green)'
+                          }}
+                        >
+                          RETRIEVE
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleAttackBeacon(beacon.id)}
+                          disabled={attackingBeacon === beacon.id}
+                          className="cyberpunk-button"
+                          style={{
+                            padding: '4px 8px',
+                            fontSize: '10px',
+                            background: 'rgba(255, 20, 147, 0.2)',
+                            borderColor: 'var(--neon-pink)',
+                            color: 'var(--neon-pink)'
+                          }}
+                        >
+                          {attackingBeacon === beacon.id ? '...' : '⚔ ATTACK'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{
+                    background: 'rgba(0, 200, 255, 0.1)',
+                    padding: '10px',
+                    fontSize: '13px',
+                    color: 'var(--text-primary)',
+                    fontStyle: 'italic',
+                    borderLeft: '3px solid var(--neon-cyan)'
+                  }}>
+                    "{beacon.message}"
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Deployed Fighters Section */}
+          {sector.deployedFighters && sector.deployedFighters.length > 0 && (
+            <div style={{
+              padding: '15px',
+              background: 'rgba(255, 100, 0, 0.05)',
+              border: '1px solid #ff6b00',
+              marginBottom: '15px'
+            }}>
+              <div style={{ color: '#ff6b00', fontWeight: 'bold', marginBottom: '10px' }}>
+                ⚔ STATIONED FIGHTERS ({sector.deployedFighters.reduce((sum, f) => sum + f.fighterCount, 0)} total)
+              </div>
+              {sector.deployedFighters.map(deployment => (
+                <div key={deployment.id} style={{
+                  padding: '12px',
+                  background: 'rgba(0, 0, 0, 0.4)',
+                  marginBottom: '10px',
+                  border: deployment.isOwn 
+                    ? '1px solid var(--neon-green)' 
+                    : '1px solid rgba(255, 100, 0, 0.5)'
+                }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center'
+                  }}>
+                    <div>
+                      <div style={{ 
+                        color: deployment.isOwn ? 'var(--neon-green)' : '#ff6b00', 
+                        fontWeight: 'bold',
+                        fontSize: '13px'
+                      }}>
+                        ⚔ {deployment.ownerName}'s Fighters
+                        {deployment.isOwn && <span style={{ color: 'var(--neon-green)', marginLeft: '8px' }}>(YOURS)</span>}
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                        {deployment.fighterCount} fighters stationed
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      {deployment.isOwn ? (
+                        <button
+                          onClick={() => {
+                            const count = prompt(`Retrieve how many fighters? (max ${deployment.fighterCount})`);
+                            if (count && parseInt(count) > 0) {
+                              handleRetrieveFighters(parseInt(count));
+                            }
+                          }}
+                          className="cyberpunk-button"
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '11px',
+                            background: 'rgba(0, 255, 0, 0.2)',
+                            borderColor: 'var(--neon-green)',
+                            color: 'var(--neon-green)'
+                          }}
+                        >
+                          RETRIEVE
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleAttackDeployedFighters(deployment.id)}
+                          disabled={attackingDeployment === deployment.id}
+                          className="cyberpunk-button"
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '11px',
+                            background: 'rgba(255, 20, 147, 0.2)',
+                            borderColor: 'var(--neon-pink)',
+                            color: 'var(--neon-pink)'
+                          }}
+                        >
+                          {attackingDeployment === deployment.id ? '⟳ ...' : '⚔ ATTACK'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Deploy Fighters Button */}
+          {sector.region !== 'TerraSpace' && (player as any).shipFighters > 0 && (
+            <div style={{ marginBottom: '15px' }}>
+              {!showDeployFighters ? (
+                <button
+                  onClick={() => setShowDeployFighters(true)}
+                  className="cyberpunk-button"
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    background: 'rgba(255, 100, 0, 0.1)',
+                    borderColor: '#ff6b00',
+                    color: '#ff6b00'
+                  }}
+                >
+                  ⚔ DEPLOY FIGHTERS ({(player as any).shipFighters} on ship)
+                </button>
+              ) : (
+                <div style={{
+                  padding: '15px',
+                  background: 'rgba(255, 100, 0, 0.05)',
+                  border: '1px solid #ff6b00'
+                }}>
+                  <div style={{ color: '#ff6b00', marginBottom: '10px', fontWeight: 'bold' }}>
+                    ⚔ DEPLOY FIGHTERS
+                  </div>
+                  <div style={{ marginBottom: '10px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    Leave fighters in this sector to defend territory. Max 500 per sector.
+                  </div>
+                  <input
+                    type="number"
+                    value={deployFighterCount}
+                    onChange={(e) => setDeployFighterCount(Math.max(0, Math.min(parseInt(e.target.value) || 0, (player as any).shipFighters, 500)))}
+                    placeholder="Number of fighters..."
+                    min="1"
+                    max={Math.min((player as any).shipFighters, 500)}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      background: 'rgba(0, 0, 0, 0.5)',
+                      border: '1px solid #ff6b00',
+                      color: 'var(--text-primary)',
+                      fontSize: '14px',
+                      marginBottom: '10px'
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      onClick={handleDeployFighters}
+                      disabled={deployingFighters || deployFighterCount <= 0}
+                      className="cyberpunk-button"
+                      style={{
+                        flex: 1,
+                        padding: '10px',
+                        background: 'rgba(0, 255, 0, 0.2)',
+                        borderColor: 'var(--neon-green)',
+                        color: 'var(--neon-green)'
+                      }}
+                    >
+                      {deployingFighters ? '⟳ DEPLOYING...' : '► DEPLOY'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowDeployFighters(false);
+                        setDeployFighterCount(0);
+                      }}
+                      className="cyberpunk-button"
+                      style={{
+                        padding: '10px 20px',
+                        background: 'rgba(255, 0, 0, 0.1)',
+                        borderColor: 'var(--neon-pink)',
+                        color: 'var(--neon-pink)'
+                      }}
+                    >
+                      CANCEL
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {sector.players.length > 0 && (
             <div style={{
               padding: '15px',
@@ -672,18 +1799,54 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
               </div>
               {sector.players.map(p => (
                 <div key={p.id} style={{
-                  padding: '8px',
+                  padding: '10px',
                   background: 'rgba(0, 0, 0, 0.3)',
-                  marginBottom: '5px',
+                  marginBottom: '8px',
                   fontSize: '13px',
-                  color: 'var(--text-primary)'
+                  color: 'var(--text-primary)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
                 }}>
-                  <div style={{ color: 'var(--neon-cyan)' }}>
-                    {p.corpName}{p.id === currentPlayerId && <span style={{ color: 'var(--neon-green)', marginLeft: '8px' }}>(me)</span>}
+                  <div>
+                    <div style={{ color: 'var(--neon-cyan)' }}>
+                      {p.corpName}{p.id === currentPlayerId && <span style={{ color: 'var(--neon-green)', marginLeft: '8px' }}>(YOU)</span>}
+                    </div>
+                    <div style={{ fontSize: '11px', opacity: 0.8 }}>
+                      {p.shipType.toUpperCase()} • Pilot: {p.username} • ⚔{p.fighters}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '11px', opacity: 0.8 }}>
-                    {p.shipType.toUpperCase()} • Pilot: {p.username}
-                  </div>
+                  {p.id !== currentPlayerId && (
+                    <button
+                      onClick={() => setCombatTarget({
+                        id: p.id,
+                        corpName: p.corpName,
+                        username: p.username,
+                        shipType: p.shipType,
+                        fighters: p.fighters,
+                        shields: p.shields,
+                        alignment: p.alignment,
+                        inSafeZone: sector.region === 'TerraSpace'
+                      })}
+                      className="cyberpunk-button"
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '11px',
+                        background: sector.region === 'TerraSpace' 
+                          ? 'rgba(100, 100, 100, 0.2)' 
+                          : 'rgba(255, 20, 147, 0.2)',
+                        borderColor: sector.region === 'TerraSpace' 
+                          ? 'gray' 
+                          : 'var(--neon-pink)',
+                        color: sector.region === 'TerraSpace' 
+                          ? 'gray' 
+                          : 'var(--neon-pink)'
+                      }}
+                      title={sector.region === 'TerraSpace' ? 'Combat disabled in TerraSpace' : 'Attack this ship'}
+                    >
+                      ⚔ ATTACK
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -1076,6 +2239,520 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
             }
           }}
         />
+      )}
+
+      {/* Combat Panel */}
+      {combatTarget && (
+        <CombatPanel
+          target={combatTarget}
+          token={token}
+          currentPlayerId={currentPlayerId}
+          onClose={() => {
+            setCombatTarget(null);
+            loadSectorDetails(); // Refresh sector to see if target was destroyed
+          }}
+          onCombatComplete={(updatedPlayer) => {
+            onSectorChange(updatedPlayer);
+          }}
+        />
+      )}
+
+      {/* Scan Sector Modal */}
+      {showScanSector && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.9)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'var(--bg-primary)',
+            border: '2px solid var(--neon-yellow)',
+            padding: '30px',
+            maxWidth: '600px',
+            width: '90%',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            boxShadow: '0 0 40px rgba(255, 200, 0, 0.5)'
+          }}>
+            <div style={{
+              color: 'var(--neon-yellow)',
+              fontSize: '20px',
+              fontWeight: 'bold',
+              marginBottom: '20px',
+              textAlign: 'center',
+              textShadow: '0 0 10px var(--neon-yellow)'
+            }}>
+              🔍 SCAN ADJOINING SECTOR
+            </div>
+
+            {!scannedSector ? (
+              <>
+                <div style={{ color: 'var(--text-primary)', marginBottom: '15px' }}>
+                  Select a sector to scan (costs 1 turn):
+                </div>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
+                  gap: '10px',
+                  marginBottom: '20px'
+                }}>
+                  {sector?.warps.map(warp => (
+                    <button
+                      key={warp.destination}
+                      onClick={() => scanAdjoiningSector(warp.destination)}
+                      disabled={scanningSector || player.turnsRemaining < 1}
+                      className="cyberpunk-button"
+                      style={{
+                        padding: '12px',
+                        background: 'rgba(255, 200, 0, 0.2)',
+                        borderColor: 'var(--neon-yellow)',
+                        color: 'var(--neon-yellow)'
+                      }}
+                    >
+                      {scanningSector ? '⟳...' : `Sector ${warp.destination}`}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{
+                  background: 'rgba(255, 200, 0, 0.1)',
+                  padding: '15px',
+                  marginBottom: '15px',
+                  border: '1px solid rgba(255, 200, 0, 0.3)'
+                }}>
+                  <div style={{ color: 'var(--neon-yellow)', fontWeight: 'bold', marginBottom: '10px', fontSize: '18px' }}>
+                    Sector {scannedSector.sectorNumber} - Deep Scan Results
+                  </div>
+                  {scannedSector.name && (
+                    <div style={{ color: 'var(--text-primary)', marginBottom: '5px', fontWeight: 'bold' }}>
+                      Name: {scannedSector.name}
+                    </div>
+                  )}
+                  {scannedSector.region && (
+                    <div style={{ color: 'var(--text-primary)', marginBottom: '5px' }}>
+                      Region: {scannedSector.region}
+                    </div>
+                  )}
+                </div>
+
+                {/* Port Information */}
+                {scannedSector.portInfo && (
+                  <div style={{
+                    padding: '15px',
+                    background: scannedSector.portInfo.type === 'STARDOCK' 
+                      ? 'rgba(0, 255, 255, 0.1)' 
+                      : 'rgba(0, 255, 0, 0.1)',
+                    border: `1px solid ${scannedSector.portInfo.type === 'STARDOCK' ? 'var(--neon-cyan)' : 'var(--neon-green)'}`,
+                    marginBottom: '10px'
+                  }}>
+                    <div style={{ 
+                      color: scannedSector.portInfo.type === 'STARDOCK' ? 'var(--neon-cyan)' : 'var(--neon-green)', 
+                      fontWeight: 'bold', 
+                      marginBottom: '10px',
+                      fontSize: '16px'
+                    }}>
+                      {scannedSector.portInfo.type === 'STARDOCK' ? '🚀 STARDOCK' : `✅ TRADING PORT (${scannedSector.portInfo.type})`}
+                    </div>
+                    {scannedSector.portInfo.type !== 'STARDOCK' && (
+                      <>
+                        <div style={{ color: 'var(--text-primary)', marginBottom: '8px', fontSize: '13px' }}>
+                          <strong>Class:</strong> {scannedSector.portInfo.class}
+                        </div>
+                        <div style={{ color: 'var(--text-primary)', marginBottom: '5px', fontSize: '12px' }}>
+                          <strong>Buys:</strong> 
+                          {scannedSector.portInfo.buyFlags.fuel && ' ⛽ Fuel'}
+                          {scannedSector.portInfo.buyFlags.organics && ' 🌿 Organics'}
+                          {scannedSector.portInfo.buyFlags.equipment && ' ⚙️ Equipment'}
+                          {!scannedSector.portInfo.buyFlags.fuel && !scannedSector.portInfo.buyFlags.organics && !scannedSector.portInfo.buyFlags.equipment && ' None'}
+                        </div>
+                        <div style={{ color: 'var(--text-primary)', fontSize: '12px' }}>
+                          <strong>Sells:</strong> 
+                          {scannedSector.portInfo.sellFlags.fuel && ' ⛽ Fuel'}
+                          {scannedSector.portInfo.sellFlags.organics && ' 🌿 Organics'}
+                          {scannedSector.portInfo.sellFlags.equipment && ' ⚙️ Equipment'}
+                          {!scannedSector.portInfo.sellFlags.fuel && !scannedSector.portInfo.sellFlags.organics && !scannedSector.portInfo.sellFlags.equipment && ' None'}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Planet Information */}
+                {scannedSector.planetInfo && (
+                  <div style={{
+                    padding: '12px',
+                    background: 'rgba(138, 43, 226, 0.1)',
+                    border: '1px solid var(--neon-purple)',
+                    marginBottom: '10px',
+                    color: 'var(--neon-purple)'
+                  }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>
+                      🌍 Planet: {scannedSector.planetInfo.name}
+                    </div>
+                    {scannedSector.planetInfo.ownerName && (
+                      <div style={{ fontSize: '12px' }}>
+                        Owner: {scannedSector.planetInfo.ownerName}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Ships in Sector */}
+                {scannedSector.ships && scannedSector.ships.length > 0 && (
+                  <div style={{
+                    padding: '12px',
+                    background: 'rgba(255, 20, 147, 0.1)',
+                    border: '1px solid var(--neon-pink)',
+                    marginBottom: '10px'
+                  }}>
+                    <div style={{ color: 'var(--neon-pink)', fontWeight: 'bold', marginBottom: '8px' }}>
+                      ⚠ SHIPS DETECTED ({scannedSector.ships.length})
+                    </div>
+                    {scannedSector.ships.map((ship: any, idx: number) => (
+                      <div key={idx} style={{
+                        padding: '8px',
+                        background: 'rgba(0, 0, 0, 0.3)',
+                        marginBottom: '5px',
+                        fontSize: '12px',
+                        color: 'var(--text-primary)'
+                      }}>
+                        <div><strong>{ship.corpName}</strong> ({ship.username})</div>
+                        <div style={{ fontSize: '11px', opacity: 0.8 }}>
+                          {ship.shipType.toUpperCase()} • ⚔{ship.fighters} • 🛡{ship.shields}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Deployed Fighters */}
+                {scannedSector.deployedFighters && scannedSector.deployedFighters.length > 0 && (
+                  <div style={{
+                    padding: '12px',
+                    background: 'rgba(255, 100, 0, 0.1)',
+                    border: '1px solid #ff6b00',
+                    marginBottom: '10px'
+                  }}>
+                    <div style={{ color: '#ff6b00', fontWeight: 'bold', marginBottom: '8px' }}>
+                      ⚔ STATIONED FIGHTERS ({scannedSector.deployedFighters.reduce((sum: number, f: any) => sum + f.fighterCount, 0)} total)
+                    </div>
+                    {scannedSector.deployedFighters.map((fighter: any, idx: number) => (
+                      <div key={idx} style={{
+                        padding: '6px',
+                        background: 'rgba(0, 0, 0, 0.3)',
+                        marginBottom: '4px',
+                        fontSize: '12px',
+                        color: 'var(--text-primary)'
+                      }}>
+                        <strong>{fighter.ownerName}</strong>: {fighter.fighterCount} fighters
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Warps */}
+                {scannedSector.warps && scannedSector.warps.length > 0 && (
+                  <div style={{
+                    padding: '12px',
+                    background: 'rgba(0, 255, 255, 0.1)',
+                    border: '1px solid var(--neon-cyan)',
+                    marginBottom: '10px'
+                  }}>
+                    <div style={{ color: 'var(--neon-cyan)', fontWeight: 'bold', marginBottom: '8px' }}>
+                      🔗 WARP CONNECTIONS ({scannedSector.warps.length})
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '6px'
+                    }}>
+                      {scannedSector.warps.map((warp: number, idx: number) => (
+                        <div key={idx} style={{
+                          padding: '4px 8px',
+                          background: 'rgba(0, 0, 0, 0.3)',
+                          border: '1px solid var(--neon-cyan)',
+                          color: 'var(--neon-cyan)',
+                          fontSize: '11px'
+                        }}>
+                          Sector {warp}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Beacons */}
+                {scannedSector.beacons && scannedSector.beacons.length > 0 && (
+                  <div style={{
+                    padding: '12px',
+                    background: 'rgba(0, 200, 255, 0.1)',
+                    border: '1px solid var(--neon-cyan)',
+                    marginBottom: '10px'
+                  }}>
+                    <div style={{ color: 'var(--neon-cyan)', fontWeight: 'bold', marginBottom: '8px' }}>
+                      📡 BEACONS DETECTED ({scannedSector.beacons.length})
+                    </div>
+                    {scannedSector.beacons.map((beacon: any, idx: number) => (
+                      <div key={idx} style={{
+                        padding: '6px',
+                        background: 'rgba(0, 0, 0, 0.3)',
+                        marginBottom: '4px',
+                        fontSize: '12px',
+                        color: 'var(--text-primary)'
+                      }}>
+                        <strong>{beacon.ownerName}</strong>'s Beacon (message encrypted)
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Floating Cargo */}
+                {scannedSector.floatingCargo && scannedSector.floatingCargo.length > 0 && (
+                  <div style={{
+                    padding: '12px',
+                    background: 'rgba(255, 215, 0, 0.1)',
+                    border: '1px solid var(--neon-yellow)',
+                    marginBottom: '10px'
+                  }}>
+                    <div style={{ color: 'var(--neon-yellow)', fontWeight: 'bold', marginBottom: '8px' }}>
+                      📦 FLOATING CARGO ({scannedSector.floatingCargo.length})
+                    </div>
+                    {scannedSector.floatingCargo.map((cargo: any, idx: number) => {
+                      const total = cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists;
+                      return (
+                        <div key={idx} style={{
+                          padding: '6px',
+                          background: 'rgba(0, 0, 0, 0.3)',
+                          marginBottom: '4px',
+                          fontSize: '12px',
+                          color: 'var(--text-primary)'
+                        }}>
+                          {cargo.source === 'combat' ? '💥 Combat Wreckage' : '🚮 Jettisoned'} - {total} units
+                          {cargo.fuel > 0 && ` ⛽${cargo.fuel}`}
+                          {cargo.organics > 0 && ` 🌿${cargo.organics}`}
+                          {cargo.equipment > 0 && ` ⚙️${cargo.equipment}`}
+                          {cargo.colonists > 0 && ` 👥${cargo.colonists}`}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Sector Defenses */}
+                {(scannedSector.fightersCount > 0 || scannedSector.minesCount > 0) && (
+                  <div style={{
+                    padding: '12px',
+                    background: 'rgba(255, 20, 147, 0.1)',
+                    border: '1px solid var(--neon-pink)',
+                    marginBottom: '10px'
+                  }}>
+                    <div style={{ color: 'var(--neon-pink)', fontWeight: 'bold', marginBottom: '5px' }}>
+                      ⚠ SECTOR DEFENSES
+                    </div>
+                    {scannedSector.fightersCount > 0 && (
+                      <div style={{ fontSize: '12px', color: 'var(--text-primary)' }}>
+                        Sector Fighters: {scannedSector.fightersCount}
+                      </div>
+                    )}
+                    {scannedSector.minesCount > 0 && (
+                      <div style={{ fontSize: '12px', color: 'var(--text-primary)' }}>
+                        Mines: {scannedSector.minesCount}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Empty Sector */}
+                {!scannedSector.portInfo && !scannedSector.planetInfo && 
+                 (!scannedSector.ships || scannedSector.ships.length === 0) && 
+                 (!scannedSector.deployedFighters || scannedSector.deployedFighters.length === 0) && 
+                 (!scannedSector.beacons || scannedSector.beacons.length === 0) &&
+                 (!scannedSector.floatingCargo || scannedSector.floatingCargo.length === 0) &&
+                 scannedSector.fightersCount === 0 && scannedSector.minesCount === 0 && (
+                  <div style={{
+                    padding: '12px',
+                    background: 'rgba(100, 100, 100, 0.1)',
+                    border: '1px solid #666',
+                    marginBottom: '10px',
+                    color: '#999'
+                  }}>
+                    No significant activity detected
+                  </div>
+                )}
+              </>
+            )}
+
+            <button
+              onClick={() => {
+                setShowScanSector(false);
+                setScannedSector(null);
+              }}
+              className="cyberpunk-button"
+              style={{
+                width: '100%',
+                marginTop: '20px',
+                padding: '12px',
+                background: 'rgba(100, 100, 100, 0.2)',
+                borderColor: 'gray',
+                color: 'gray'
+              }}
+            >
+              CLOSE
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Hostile Fighters Encounter Modal */}
+      {showHostileEncounter && hostileEncounterData && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.9)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'var(--bg-primary)',
+            border: '2px solid var(--neon-pink)',
+            padding: '30px',
+            maxWidth: '500px',
+            width: '90%',
+            boxShadow: '0 0 40px rgba(255, 20, 147, 0.5)'
+          }}>
+            <div style={{
+              color: 'var(--neon-pink)',
+              fontSize: '20px',
+              fontWeight: 'bold',
+              marginBottom: '20px',
+              textAlign: 'center',
+              textShadow: '0 0 10px var(--neon-pink)'
+            }}>
+              ⚠️ HOSTILE FIGHTERS DETECTED ⚠️
+            </div>
+            
+            <div style={{
+              background: 'rgba(255, 20, 147, 0.1)',
+              padding: '15px',
+              marginBottom: '20px',
+              border: '1px solid rgba(255, 20, 147, 0.3)'
+            }}>
+              <div style={{ color: 'var(--text-primary)', marginBottom: '10px' }}>
+                You have entered a defended sector!
+              </div>
+              <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+                {hostileEncounterData.fighters.map(f => (
+                  <div key={f.id} style={{ marginBottom: '5px' }}>
+                    ⚔ <span style={{ color: '#ff6b00' }}>{f.ownerName}</span>: {f.fighterCount} fighters
+                  </div>
+                ))}
+              </div>
+              <div style={{ 
+                marginTop: '10px', 
+                color: 'var(--neon-pink)', 
+                fontWeight: 'bold',
+                fontSize: '16px'
+              }}>
+                Total: {hostileEncounterData.totalCount} hostile fighters
+              </div>
+            </div>
+
+            <div style={{
+              background: 'rgba(0, 0, 0, 0.3)',
+              padding: '15px',
+              marginBottom: '20px',
+              fontSize: '13px',
+              color: 'var(--text-secondary)'
+            }}>
+              <div style={{ marginBottom: '8px' }}>
+                <strong style={{ color: 'var(--neon-yellow)' }}>RETREAT:</strong> Escape to an adjacent sector. Risk 0-10% damage from pursuing fire.
+              </div>
+              <div>
+                <strong style={{ color: 'var(--neon-pink)' }}>ATTACK:</strong> Engage the stationed fighters in combat. Standard combat rules apply.
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '15px' }}>
+              <div style={{ color: 'var(--neon-cyan)', marginBottom: '10px', fontWeight: 'bold' }}>
+                Retreat To:
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {sector?.warps.map(warp => (
+                  <button
+                    key={warp.destination}
+                    onClick={() => handleRetreat(warp.destination)}
+                    className="cyberpunk-button"
+                    style={{
+                      padding: '10px 15px',
+                      background: 'rgba(255, 255, 0, 0.1)',
+                      borderColor: 'var(--neon-yellow)',
+                      color: 'var(--neon-yellow)'
+                    }}
+                  >
+                    ◄ Sector {warp.destination}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ color: 'var(--neon-pink)', marginBottom: '10px', fontWeight: 'bold' }}>
+                Attack:
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {hostileEncounterData.fighters.map(f => (
+                  <button
+                    key={f.id}
+                    onClick={() => handleAttackDeployedFighters(f.id)}
+                    disabled={attackingDeployment === f.id}
+                    className="cyberpunk-button"
+                    style={{
+                      padding: '12px',
+                      background: 'rgba(255, 20, 147, 0.2)',
+                      borderColor: 'var(--neon-pink)',
+                      color: 'var(--neon-pink)',
+                      textAlign: 'left'
+                    }}
+                  >
+                    {attackingDeployment === f.id ? '⟳ ATTACKING...' : `⚔ Attack ${f.ownerName}'s ${f.fighterCount} fighters`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                setShowHostileEncounter(false);
+                setHostileEncounterData(null);
+              }}
+              className="cyberpunk-button"
+              style={{
+                width: '100%',
+                marginTop: '20px',
+                padding: '12px',
+                background: 'rgba(100, 100, 100, 0.2)',
+                borderColor: 'gray',
+                color: 'gray'
+              }}
+            >
+              DISMISS (Stay in Sector)
+            </button>
+          </div>
+        </div>
       )}
 
       <style>{`

@@ -15,6 +15,10 @@ import shipLogRoutes from './routes/shipLog';
 import pathfindingRoutes from './routes/pathfinding';
 import planetRoutes from './routes/planet';
 import bankingRoutes from './routes/banking';
+import combatRoutes from './routes/combat';
+import cargoRoutes from './routes/cargo';
+import beaconRoutes from './routes/beacon';
+import sectorFighterRoutes from './routes/sectorFighters';
 import { startPortRegeneration } from './services/portService';
 
 dotenv.config();
@@ -105,16 +109,62 @@ app.use('/api/planets', planetRoutes);
 // Banking routes (StarDock banking system)
 app.use('/api/banking', bankingRoutes);
 
+// Combat routes (player vs player combat)
+app.use('/api/combat', combatRoutes);
+
+// Cargo routes (floating cargo pickup/jettison)
+app.use('/api/cargo', cargoRoutes);
+
+// Beacon routes (personal beacons with messages)
+app.use('/api/beacons', beaconRoutes);
+
+// Sector fighter routes (deploy/attack stationed fighters)
+app.use('/api/sector-fighters', sectorFighterRoutes);
+
 // WebSocket connection handling
 io.on('connection', (socket) => {
-  console.log(`Client connected: ${socket.id}`);
+  console.log(`[WS] Client connected: ${socket.id}`);
 
-  socket.on('disconnect', () => {
-    console.log(`Client disconnected: ${socket.id}`);
+  // Player joins a sector room to receive notifications
+  socket.on('join_sector', async (data: { universeId: number; sectorNumber: number; playerId: number }) => {
+    const roomName = `universe_${data.universeId}_sector_${data.sectorNumber}`;
+    
+    // Leave any previous sector rooms for this universe
+    socket.rooms.forEach(room => {
+      if (room.startsWith(`universe_${data.universeId}_sector_`)) {
+        socket.leave(room);
+      }
+    });
+    
+    // Join the new sector room
+    socket.join(roomName);
+    console.log(`[WS] Player ${data.playerId} joined ${roomName}`);
+    
+    // Store player info on socket for later use
+    (socket as any).playerData = data;
   });
 
-  // Game event handlers will be added here
+  // Player leaves sector (called before moving)
+  socket.on('leave_sector', (data: { universeId: number; sectorNumber: number }) => {
+    const roomName = `universe_${data.universeId}_sector_${data.sectorNumber}`;
+    socket.leave(roomName);
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`[WS] Client disconnected: ${socket.id}`);
+  });
 });
+
+// Export function to emit sector events from other parts of the app
+export const emitSectorEvent = (
+  universeId: number,
+  sectorNumber: number,
+  event: string,
+  data: any
+) => {
+  const roomName = `universe_${universeId}_sector_${sectorNumber}`;
+  io.to(roomName).emit(event, data);
+};
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

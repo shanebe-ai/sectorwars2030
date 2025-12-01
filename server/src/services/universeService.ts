@@ -50,7 +50,9 @@ function generatePortType(): PortType | null {
 /**
  * Generate warp connections for TerraSpace sectors
  * Creates a linear/branching path through sectors 1-10
- * Only sectors 8-10 have exits to the wider universe (sectors 11+)
+ * Only sectors 5-10 have exits to the wider universe (sectors 11+)
+ * Sectors 5-10: 1-3 warps out of TerraSpace + 2-4 warps within TerraSpace (mixed together)
+ * Sectors 1-4: Only intra-TerraSpace warps
  */
 function generateTerraSpaceWarps(
   sectorNumber: number,
@@ -61,29 +63,37 @@ function generateTerraSpaceWarps(
 ): number[] {
   const warps = new Set<number>();
 
-  // Linear progression: each sector connects to the next
-  if (sectorNumber < terraSpaceEnd) {
-    warps.add(sectorNumber + 1);
-  }
-
-  // Add branching connections within TerraSpace
-  // Sectors connect to a few others within TerraSpace for non-linear exploration
-  const branchCount = sectorNumber <= 3 ? 1 : Math.floor(Math.random() * 2) + 1; // 1-2 branches
-
-  for (let i = 0; i < branchCount; i++) {
-    const branch = Math.floor(Math.random() * (terraSpaceEnd - terraSpaceStart + 1)) + terraSpaceStart;
-    if (branch !== sectorNumber && branch !== sectorNumber + 1) {
-      warps.add(branch);
+  // Sectors 1-4: Only intra-TerraSpace warps
+  if (sectorNumber < exitSectorsStart) {
+    // Linear progression: each sector connects to the next
+    if (sectorNumber < terraSpaceEnd) {
+      warps.add(sectorNumber + 1);
     }
-  }
 
-  // Exit sectors (8-10) connect to the wider universe
-  if (sectorNumber >= exitSectorsStart && sectorNumber <= terraSpaceEnd) {
-    // Each exit sector connects to 1-2 sectors in the wider universe
-    const exitCount = Math.floor(Math.random() * 2) + 1; // 1-2 exits
-    for (let i = 0; i < exitCount; i++) {
+    // Add branching connections within TerraSpace
+    const branchCount = sectorNumber <= 2 ? 1 : Math.floor(Math.random() * 2) + 1; // 1-2 branches
+    for (let i = 0; i < branchCount; i++) {
+      const branch = Math.floor(Math.random() * (terraSpaceEnd - terraSpaceStart + 1)) + terraSpaceStart;
+      if (branch !== sectorNumber && branch !== sectorNumber + 1) {
+        warps.add(branch);
+      }
+    }
+  } else {
+    // Sectors 5-10: Mix of intra-TerraSpace and out-of-TerraSpace warps
+    // 1-3 warps out of TerraSpace
+    const outOfTerraSpaceCount = Math.floor(Math.random() * 3) + 1; // 1-3 exits
+    for (let i = 0; i < outOfTerraSpaceCount; i++) {
       const exitSector = Math.floor(Math.random() * (totalSectors - terraSpaceEnd)) + terraSpaceEnd + 1;
       warps.add(exitSector);
+    }
+
+    // 2-4 warps within TerraSpace
+    const withinTerraSpaceCount = Math.floor(Math.random() * 3) + 2; // 2-4 intra warps
+    for (let i = 0; i < withinTerraSpaceCount; i++) {
+      const terraSector = Math.floor(Math.random() * (terraSpaceEnd - terraSpaceStart + 1)) + terraSpaceStart;
+      if (terraSector !== sectorNumber) {
+        warps.add(terraSector);
+      }
     }
   }
 
@@ -168,7 +178,7 @@ export async function generateUniverse(config: UniverseConfig) {
     // TerraSpace constants (safe starting zone)
     const TERRASPACE_START = 1;
     const TERRASPACE_END = 10;
-    const TERRASPACE_EXIT_START = 8; // Sectors 8-10 have exits to the wider universe
+    const TERRASPACE_EXIT_START = 5; // Sectors 5-10 have exits to the wider universe
 
     // Calculate port count with minimum 5% enforcement
     const effectivePortPercentage = Math.max(portPercentage, 5); // Minimum 5% ports
@@ -251,13 +261,22 @@ export async function generateUniverse(config: UniverseConfig) {
     // 4. Insert warp connections in batch
     // Note: Warps are two-way, so we only insert once per connection
     // The sector controller handles bidirectional lookups
+    // IMPORTANT: Filter out invalid warps that violate TerraSpace rules
     const warpInsertPromises: Promise<any>[] = [];
 
     for (const sector of sectors) {
       const sectorId = sectorIdMap.get(sector.sectorNumber);
       if (!sectorId) continue;
 
+      const isTerraSpace1to4 = sector.sectorNumber >= TERRASPACE_START && sector.sectorNumber < TERRASPACE_EXIT_START;
+
       for (const destNumber of sector.warps) {
+        // Enforce TerraSpace rules: sectors 1-4 can only warp to TerraSpace sectors (1-10)
+        if (isTerraSpace1to4 && destNumber > TERRASPACE_END) {
+          console.warn(`Skipping invalid warp: Sector ${sector.sectorNumber} (TerraSpace 1-4) cannot warp to Sector ${destNumber} (outside TerraSpace)`);
+          continue;
+        }
+
         const destSectorId = sectorIdMap.get(destNumber);
         if (!destSectorId) continue;
 
@@ -320,10 +339,29 @@ export async function generateUniverse(config: UniverseConfig) {
       console.log(`Found ${unreachableSectors.length} unreachable sectors, connecting them...`);
 
       // For each unreachable sector, connect it to a random reachable sector
+      // BUT respect TerraSpace rules: sectors 1-4 can only connect to TerraSpace sectors
       for (const unreachableSector of unreachableSectors) {
-        // Pick a random sector from the reachable set
-        const reachableArray = Array.from(reachable);
-        const connectTo = reachableArray[Math.floor(Math.random() * reachableArray.length)];
+        const isTerraSpace1to4 = unreachableSector >= TERRASPACE_START && unreachableSector < TERRASPACE_EXIT_START;
+        
+        // Filter reachable sectors based on TerraSpace rules
+        let validReachableSectors = Array.from(reachable);
+        
+        if (isTerraSpace1to4) {
+          // Sectors 1-4 can only connect to other TerraSpace sectors (1-10)
+          validReachableSectors = validReachableSectors.filter(s => s >= TERRASPACE_START && s <= TERRASPACE_END);
+        }
+        
+        // If no valid sectors found, expand search
+        if (validReachableSectors.length === 0) {
+          // For TerraSpace 1-4, ensure we have at least TerraSpace sectors
+          if (isTerraSpace1to4) {
+            validReachableSectors = Array.from({ length: TERRASPACE_END - TERRASPACE_START + 1 }, (_, i) => i + TERRASPACE_START);
+          } else {
+            validReachableSectors = Array.from(reachable);
+          }
+        }
+        
+        const connectTo = validReachableSectors[Math.floor(Math.random() * validReachableSectors.length)];
 
         const unreachableSectorId = sectorIdMap.get(unreachableSector);
 
