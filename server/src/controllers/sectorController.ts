@@ -15,9 +15,9 @@ export const getSectorDetails = async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Get the player's universe
+    // Get the player's universe and current sector
     const playerResult = await pool.query(
-      'SELECT universe_id FROM players WHERE user_id = $1',
+      'SELECT id, universe_id, current_sector FROM players WHERE user_id = $1',
       [userId]
     );
 
@@ -25,7 +25,9 @@ export const getSectorDetails = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Player not found' });
     }
 
+    const playerId = playerResult.rows[0].id;
     const universeId = playerResult.rows[0].universe_id;
+    const currentSector = playerResult.rows[0].current_sector;
 
     // Get sector details
     const sectorResult = await pool.query(
@@ -101,6 +103,17 @@ export const getSectorDetails = async (req: Request, res: Response) => {
       fighters: p.ship_fighters,
       username: p.username
     }));
+
+    // If player is viewing their current sector, record encounters with others there
+    if (parseInt(sectorNumber as string) === currentSector) {
+      for (const otherPlayer of playersResult.rows) {
+        if (otherPlayer.id !== playerId) {
+          // Record encounters bidirectionally (fire and forget, don't block response)
+          recordEncounter(playerId, otherPlayer.id, universeId).catch(() => {});
+          recordEncounter(otherPlayer.id, playerId, universeId).catch(() => {});
+        }
+      }
+    }
 
     // Get planet data if sector has a planet
     let planets: Array<{ id: number; name: string; ownerId: number | null; ownerName: string | null }> = [];

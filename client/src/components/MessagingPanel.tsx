@@ -727,7 +727,7 @@ function ComposeForm({
             <option value="">Select a trader...</option>
             {knownTraders.map((trader: KnownTrader) => (
               <option key={trader.player_id} value={trader.player_id}>
-                {trader.player_name} ({trader.ship_type}) - Met {trader.encounter_count}x
+                {trader.player_name} ({trader.corp_name}) - {trader.ship_type}
               </option>
             ))}
           </select>

@@ -104,9 +104,15 @@ export async function sendMessage(params: SendMessageParams): Promise<Message> {
  */
 export async function getInbox(playerId: number): Promise<Message[]> {
   const result = await pool.query(
-    `SELECT m.*, p.corp_name as sender_corp_name
+    `SELECT m.*, 
+       u.username as sender_username,
+       p.corp_name as sender_corp_name,
+       c.name as sender_corporation_name
      FROM messages m
      LEFT JOIN players p ON m.sender_id = p.id
+     LEFT JOIN users u ON p.user_id = u.id
+     LEFT JOIN corp_members cm ON p.id = cm.player_id
+     LEFT JOIN corporations c ON cm.corp_id = c.id
      WHERE m.recipient_id = $1
        AND m.is_deleted_by_recipient = FALSE
        AND m.message_type = 'DIRECT'
@@ -114,21 +120,31 @@ export async function getInbox(playerId: number): Promise<Message[]> {
     [playerId]
   );
 
-  return result.rows.map(msg => ({
-    id: msg.id,
-    universe_id: msg.universe_id,
-    sender_id: msg.sender_id,
-    recipient_id: msg.recipient_id,
-    sender_name: msg.sender_corp_name || msg.sender_name || '[Deleted Player]',
-    subject: msg.subject,
-    body: msg.body,
-    message_type: msg.message_type,
-    is_read: msg.is_read,
-    is_deleted_by_sender: msg.is_deleted_by_sender,
-    is_deleted_by_recipient: msg.is_deleted_by_recipient,
-    sent_at: msg.sent_at,
-    read_at: msg.read_at
-  }));
+  return result.rows.map(msg => {
+    let sender_name: string;
+    if (msg.sender_username) {
+      // Format as "Username (CorporationName)"
+      const corpName = msg.sender_corporation_name || msg.sender_corp_name;
+      sender_name = `${msg.sender_username} (${corpName})`;
+    } else {
+      sender_name = '[Deleted Player]';
+    }
+    return {
+      id: msg.id,
+      universe_id: msg.universe_id,
+      sender_id: msg.sender_id,
+      recipient_id: msg.recipient_id,
+      sender_name,
+      subject: msg.subject,
+      body: msg.body,
+      message_type: msg.message_type,
+      is_read: msg.is_read,
+      is_deleted_by_sender: msg.is_deleted_by_sender,
+      is_deleted_by_recipient: msg.is_deleted_by_recipient,
+      sent_at: msg.sent_at,
+      read_at: msg.read_at
+    };
+  });
 }
 
 /**
@@ -189,9 +205,16 @@ export async function getBroadcasts(playerId: number): Promise<Message[]> {
  */
 export async function getSentMessages(playerId: number): Promise<Message[]> {
   const result = await pool.query(
-    `SELECT m.*, p.corp_name as recipient_corp_name, c.name as corp_name_for_corporate
+    `SELECT m.*, 
+       u.username as recipient_username,
+       p.corp_name as recipient_corp_name,
+       rc.name as recipient_corporation_name,
+       c.name as corp_name_for_corporate
      FROM messages m
      LEFT JOIN players p ON m.recipient_id = p.id
+     LEFT JOIN users u ON p.user_id = u.id
+     LEFT JOIN corp_members rcm ON p.id = rcm.player_id
+     LEFT JOIN corporations rc ON rcm.corp_id = rc.id
      LEFT JOIN corporations c ON m.corp_id = c.id
      WHERE m.sender_id = $1 AND m.is_deleted_by_sender = FALSE
      ORDER BY m.sent_at DESC`,
@@ -199,15 +222,17 @@ export async function getSentMessages(playerId: number): Promise<Message[]> {
   );
 
   return result.rows.map(msg => {
-    let recipient_name = msg.recipient_corp_name;
-    if (!recipient_name) {
-      if (msg.message_type === 'BROADCAST') {
-        recipient_name = '[Universe Broadcast]';
-      } else if (msg.message_type === 'CORPORATE') {
-        recipient_name = msg.corp_name_for_corporate || '[Corporate]';
-      } else {
-        recipient_name = '[Deleted Player]';
-      }
+    let recipient_name: string;
+    if (msg.message_type === 'BROADCAST') {
+      recipient_name = '[Universe Broadcast]';
+    } else if (msg.message_type === 'CORPORATE') {
+      recipient_name = msg.corp_name_for_corporate || '[Corporate]';
+    } else if (msg.recipient_username) {
+      // Format as "Username (CorporationName)" for direct messages
+      const corpName = msg.recipient_corporation_name || msg.recipient_corp_name;
+      recipient_name = `${msg.recipient_username} (${corpName})`;
+    } else {
+      recipient_name = '[Deleted Player]';
     }
     return {
       id: msg.id,
@@ -578,12 +603,17 @@ export async function getKnownTraders(playerId: number): Promise<KnownTrader[]> 
   const result = await pool.query(
     `SELECT
        pe.encountered_player_id as player_id,
-       p.corp_name as player_name,
+       u.username as player_name,
+       p.corp_name,
+       c.name as corporation_name,
        p.ship_type,
        pe.last_met_at,
        pe.encounter_count
      FROM player_encounters pe
      JOIN players p ON pe.encountered_player_id = p.id
+     JOIN users u ON p.user_id = u.id
+     LEFT JOIN corp_members cm ON p.id = cm.player_id
+     LEFT JOIN corporations c ON cm.corp_id = c.id
      WHERE pe.player_id = $1 AND p.is_alive = TRUE
      ORDER BY pe.last_met_at DESC`,
     [playerId]
@@ -591,8 +621,8 @@ export async function getKnownTraders(playerId: number): Promise<KnownTrader[]> 
 
   return result.rows.map(row => ({
     player_id: row.player_id,
-    player_name: row.player_name,
-    corp_name: row.player_name, // corp_name is the player identifier
+    player_name: row.player_name, // username from users table
+    corp_name: row.corporation_name || row.corp_name, // actual corporation name
     ship_type: row.ship_type,
     last_met_at: row.last_met_at,
     encounter_count: row.encounter_count

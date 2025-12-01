@@ -65,13 +65,29 @@ export async function depositCredits(req: Request, res: Response) {
       return res.status(400).json({ error: 'Invalid account type' });
     }
 
-    const result = await bankingService.depositCredits(playerId, accountType, amount);
+    // Parse amount as integer to prevent string concatenation
+    const numericAmount = parseInt(amount, 10);
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      return res.status(400).json({ error: 'Amount must be a positive number' });
+    }
+
+    const result = await bankingService.depositCredits(playerId, accountType, numericAmount);
 
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
 
-    res.json({ success: true, transaction: result.transaction });
+    // Get updated player credits to return to client
+    const updatedPlayer = await pool.query(
+      'SELECT credits FROM players WHERE id = $1',
+      [playerId]
+    );
+
+    res.json({ 
+      success: true, 
+      transaction: result.transaction,
+      player: { credits: updatedPlayer.rows[0].credits }
+    });
   } catch (error) {
     console.error('Error depositing credits:', error);
     res.status(500).json({ error: 'Failed to deposit credits' });
@@ -110,13 +126,29 @@ export async function withdrawCredits(req: Request, res: Response) {
       return res.status(400).json({ error: 'Invalid account type' });
     }
 
-    const result = await bankingService.withdrawCredits(playerId, accountType, amount);
+    // Parse amount as integer to prevent string concatenation
+    const numericAmount = parseInt(amount, 10);
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      return res.status(400).json({ error: 'Amount must be a positive number' });
+    }
+
+    const result = await bankingService.withdrawCredits(playerId, accountType, numericAmount);
 
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
 
-    res.json({ success: true, transaction: result.transaction });
+    // Get updated player credits to return to client
+    const updatedPlayer = await pool.query(
+      'SELECT credits FROM players WHERE id = $1',
+      [playerId]
+    );
+
+    res.json({ 
+      success: true, 
+      transaction: result.transaction,
+      player: { credits: updatedPlayer.rows[0].credits }
+    });
   } catch (error) {
     console.error('Error withdrawing credits:', error);
     res.status(500).json({ error: 'Failed to withdraw credits' });

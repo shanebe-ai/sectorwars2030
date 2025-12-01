@@ -1,4 +1,5 @@
 import { query, getClient } from '../db/connection';
+import { recordEncounter } from './messageService';
 
 interface CreatePlayerParams {
   userId: number;
@@ -146,6 +147,19 @@ export const createPlayer = async ({
        VALUES ($1, $2, 'founder')`,
       [corpId, newPlayer.id]
     );
+
+    // Record encounters with other players already in the starting sector
+    const otherPlayersResult = await client.query(
+      `SELECT id FROM players
+       WHERE universe_id = $1 AND current_sector = $2 AND id != $3 AND is_alive = true`,
+      [universeId, startingSector, newPlayer.id]
+    );
+
+    // Record encounters bidirectionally
+    for (const otherPlayer of otherPlayersResult.rows) {
+      await recordEncounter(newPlayer.id, otherPlayer.id, universeId);
+      await recordEncounter(otherPlayer.id, newPlayer.id, universeId);
+    }
 
     await client.query('COMMIT');
 

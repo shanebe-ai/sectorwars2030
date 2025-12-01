@@ -312,6 +312,9 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - ✅ **Fixed: StarDock fighter/shield max** - Max values now fetched from ship_types table via JOIN (not stored in players table).
 - ✅ **Fixed: StarDock FOR UPDATE error** - Split queries to avoid "FOR UPDATE cannot be applied to nullable side of outer join" PostgreSQL error.
 - ✅ **Fixed: Banking authentication error** - Banking routes were missing auth middleware and controller was using wrong request property (`req.player` vs `req.user`). All banking operations now work correctly.
+- ✅ **Fixed: Banking arithmetic bug** - PostgreSQL returns NUMERIC as strings, causing string concatenation instead of addition. Added parseInt() parsing for all balance operations.
+- ✅ **Fixed: Known Traders not showing all players** - Encounters weren't recorded when players were created in same starting sector. Added encounter recording on player creation and when viewing current sector.
+- ✅ **Fixed: Messaging display format** - Inbox, Sent, and Known Traders now show "Username (CorporationName)" format instead of just corp_name.
 
 ### 14. Port Trading System (FULLY WORKING - TW2002 FAITHFUL!)
 - **Port Service** ([server/src/services/portService.ts](server/src/services/portService.ts)) ✅
@@ -902,10 +905,28 @@ When implementing new features:
 ---
 
 **Last Updated:** 2025-12-01
-**Status:** Banking System Fixed - Ready for Combat
-**Current Session:** Banking authentication fix
+**Status:** Banking & Messaging Bugs Fixed - Ready for Combat
+**Current Session:** Banking arithmetic fix, messaging display fixes, encounter recording
 **Next Priority:** Combat System
 **Recent Changes:**
+- ✅ **Banking Arithmetic Fix (2025-12-01):**
+  - Fixed string concatenation bug in banking deposits/withdrawals/transfers
+  - PostgreSQL returns NUMERIC columns as strings, causing "10" + 1 = "101" instead of 11
+  - Added `parseInt()` parsing for all balance values in bankingService.ts
+  - Added `parseInt()` validation for amount in bankingController.ts
+  - All banking math now works correctly
+- ✅ **Messaging Display Format Fix (2025-12-01):**
+  - Known Traders dropdown now shows "Username (CorporationName) - ShipType"
+  - Inbox messages now show sender as "Username (CorporationName)"
+  - Sent messages now show recipient as "Username (CorporationName)"
+  - Updated getKnownTraders() to JOIN users and corporations tables
+  - Updated getInbox() to fetch username and corporation name
+  - Updated getSentMessages() to fetch username and corporation name
+- ✅ **Player Encounter Recording Fix (2025-12-01):**
+  - Fixed bug where players in same sector weren't showing as Known Traders
+  - Added encounter recording when new player is created in starting sector
+  - Added encounter recording when player views their current sector
+  - Encounters now recorded bidirectionally in playerService.ts and sectorController.ts
 - ✅ **Banking Authentication Fix (2025-12-01):**
   - Fixed "Cannot read properties of undefined (reading 'id')" error in banking operations
   - Banking controller was using `req.player.id` but auth middleware only sets `req.user`

@@ -149,7 +149,8 @@ export async function depositCredits(
       account = await getOrCreateCorporateAccount(corpId, universeId);
     }
 
-    const balanceBefore = account.balance;
+    // Parse balance as number (PostgreSQL returns NUMERIC as string)
+    const balanceBefore = parseInt(String(account.balance), 10) || 0;
     const balanceAfter = balanceBefore + amount;
 
     // Update player credits
@@ -234,7 +235,8 @@ export async function withdrawCredits(
       account = await getOrCreateCorporateAccount(corpId, universeId);
     }
 
-    const balanceBefore = account.balance;
+    // Parse balance as number (PostgreSQL returns NUMERIC as string)
+    const balanceBefore = parseInt(String(account.balance), 10) || 0;
 
     if (balanceBefore < amount) {
       await client.query('ROLLBACK');
@@ -314,7 +316,9 @@ export async function transferCredits(
 
     const senderAccount = await getOrCreatePersonalAccount(senderPlayerId, universeId);
 
-    if (senderAccount.balance < amount) {
+    // Parse balance as number (PostgreSQL returns NUMERIC as string)
+    const senderCurrentBalance = parseInt(String(senderAccount.balance), 10) || 0;
+    if (senderCurrentBalance < amount) {
       await client.query('ROLLBACK');
       return { success: false, error: 'Insufficient funds in your personal account' };
     }
@@ -341,11 +345,11 @@ export async function transferCredits(
 
     const recipientAccount = await getOrCreatePersonalAccount(recipientPlayerId, universeId);
 
-    // Perform the transfer
-    const senderBalanceBefore = senderAccount.balance;
+    // Perform the transfer (parse balances as numbers - PostgreSQL returns NUMERIC as string)
+    const senderBalanceBefore = parseInt(String(senderAccount.balance), 10) || 0;
     const senderBalanceAfter = senderBalanceBefore - amount;
 
-    const recipientBalanceBefore = recipientAccount.balance;
+    const recipientBalanceBefore = parseInt(String(recipientAccount.balance), 10) || 0;
     const recipientBalanceAfter = recipientBalanceBefore + amount;
 
     // Update sender account

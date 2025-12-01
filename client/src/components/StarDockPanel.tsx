@@ -159,6 +159,10 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
         setDepositAmount(0);
         loadBankingInfo();
         loadStardockInfo(); // Refresh credits
+        // Update parent component's player state with new credits
+        if (data.player) {
+          onPurchase(data.player);
+        }
       } else {
         setError(data.error || 'Failed to deposit');
       }
@@ -189,6 +193,10 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
         setWithdrawAmount(0);
         loadBankingInfo();
         loadStardockInfo(); // Refresh credits
+        // Update parent component's player state with new credits
+        if (data.player) {
+          onPurchase(data.player);
+        }
       } else {
         setError(data.error || 'Failed to withdraw');
       }
