@@ -33,6 +33,7 @@ export const getSectorDetails = async (req: Request, res: Response) => {
         s.id,
         s.sector_number,
         s.name,
+        s.region,
         s.port_type,
         s.port_fuel_qty,
         s.port_organics_qty,

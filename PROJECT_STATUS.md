@@ -311,6 +311,7 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - ✅ **Fixed: StarDock owned ship display** - Current ship now shows "YOUR SHIP" with value instead of confusing net cost calculation.
 - ✅ **Fixed: StarDock fighter/shield max** - Max values now fetched from ship_types table via JOIN (not stored in players table).
 - ✅ **Fixed: StarDock FOR UPDATE error** - Split queries to avoid "FOR UPDATE cannot be applied to nullable side of outer join" PostgreSQL error.
+- ✅ **Fixed: Banking authentication error** - Banking routes were missing auth middleware and controller was using wrong request property (`req.player` vs `req.user`). All banking operations now work correctly.
 
 ### 14. Port Trading System (FULLY WORKING - TW2002 FAITHFUL!)
 - **Port Service** ([server/src/services/portService.ts](server/src/services/portService.ts)) ✅
@@ -464,40 +465,74 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 ## Current Session Context 🎯
 
 **What We Just Did:**
-- ✅ **Planet Management System (FULLY WORKING!):**
-  - **Backend Implementation:**
-    - `planetService.ts` - Complete planet management service
-    - `planetController.ts` - API endpoints for all planet operations
-    - `planet.ts` routes registered at `/api/planets`
-    - Migration 009: Added `colonists` column to players table
-  - **Planet Features:**
-    - **Claim Planets:** Land on unclaimed planets and claim them as yours
-    - **Production System:** Set production type (fuel, organics, equipment, balanced)
-    - **Auto-Production:** Planets produce resources based on colonist population over time
-    - **Colonist Management:** Buy colonists at ports, transport to planets
-    - **Resource Transfer:** Deposit/withdraw fuel, organics, equipment from planets
-    - **Fighter Deployment:** Station fighters on planets for defense
-    - **Credits Treasury:** Store credits on planets
-    - **Citadel Defense System:** 6 levels (0-5) with escalating costs and features
-      - Level 0: No citadel (colonists only defense)
-      - Level 1: Basic Quasar Cannon (₡50,000)
-      - Level 2: Enhanced shields (₡100,000)
-      - Level 3: Atmospheric defense (₡250,000)
-      - Level 4: Transporter beam (₡500,000)
-      - Level 5: Interdictor generator (₡1,000,000)
-  - **Client UI:**
-    - `PlanetManagementPanel.tsx` - Full planet management modal
-    - Tabbed interface: Overview, Resources, Colonists, Fighters, Citadel
-    - "🚀 LAND" button on planets in SectorView
-    - Production type selector
-    - Resource deposit/withdraw forms
-    - Citadel upgrade with cost display
-  - **Colonist Trading:**
-    - Buy colonists at trading ports (₡100 each)
-    - `/api/ports/colonists` - Get colonist purchase info
-    - `/api/ports/colonists/buy` - Purchase colonists
-    - Colonists use cargo space like other commodities
-- **Previous Session:**
+- ✅ **TerraSpace Safe Zone (BACKEND COMPLETE - UI PENDING!):**
+  - **Universe Generation Changes:**
+    - Sectors 1-10 labeled as "TerraSpace" region
+    - Linear/branching warp path through TerraSpace (not fully random)
+    - Only sectors 8-10 have exits to the wider universe (11+)
+    - No ports in TerraSpace (safe training zone)
+    - No planets except Sol (Earth) in sector 1
+    - StarDock always placed in sector 5 ("StarDock TerraSpace")
+    - `region` column added to sectors table
+  - **Combat Restrictions (READY FOR COMBAT SYSTEM):**
+    - TerraSpace marked as safe zone (region = 'TerraSpace')
+    - Combat system will check sector.region before allowing attacks
+    - Database and backend ready for combat restriction logic
+  - **Files Modified:**
+    - `server/src/services/universeService.ts` - TerraSpace generation logic
+    - `server/src/controllers/sectorController.ts` - Added region field
+    - `shared/types.ts` - Added region to Sector interface
+    - `server/src/db/migrations/010_banking_system.sql` - Added region column
+
+- ✅ **StarDock Banking System (FULLY WORKING!):**
+  - **Database Schema (Migration 010):**
+    - `bank_accounts` table - Personal and corporate accounts
+    - `bank_transactions` table - Full transaction history
+    - Constraints ensure data integrity (non-negative balance, valid account ownership)
+  - **Banking Service** (`server/src/services/bankingService.ts`):
+    - `getOrCreatePersonalAccount()` - Auto-create personal bank accounts
+    - `getOrCreateCorporateAccount()` - Auto-create corporate accounts
+    - `getPlayerBankAccounts()` - Get all accounts (personal + corp)
+    - `depositCredits()` - Deposit from on-hand to bank (free)
+    - `withdrawCredits()` - Withdraw from bank to on-hand (free)
+    - `transferCredits()` - Send credits to other players (free)
+    - `getTransactionHistory()` - Full audit log with pagination
+    - `searchPlayers()` - Find players to transfer to
+  - **Banking Controller & Routes:**
+    - GET `/api/banking` - Get player's bank accounts
+    - POST `/api/banking/deposit` - Deposit credits
+    - POST `/api/banking/withdraw` - Withdraw credits
+    - POST `/api/banking/transfer` - Transfer to another player
+    - GET `/api/banking/transactions/:accountId` - Transaction history
+    - GET `/api/banking/players/search` - Search for players
+  - **Shared Types Updated:**
+    - `BankAccount`, `BankTransaction` interfaces
+    - `BankingDepositRequest`, `BankingWithdrawRequest`, `BankingTransferRequest`
+  - **Features:**
+    - Personal account: Each player gets one automatically
+    - Corporate account: Each corporation gets one automatically
+    - Any corp member can deposit, withdraw from corp account
+    - Free banking (no transaction fees)
+    - Full transaction log with memo support
+    - All players start with credits on-hand (not in bank)
+  - **Banking UI** (`client/src/components/StarDockPanel.tsx`):
+    - 💰 Banking tab added to StarDock panel
+    - Account selection (Personal/Corporate) with live balances
+    - Deposit form (On-Hand → Bank) with MAX button
+    - Withdraw form (Bank → On-Hand) with MAX button
+    - Transfer form with player search and autocomplete
+    - Recent transactions display (last 10)
+    - Color-coded transactions (green=in, pink=out)
+    - Shows memos, related players, timestamps
+  - **TerraSpace Visual Indicator** (`client/src/components/SectorView.tsx`):
+    - 🛡️ Green safe zone banner displayed in sectors 1-10
+    - Shows "TERRASPACE - SAFE ZONE" with shield icons
+    - Indicates combat disabled status
+    - Styled with green neon border and glow effect
+    - Appears at top of sector view when sector.region === 'TerraSpace'
+
+**Previous Session:**
+  - ✅ Planet Management System (FULLY WORKING!)
   - ✅ Plot Course Auto-Navigation System with smart pause
   - ✅ Universe Generation Connectivity Fix (BFS verification)
   - ✅ Ship Log unread alerts and sorting
@@ -508,7 +543,8 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - Admin: http://localhost:5174 (or http://37.27.80.77:5174)
 
 **Ready For:**
-- Combat system implementation
+- **TESTING NOW:** TerraSpace generation, visual indicators, and Banking system ready for testing
+- Combat system implementation (with TerraSpace combat restrictions)
 - Aliens with alien planets and ships
 - Port creation system
 
@@ -865,11 +901,17 @@ When implementing new features:
 
 ---
 
-**Last Updated:** 2025-11-29
-**Status:** Economy Balanced - Ready for Combat
-**Current Session:** Economy balance pass
+**Last Updated:** 2025-12-01
+**Status:** Banking System Fixed - Ready for Combat
+**Current Session:** Banking authentication fix
 **Next Priority:** Combat System
 **Recent Changes:**
+- ✅ **Banking Authentication Fix (2025-12-01):**
+  - Fixed "Cannot read properties of undefined (reading 'id')" error in banking operations
+  - Banking controller was using `req.player.id` but auth middleware only sets `req.user`
+  - Updated all banking controller functions to get player ID from `req.user.userId`
+  - Added authentication middleware to banking routes
+  - All banking operations now work: deposit, withdraw, transfer, transaction history, player search
 - ✅ **Economy Balance Pass (COMPLETE!):**
   - Planet production nerfed 10x (was OP - ₡113K/hr → ₡11K/hr with 10K colonists)
   - Fighter price doubled: ₡100 → ₡200 each

@@ -14,6 +14,7 @@ import stardockRoutes from './routes/stardock';
 import shipLogRoutes from './routes/shipLog';
 import pathfindingRoutes from './routes/pathfinding';
 import planetRoutes from './routes/planet';
+import bankingRoutes from './routes/banking';
 import { startPortRegeneration } from './services/portService';
 
 dotenv.config();
@@ -25,8 +26,12 @@ const httpServer = createServer(app);
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
+  'http://localhost:5175',
+  'http://localhost:5176',
   'http://37.27.80.77:5173',
   'http://37.27.80.77:5174',
+  'http://37.27.80.77:5175',
+  'http://37.27.80.77:5176',
 ];
 
 const io = new Server(httpServer, {
@@ -96,6 +101,9 @@ app.use('/api/pathfinding', pathfindingRoutes);
 
 // Planet routes (colonization, production)
 app.use('/api/planets', planetRoutes);
+
+// Banking routes (StarDock banking system)
+app.use('/api/banking', bankingRoutes);
 
 // WebSocket connection handling
 io.on('connection', (socket) => {

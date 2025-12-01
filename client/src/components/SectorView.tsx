@@ -404,6 +404,28 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
         ► SECTOR {sector.sectorNumber} {sector.name ? `- ${sector.name.toUpperCase()}` : ''}
       </div>
 
+      {/* TerraSpace Safe Zone Indicator */}
+      {sector.region === 'TerraSpace' && (
+        <div style={{
+          margin: '20px 20px 0 20px',
+          padding: '15px',
+          background: 'rgba(0, 255, 0, 0.15)',
+          border: '2px solid var(--neon-green)',
+          color: 'var(--neon-green)',
+          fontWeight: 'bold',
+          fontSize: '14px',
+          textAlign: 'center',
+          boxShadow: '0 0 20px rgba(0, 255, 0, 0.3)'
+        }}>
+          <div style={{ fontSize: '16px', marginBottom: '5px' }}>
+            🛡️ TERRASPACE - SAFE ZONE 🛡️
+          </div>
+          <div style={{ fontSize: '12px', opacity: 0.9 }}>
+            Combat Disabled • Training Area • Sectors 1-10
+          </div>
+        </div>
+      )}
+
       {/* Misfire Alert */}
       {misfireAlert && (
         <div style={{

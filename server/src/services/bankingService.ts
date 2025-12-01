@@ -1,0 +1,426 @@
+import { query, getClient } from '../db/connection';
+
+export interface BankAccount {
+  id: number;
+  universe_id: number;
+  account_type: 'personal' | 'corporate';
+  player_id: number | null;
+  corp_id: number | null;
+  balance: number;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface BankTransaction {
+  id: number;
+  universe_id: number;
+  account_id: number;
+  transaction_type: 'deposit' | 'withdraw' | 'transfer_in' | 'transfer_out';
+  amount: number;
+  balance_before: number;
+  balance_after: number;
+  related_account_id: number | null;
+  related_player_name: string | null;
+  related_corp_name: string | null;
+  memo: string | null;
+  created_at: Date;
+}
+
+/**
+ * Get or create a personal bank account for a player
+ */
+export async function getOrCreatePersonalAccount(playerId: number, universeId: number): Promise<BankAccount> {
+  // Try to get existing account
+  const existingAccount = await query(
+    'SELECT * FROM bank_accounts WHERE player_id = $1 AND account_type = $2',
+    [playerId, 'personal']
+  );
+
+  if (existingAccount.rows.length > 0) {
+    return existingAccount.rows[0];
+  }
+
+  // Create new account
+  const newAccount = await query(
+    `INSERT INTO bank_accounts (universe_id, account_type, player_id, balance)
+     VALUES ($1, $2, $3, $4)
+     RETURNING *`,
+    [universeId, 'personal', playerId, 0]
+  );
+
+  return newAccount.rows[0];
+}
+
+/**
+ * Get or create a corporate bank account for a corporation
+ */
+export async function getOrCreateCorporateAccount(corpId: number, universeId: number): Promise<BankAccount> {
+  // Try to get existing account
+  const existingAccount = await query(
+    'SELECT * FROM bank_accounts WHERE corp_id = $1 AND account_type = $2',
+    [corpId, 'corporate']
+  );
+
+  if (existingAccount.rows.length > 0) {
+    return existingAccount.rows[0];
+  }
+
+  // Create new account
+  const newAccount = await query(
+    `INSERT INTO bank_accounts (universe_id, account_type, corp_id, balance)
+     VALUES ($1, $2, $3, $4)
+     RETURNING *`,
+    [universeId, 'corporate', corpId, 0]
+  );
+
+  return newAccount.rows[0];
+}
+
+/**
+ * Get bank account balances for a player (personal + corporate if applicable)
+ */
+export async function getPlayerBankAccounts(playerId: number) {
+  const result = await query(
+    `SELECT ba.*, c.name as corp_name, cm.corp_id
+     FROM bank_accounts ba
+     LEFT JOIN corp_members cm ON cm.player_id = $1 AND ba.corp_id = cm.corp_id
+     LEFT JOIN corporations c ON c.id = ba.corp_id
+     WHERE ba.player_id = $1 OR ba.corp_id = cm.corp_id
+     ORDER BY ba.account_type`,
+    [playerId]
+  );
+
+  return result.rows;
+}
+
+/**
+ * Deposit credits to bank account (from player's on-hand credits)
+ */
+export async function depositCredits(
+  playerId: number,
+  accountType: 'personal' | 'corporate',
+  amount: number
+): Promise<{ success: boolean; error?: string; transaction?: BankTransaction }> {
+  if (amount <= 0) {
+    return { success: false, error: 'Amount must be greater than 0' };
+  }
+
+  const client = await getClient();
+
+  try {
+    await client.query('BEGIN');
+
+    // Get player's current credits
+    const playerResult = await client.query(
+      'SELECT credits, universe_id FROM players WHERE id = $1',
+      [playerId]
+    );
+
+    if (playerResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return { success: false, error: 'Player not found' };
+    }
+
+    const player = playerResult.rows[0];
+    const universeId = player.universe_id;
+
+    if (player.credits < amount) {
+      await client.query('ROLLBACK');
+      return { success: false, error: 'Insufficient credits' };
+    }
+
+    // Get or create the appropriate account
+    let account: BankAccount;
+    if (accountType === 'personal') {
+      account = await getOrCreatePersonalAccount(playerId, universeId);
+    } else {
+      // Get player's corporation
+      const corpResult = await client.query(
+        'SELECT corp_id FROM corp_members WHERE player_id = $1',
+        [playerId]
+      );
+
+      if (corpResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return { success: false, error: 'Player is not in a corporation' };
+      }
+
+      const corpId = corpResult.rows[0].corp_id;
+      account = await getOrCreateCorporateAccount(corpId, universeId);
+    }
+
+    const balanceBefore = account.balance;
+    const balanceAfter = balanceBefore + amount;
+
+    // Update player credits
+    await client.query(
+      'UPDATE players SET credits = credits - $1 WHERE id = $2',
+      [amount, playerId]
+    );
+
+    // Update bank account balance
+    await client.query(
+      'UPDATE bank_accounts SET balance = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [balanceAfter, account.id]
+    );
+
+    // Create transaction record
+    const transactionResult = await client.query(
+      `INSERT INTO bank_transactions (universe_id, account_id, transaction_type, amount, balance_before, balance_after)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [universeId, account.id, 'deposit', amount, balanceBefore, balanceAfter]
+    );
+
+    await client.query('COMMIT');
+
+    return { success: true, transaction: transactionResult.rows[0] };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error depositing credits:', error);
+    return { success: false, error: 'Failed to deposit credits' };
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Withdraw credits from bank account (to player's on-hand credits)
+ */
+export async function withdrawCredits(
+  playerId: number,
+  accountType: 'personal' | 'corporate',
+  amount: number
+): Promise<{ success: boolean; error?: string; transaction?: BankTransaction }> {
+  if (amount <= 0) {
+    return { success: false, error: 'Amount must be greater than 0' };
+  }
+
+  const client = await getClient();
+
+  try {
+    await client.query('BEGIN');
+
+    // Get player's universe
+    const playerResult = await client.query(
+      'SELECT universe_id FROM players WHERE id = $1',
+      [playerId]
+    );
+
+    if (playerResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return { success: false, error: 'Player not found' };
+    }
+
+    const universeId = playerResult.rows[0].universe_id;
+
+    // Get the appropriate account
+    let account: BankAccount;
+    if (accountType === 'personal') {
+      account = await getOrCreatePersonalAccount(playerId, universeId);
+    } else {
+      // Get player's corporation
+      const corpResult = await client.query(
+        'SELECT corp_id FROM corp_members WHERE player_id = $1',
+        [playerId]
+      );
+
+      if (corpResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return { success: false, error: 'Player is not in a corporation' };
+      }
+
+      const corpId = corpResult.rows[0].corp_id;
+      account = await getOrCreateCorporateAccount(corpId, universeId);
+    }
+
+    const balanceBefore = account.balance;
+
+    if (balanceBefore < amount) {
+      await client.query('ROLLBACK');
+      return { success: false, error: 'Insufficient funds in bank account' };
+    }
+
+    const balanceAfter = balanceBefore - amount;
+
+    // Update player credits
+    await client.query(
+      'UPDATE players SET credits = credits + $1 WHERE id = $2',
+      [amount, playerId]
+    );
+
+    // Update bank account balance
+    await client.query(
+      'UPDATE bank_accounts SET balance = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [balanceAfter, account.id]
+    );
+
+    // Create transaction record
+    const transactionResult = await client.query(
+      `INSERT INTO bank_transactions (universe_id, account_id, transaction_type, amount, balance_before, balance_after)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [universeId, account.id, 'withdraw', amount, balanceBefore, balanceAfter]
+    );
+
+    await client.query('COMMIT');
+
+    return { success: true, transaction: transactionResult.rows[0] };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error withdrawing credits:', error);
+    return { success: false, error: 'Failed to withdraw credits' };
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Transfer credits to another player's personal account
+ */
+export async function transferCredits(
+  senderPlayerId: number,
+  recipientPlayerId: number,
+  amount: number,
+  memo?: string
+): Promise<{ success: boolean; error?: string }> {
+  if (amount <= 0) {
+    return { success: false, error: 'Amount must be greater than 0' };
+  }
+
+  if (senderPlayerId === recipientPlayerId) {
+    return { success: false, error: 'Cannot transfer to yourself' };
+  }
+
+  const client = await getClient();
+
+  try {
+    await client.query('BEGIN');
+
+    // Get sender's personal account
+    const senderPlayerResult = await client.query(
+      'SELECT universe_id, corp_name FROM players WHERE id = $1',
+      [senderPlayerId]
+    );
+
+    if (senderPlayerResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return { success: false, error: 'Sender not found' };
+    }
+
+    const senderPlayer = senderPlayerResult.rows[0];
+    const universeId = senderPlayer.universe_id;
+    const senderName = senderPlayer.corp_name;
+
+    const senderAccount = await getOrCreatePersonalAccount(senderPlayerId, universeId);
+
+    if (senderAccount.balance < amount) {
+      await client.query('ROLLBACK');
+      return { success: false, error: 'Insufficient funds in your personal account' };
+    }
+
+    // Get recipient's personal account
+    const recipientPlayerResult = await client.query(
+      'SELECT universe_id, corp_name FROM players WHERE id = $1',
+      [recipientPlayerId]
+    );
+
+    if (recipientPlayerResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return { success: false, error: 'Recipient not found' };
+    }
+
+    const recipientPlayer = recipientPlayerResult.rows[0];
+    const recipientName = recipientPlayer.corp_name;
+
+    // Ensure they're in the same universe
+    if (senderPlayer.universe_id !== recipientPlayer.universe_id) {
+      await client.query('ROLLBACK');
+      return { success: false, error: 'Cannot transfer to players in different universes' };
+    }
+
+    const recipientAccount = await getOrCreatePersonalAccount(recipientPlayerId, universeId);
+
+    // Perform the transfer
+    const senderBalanceBefore = senderAccount.balance;
+    const senderBalanceAfter = senderBalanceBefore - amount;
+
+    const recipientBalanceBefore = recipientAccount.balance;
+    const recipientBalanceAfter = recipientBalanceBefore + amount;
+
+    // Update sender account
+    await client.query(
+      'UPDATE bank_accounts SET balance = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [senderBalanceAfter, senderAccount.id]
+    );
+
+    // Update recipient account
+    await client.query(
+      'UPDATE bank_accounts SET balance = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [recipientBalanceAfter, recipientAccount.id]
+    );
+
+    // Create sender transaction record
+    await client.query(
+      `INSERT INTO bank_transactions (universe_id, account_id, transaction_type, amount, balance_before, balance_after,
+        related_account_id, related_player_name, memo)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [universeId, senderAccount.id, 'transfer_out', amount, senderBalanceBefore, senderBalanceAfter,
+        recipientAccount.id, recipientName, memo]
+    );
+
+    // Create recipient transaction record
+    await client.query(
+      `INSERT INTO bank_transactions (universe_id, account_id, transaction_type, amount, balance_before, balance_after,
+        related_account_id, related_player_name, memo)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [universeId, recipientAccount.id, 'transfer_in', amount, recipientBalanceBefore, recipientBalanceAfter,
+        senderAccount.id, senderName, memo]
+    );
+
+    await client.query('COMMIT');
+
+    return { success: true };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error transferring credits:', error);
+    return { success: false, error: 'Failed to transfer credits' };
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Get transaction history for a bank account
+ */
+export async function getTransactionHistory(
+  accountId: number,
+  limit: number = 50,
+  offset: number = 0
+): Promise<BankTransaction[]> {
+  const result = await query(
+    `SELECT * FROM bank_transactions
+     WHERE account_id = $1
+     ORDER BY created_at DESC
+     LIMIT $2 OFFSET $3`,
+    [accountId, limit, offset]
+  );
+
+  return result.rows;
+}
+
+/**
+ * Search for players by name (for transfer feature)
+ */
+export async function searchPlayers(universeId: number, searchTerm: string): Promise<any[]> {
+  const result = await query(
+    `SELECT p.id, p.corp_name as name
+     FROM players p
+     WHERE p.universe_id = $1 AND p.corp_name ILIKE $2
+     ORDER BY p.corp_name
+     LIMIT 20`,
+    [universeId, `%${searchTerm}%`]
+  );
+
+  return result.rows;
+}

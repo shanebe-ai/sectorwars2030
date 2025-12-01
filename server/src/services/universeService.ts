@@ -48,6 +48,49 @@ function generatePortType(): PortType | null {
 }
 
 /**
+ * Generate warp connections for TerraSpace sectors
+ * Creates a linear/branching path through sectors 1-10
+ * Only sectors 8-10 have exits to the wider universe (sectors 11+)
+ */
+function generateTerraSpaceWarps(
+  sectorNumber: number,
+  terraSpaceStart: number,
+  terraSpaceEnd: number,
+  exitSectorsStart: number,
+  totalSectors: number
+): number[] {
+  const warps = new Set<number>();
+
+  // Linear progression: each sector connects to the next
+  if (sectorNumber < terraSpaceEnd) {
+    warps.add(sectorNumber + 1);
+  }
+
+  // Add branching connections within TerraSpace
+  // Sectors connect to a few others within TerraSpace for non-linear exploration
+  const branchCount = sectorNumber <= 3 ? 1 : Math.floor(Math.random() * 2) + 1; // 1-2 branches
+
+  for (let i = 0; i < branchCount; i++) {
+    const branch = Math.floor(Math.random() * (terraSpaceEnd - terraSpaceStart + 1)) + terraSpaceStart;
+    if (branch !== sectorNumber && branch !== sectorNumber + 1) {
+      warps.add(branch);
+    }
+  }
+
+  // Exit sectors (8-10) connect to the wider universe
+  if (sectorNumber >= exitSectorsStart && sectorNumber <= terraSpaceEnd) {
+    // Each exit sector connects to 1-2 sectors in the wider universe
+    const exitCount = Math.floor(Math.random() * 2) + 1; // 1-2 exits
+    for (let i = 0; i < exitCount; i++) {
+      const exitSector = Math.floor(Math.random() * (totalSectors - terraSpaceEnd)) + terraSpaceEnd + 1;
+      warps.add(exitSector);
+    }
+  }
+
+  return Array.from(warps);
+}
+
+/**
  * Generate warp connections for a sector
  * TW2002-style: Ensures strong connectivity with 1-3 outgoing warps per sector
  * After bidirectional creation, most sectors will have 2-5 total warps
@@ -121,21 +164,26 @@ export async function generateUniverse(config: UniverseConfig) {
 
     // 2. Generate sectors
     const sectors: GeneratedSector[] = [];
-    
+
+    // TerraSpace constants (safe starting zone)
+    const TERRASPACE_START = 1;
+    const TERRASPACE_END = 10;
+    const TERRASPACE_EXIT_START = 8; // Sectors 8-10 have exits to the wider universe
+
     // Calculate port count with minimum 5% enforcement
     const effectivePortPercentage = Math.max(portPercentage, 5); // Minimum 5% ports
     let portCount = Math.floor(maxSectors * (effectivePortPercentage / 100));
-    
+
     // Ensure at least 1 port for small universes
     portCount = Math.max(portCount, 1);
-    
+
     const portSectors = new Set<number>();
 
-    // Randomly select which sectors will have ports (excluding sector 1 - Sol)
+    // Randomly select which sectors will have ports (excluding TerraSpace sectors 1-10)
     while (portSectors.size < portCount) {
       const sectorNum = Math.floor(Math.random() * maxSectors) + 1;
-      // Don't put a port in Sol (sector 1) - keep it as a safe starting zone
-      if (sectorNum !== 1) {
+      // Don't put ports in TerraSpace (sectors 1-10) - keep it as a safe zone
+      if (sectorNum > TERRASPACE_END) {
         portSectors.add(sectorNum);
       }
     }
@@ -143,12 +191,16 @@ export async function generateUniverse(config: UniverseConfig) {
     // Generate all sectors with warps
     for (let i = 1; i <= maxSectors; i++) {
       const hasPort = portSectors.has(i);
+      const isInTerraSpace = i >= TERRASPACE_START && i <= TERRASPACE_END;
+
       const sector: GeneratedSector = {
         sectorNumber: i,
         name: i === 1 ? 'Sol (Earth)' : undefined,
         portType: hasPort ? generatePortType() || undefined : undefined,
         portClass: hasPort ? Math.floor(Math.random() * 3) + 1 : undefined, // Class 1-3
-        warps: generateWarps(i, maxSectors, allowDeadEnds),
+        warps: isInTerraSpace
+          ? generateTerraSpaceWarps(i, TERRASPACE_START, TERRASPACE_END, TERRASPACE_EXIT_START, maxSectors)
+          : generateWarps(i, maxSectors, allowDeadEnds),
       };
       sectors.push(sector);
     }
@@ -161,16 +213,22 @@ export async function generateUniverse(config: UniverseConfig) {
       const portOrganicsQty = sector.portType ? Math.floor(Math.random() * 10000) + 5000 : 0;
       const portEquipmentQty = sector.portType ? Math.floor(Math.random() * 10000) + 5000 : 0;
 
+      // Determine region (TerraSpace for sectors 1-10)
+      const region = sector.sectorNumber >= TERRASPACE_START && sector.sectorNumber <= TERRASPACE_END
+        ? 'TerraSpace'
+        : null;
+
       return client.query(
-        `INSERT INTO sectors (universe_id, sector_number, name, port_type, port_class,
+        `INSERT INTO sectors (universe_id, sector_number, name, region, port_type, port_class,
           port_fuel_qty, port_organics_qty, port_equipment_qty,
           port_fuel_pct, port_organics_pct, port_equipment_pct)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 100, 100, 100)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 100, 100, 100)
          RETURNING id, sector_number`,
         [
           universeId,
           sector.sectorNumber,
           sector.name,
+          region,
           sector.portType,
           sector.portClass || 1,
           portFuelQty,
@@ -317,7 +375,7 @@ export async function generateUniverse(config: UniverseConfig) {
       console.log(`Created Earth planet in Sector 1 (Sol) - owned by Terra Corp`);
     }
 
-    // 6. Generate claimable planets (~3% of sectors, excluding sector 1 and port sectors)
+    // 6. Generate claimable planets (~3% of sectors, excluding TerraSpace and port sectors)
     const planetPercentage = 3;
     const planetCount = Math.max(1, Math.floor(maxSectors * (planetPercentage / 100)));
     const planetSectors = new Set<number>();
@@ -330,11 +388,11 @@ export async function generateUniverse(config: UniverseConfig) {
     ];
     const planetSuffixes = ['Prime', 'Major', 'Minor', 'Station', 'Colony', 'Outpost', 'Haven', 'Base'];
 
-    // Select random sectors for planets (excluding sector 1 and port sectors)
+    // Select random sectors for planets (excluding TerraSpace and port sectors)
     while (planetSectors.size < planetCount) {
       const sectorNum = Math.floor(Math.random() * maxSectors) + 1;
-      // Don't place planets in Sol (sector 1) or sectors with ports
-      if (sectorNum !== 1 && !portSectors.has(sectorNum)) {
+      // Don't place planets in TerraSpace (sectors 1-10) or sectors with ports
+      if (sectorNum > TERRASPACE_END && !portSectors.has(sectorNum)) {
         planetSectors.add(sectorNum);
       }
     }
@@ -372,7 +430,10 @@ export async function generateUniverse(config: UniverseConfig) {
 
     console.log(`Created ${planetsCreated} claimable planets across the universe`);
 
-    // 7. Generate StarDocks (use provided count or calculate: 1 per 500 sectors, minimum 1 for 1000+ sector universes)
+    // 7. Generate StarDocks
+    // Always place one StarDock in TerraSpace (sector 5) for banking access
+    const TERRASPACE_STARDOCK_SECTOR = 5;
+
     let stardockCount = config.stardockCount !== undefined ? config.stardockCount : Math.floor(maxSectors / STARDOCK_SECTORS_PER_DOCK);
     if (config.stardockCount === undefined) {
       // Apply defaults only if not explicitly set
@@ -384,13 +445,16 @@ export async function generateUniverse(config: UniverseConfig) {
         stardockCount = 1;
       }
     }
-    
+
     const stardockSectors = new Set<number>();
-    
-    // Select random sectors for StarDocks (excluding sector 1, port sectors, and planet sectors)
-    while (stardockSectors.size < stardockCount) {
+
+    // Always add TerraSpace StarDock in sector 5
+    stardockSectors.add(TERRASPACE_STARDOCK_SECTOR);
+
+    // Select random sectors for additional StarDocks (excluding TerraSpace, port sectors, and planet sectors)
+    while (stardockSectors.size < stardockCount + 1) { // +1 for the TerraSpace StarDock
       const sectorNum = Math.floor(Math.random() * maxSectors) + 1;
-      if (sectorNum !== 1 && !portSectors.has(sectorNum) && !planetSectors.has(sectorNum)) {
+      if (sectorNum > TERRASPACE_END && !portSectors.has(sectorNum) && !planetSectors.has(sectorNum)) {
         stardockSectors.add(sectorNum);
       }
     }
@@ -400,10 +464,15 @@ export async function generateUniverse(config: UniverseConfig) {
     for (const sectorNum of stardockSectors) {
       const sectorId = sectorIdMap.get(sectorNum);
       if (!sectorId) continue;
-      
+
+      // Special name for TerraSpace StarDock
+      const stardockName = sectorNum === TERRASPACE_STARDOCK_SECTOR
+        ? 'StarDock TerraSpace'
+        : `StarDock Alpha-${stardocksCreated}`;
+
       // Update sector to be a StarDock
       await client.query(
-        `UPDATE sectors SET 
+        `UPDATE sectors SET
           port_type = 'STARDOCK',
           port_class = 9,
           name = $1,
@@ -414,9 +483,9 @@ export async function generateUniverse(config: UniverseConfig) {
           port_organics_pct = 100,
           port_equipment_pct = 100
         WHERE id = $2`,
-        [`StarDock Alpha-${stardocksCreated + 1}`, sectorId]
+        [stardockName, sectorId]
       );
-      
+
       stardocksCreated++;
     }
     

@@ -55,6 +55,7 @@ export interface Sector {
   universe_id: number;
   sector_number: number;
   name?: string;
+  region?: string; // e.g., 'TerraSpace' for sectors 1-10
   port_type?: PortType;
   port_fuel_qty: number;
   port_organics_qty: number;
@@ -259,4 +260,53 @@ export interface KnownTrader {
   ship_type: string;
   last_met_at: string;
   encounter_count: number;
+}
+
+// Banking types
+export type BankAccountType = 'personal' | 'corporate';
+
+export interface BankAccount {
+  id: number;
+  universe_id: number;
+  account_type: BankAccountType;
+  player_id: number | null;
+  corp_id: number | null;
+  balance: number;
+  created_at: string;
+  updated_at: string;
+  // Joined data
+  corp_name?: string;
+}
+
+export type BankTransactionType = 'deposit' | 'withdraw' | 'transfer_in' | 'transfer_out';
+
+export interface BankTransaction {
+  id: number;
+  universe_id: number;
+  account_id: number;
+  transaction_type: BankTransactionType;
+  amount: number;
+  balance_before: number;
+  balance_after: number;
+  related_account_id: number | null;
+  related_player_name: string | null;
+  related_corp_name: string | null;
+  memo: string | null;
+  created_at: string;
+}
+
+export interface BankingDepositRequest {
+  accountType: BankAccountType;
+  amount: number;
+}
+
+export interface BankingWithdrawRequest {
+  accountType: BankAccountType;
+  amount: number;
+}
+
+export interface BankingTransferRequest {
+  recipientId: number;
+  amount: number;
+  memo?: string;
 }
