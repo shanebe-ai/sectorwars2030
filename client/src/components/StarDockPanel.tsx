@@ -70,6 +70,8 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
   const [shieldQty, setShieldQty] = useState(0);
   const [beaconQty, setBeaconQty] = useState(0);
   const [beaconInfo, setBeaconInfo] = useState<{ price: number; currentCount: number; maxCapacity: number } | null>(null);
+  const [mineQty, setMineQty] = useState(0);
+  const [mineInfo, setMineInfo] = useState<{ price: number; currentCount: number; maxCapacity: number } | null>(null);
 
   // Banking state
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
@@ -85,6 +87,7 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
   useEffect(() => {
     loadStardockInfo();
     loadBeaconInfo();
+    loadMineInfo();
   }, [sectorNumber]);
 
   const loadStardockInfo = async () => {
@@ -142,6 +145,26 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
     }
   };
 
+  const loadMineInfo = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/mines/info`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setMineInfo(data);
+      } else {
+        console.error('Failed to load mine info:', data.error);
+        // Set default values if API fails
+        setMineInfo({ price: 50000, currentCount: 0, maxCapacity: 0 });
+      }
+    } catch (err) {
+      console.error('Failed to load mine info:', err);
+      // Set default values if request fails
+      setMineInfo({ price: 50000, currentCount: 0, maxCapacity: 0 });
+    }
+  };
+
   const purchaseBeacons = async () => {
     if (beaconQty <= 0) return;
     
@@ -169,6 +192,41 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
         onPurchase(data.player);
       } else {
         setError(data.error || 'Failed to purchase beacons');
+      }
+    } catch (err) {
+      setError('Network error');
+    } finally {
+      setPurchasing(false);
+    }
+  };
+
+  const purchaseMines = async () => {
+    if (mineQty <= 0) return;
+    
+    setPurchasing(true);
+    setMessage('');
+    setError('');
+    
+    try {
+      const response = await fetch(`${API_URL}/api/mines/purchase`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ quantity: mineQty })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setMessage(data.message);
+        setMineQty(0);
+        loadStardockInfo();
+        loadMineInfo();
+        onPurchase(data.player);
+      } else {
+        setError(data.error || 'Failed to purchase mines');
       }
     } catch (err) {
       setError('Network error');
@@ -943,6 +1001,112 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
                 }}>
                   Capacity: Escape Pod (1) • Scout/Trader (5) • Larger ships (15)
                 </div>
+              </div>
+            )}
+
+            {/* Mines */}
+            {mineInfo && (
+              <div style={{
+                padding: '20px',
+                background: 'rgba(0, 0, 0, 0.3)',
+                border: '1px solid rgba(255, 100, 0, 0.3)'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '15px'
+                }}>
+                  <div>
+                    <div style={{ color: '#ff6b00', fontWeight: 'bold', fontSize: '16px' }}>
+                      💣 MINES
+                    </div>
+                  <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
+                    Explosive devices that detonate when non-corp members enter sector
+                  </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ color: 'var(--neon-yellow)', fontWeight: 'bold' }}>
+                      ₡{mineInfo.price.toLocaleString()}/each
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>
+                      Current: {mineInfo.currentCount}/{mineInfo.maxCapacity}
+                    </div>
+                  </div>
+                </div>
+                {mineInfo.maxCapacity > 0 ? (
+                  <>
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      <input
+                        type="number"
+                        value={mineQty || ''}
+                        onChange={e => setMineQty(Math.max(0, Math.min(mineInfo.maxCapacity - mineInfo.currentCount, parseInt(e.target.value) || 0)))}
+                        placeholder="Quantity..."
+                        min="0"
+                        max={mineInfo.maxCapacity - mineInfo.currentCount}
+                        style={{
+                          flex: 1,
+                          padding: '10px',
+                          background: 'rgba(0, 0, 0, 0.5)',
+                          border: '1px solid #ff6b00',
+                          color: '#ff6b00',
+                          fontFamily: 'monospace'
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          const maxCanBuy = mineInfo.maxCapacity - mineInfo.currentCount;
+                          const maxAffordable = Math.floor((stardock?.player.credits || 0) / mineInfo.price);
+                          setMineQty(Math.min(maxCanBuy, maxAffordable));
+                        }}
+                        style={{
+                          padding: '10px 15px',
+                          background: 'rgba(255, 100, 0, 0.2)',
+                          border: '1px solid #ff6b00',
+                          color: '#ff6b00',
+                          cursor: 'pointer',
+                          fontFamily: 'monospace'
+                        }}
+                      >
+                        MAX
+                      </button>
+                      <button
+                        onClick={purchaseMines}
+                        disabled={purchasing || mineQty <= 0}
+                        style={{
+                          padding: '10px 20px',
+                          background: mineQty > 0 ? 'rgba(255, 100, 0, 0.2)' : 'rgba(100, 100, 100, 0.2)',
+                          border: `1px solid ${mineQty > 0 ? '#ff6b00' : '#666'}`,
+                          color: mineQty > 0 ? '#ff6b00' : '#666',
+                          cursor: mineQty > 0 ? 'pointer' : 'not-allowed',
+                          fontFamily: 'monospace',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        BUY (₡{(mineQty * mineInfo.price).toLocaleString()})
+                      </button>
+                    </div>
+                    <div style={{ 
+                      marginTop: '10px', 
+                      fontSize: '11px', 
+                      color: 'rgba(255,255,255,0.5)',
+                      fontStyle: 'italic'
+                    }}>
+                      Capacity: Scout (0) • Medium ships (2) • Large ships (5) • Max 5 per sector (8 with planet)
+                    </div>
+                  </>
+                ) : (
+                  <div style={{
+                    padding: '15px',
+                    background: 'rgba(100, 100, 100, 0.2)',
+                    border: '1px solid #666',
+                    color: '#999',
+                    fontSize: '13px',
+                    textAlign: 'center'
+                  }}>
+                    Your current ship cannot carry mines. Upgrade to a Trader or larger ship.
+                  </div>
+                )}
               </div>
             )}
           </div>

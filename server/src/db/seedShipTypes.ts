@@ -31,7 +31,7 @@ const shipTypes = [
     max_turns_warp: 2,
     fuel_efficiency: 1.2,
     cloak_capable: false,
-    mines_max: 5,
+    mines_max: 0, // Scout cannot carry mines
     genesis_max: 0,
     cost_credits: 1000,
     unlock_level: 0,
@@ -49,7 +49,7 @@ const shipTypes = [
     max_turns_warp: 2,
     fuel_efficiency: 1.0,
     cloak_capable: false,
-    mines_max: 10,
+    mines_max: 2, // Medium ships hold 2 mines
     genesis_max: 1,
     cost_credits: 10000,
     unlock_level: 1,
@@ -67,7 +67,7 @@ const shipTypes = [
     max_turns_warp: 2,
     fuel_efficiency: 0.9,
     cloak_capable: false,
-    mines_max: 20,
+    mines_max: 5, // Large ships hold 5 mines
     genesis_max: 2,
     cost_credits: 50000,
     unlock_level: 2,
@@ -85,7 +85,7 @@ const shipTypes = [
     max_turns_warp: 2,
     fuel_efficiency: 0.8,
     cloak_capable: true,
-    mines_max: 40,
+    mines_max: 5, // Large ships hold 5 mines
     genesis_max: 5,
     cost_credits: 250000,
     unlock_level: 5,
@@ -103,7 +103,7 @@ const shipTypes = [
     max_turns_warp: 2,
     fuel_efficiency: 0.7,
     cloak_capable: true,
-    mines_max: 100,
+    mines_max: 5, // Large ships hold 5 mines
     genesis_max: 10,
     cost_credits: 1000000,
     unlock_level: 10,

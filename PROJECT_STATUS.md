@@ -1072,6 +1072,11 @@ When implementing new features:
   - **Sectors 5-10:** Mixed warps - 1-3 out of TerraSpace + 2-4 within TerraSpace (total 3-7 warps)
   - **Warp Validation:** Added validation to prevent sectors 1-4 from warping outside TerraSpace
   - **Connectivity Check:** Fixed unreachable sector connection to respect TerraSpace rules
+- ✅ **UI/UX Fixes (2025-12-01):**
+  - **Deploy Fighters Button:** Removed deploy fighters button from deep scan results modal (should only appear in main sector view)
+  - **Retreat Black Screen Fix:** Fixed black screen when fleeing to a sector - now directly fetches new sector details using sector number from response instead of relying on prop updates
+  - **Fighter Destruction Messages:** Updated inbox messages when deployed fighters are destroyed to show "Playername (Corpname)" format instead of just "Corpname"
+  - **SQL Query Enhancement:** Updated fighter attack query to join with users table to fetch attacker username for proper message formatting
 **Previous Session:**
 - ✅ Ship log system with unread alerts
 - ✅ Port trading system with colonist recruitment

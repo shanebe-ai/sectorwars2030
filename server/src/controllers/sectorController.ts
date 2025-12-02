@@ -3,6 +3,7 @@ import { pool } from '../db/connection';
 import { recordEncounter } from '../services/messageService';
 import { autoLogSector } from '../services/shipLogService';
 import { emitSectorEvent } from '../index';
+import { checkMinesOnEntry } from '../services/mineService';
 
 /**
  * Get sector details including warps
@@ -717,6 +718,15 @@ export const moveToSector = async (req: Request, res: Response) => {
 
       const updatedPlayer = updateResult.rows[0];
 
+      // Check for mines in destination sector (only if not same corp)
+      let mineResult = null;
+      try {
+        mineResult = await checkMinesOnEntry(player.id, player.universe_id, actualDestination);
+      } catch (mineError) {
+        console.error('Error checking mines on entry:', mineError);
+        // Don't block movement if mine check fails
+      }
+
       // Check for beacons in destination sector and broadcast their messages
       const beaconsResult = await pool.query(
         `SELECT owner_name, message FROM sector_beacons
@@ -774,7 +784,8 @@ export const moveToSector = async (req: Request, res: Response) => {
         },
         turnCost,
         misfired,
-        misfireMessage
+        misfireMessage,
+        mineResult: mineResult || null
       });
     } catch (error) {
       await client.query('ROLLBACK');

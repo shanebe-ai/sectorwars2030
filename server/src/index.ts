@@ -19,6 +19,7 @@ import combatRoutes from './routes/combat';
 import cargoRoutes from './routes/cargo';
 import beaconRoutes from './routes/beacon';
 import sectorFighterRoutes from './routes/sectorFighters';
+import mineRoutes from './routes/mines';
 import { startPortRegeneration } from './services/portService';
 
 dotenv.config();
@@ -120,6 +121,9 @@ app.use('/api/beacons', beaconRoutes);
 
 // Sector fighter routes (deploy/attack stationed fighters)
 app.use('/api/sector-fighters', sectorFighterRoutes);
+
+// Mine routes (purchase/deploy mines)
+app.use('/api/mines', mineRoutes);
 
 // WebSocket connection handling
 io.on('connection', (socket) => {

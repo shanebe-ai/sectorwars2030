@@ -2,6 +2,7 @@ import { query, getClient } from '../db/connection';
 import { emitSectorEvent } from '../index';
 
 const MAX_FIGHTERS_PER_SECTOR = 500;
+const MAX_FIGHTERS_PER_SECTOR_WITH_PLANET = 1500; // Increased limit if corp owns planet
 
 export interface DeployedFighters {
   id: number;
@@ -86,14 +87,32 @@ export const deployFighters = async (
 
     // Check sector region (no deploying in TerraSpace)
     const sectorResult = await client.query(
-      `SELECT region FROM sectors WHERE universe_id = $1 AND sector_number = $2`,
+      `SELECT s.region, s.id as sector_id
+       FROM sectors s
+       WHERE s.universe_id = $1 AND s.sector_number = $2`,
       [player.universe_id, player.current_sector]
     );
 
-    if (sectorResult.rows.length > 0 && sectorResult.rows[0].region === 'TerraSpace') {
+    if (sectorResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return { success: false, message: 'Sector not found' };
+    }
+
+    if (sectorResult.rows[0].region === 'TerraSpace') {
       await client.query('ROLLBACK');
       return { success: false, message: 'Cannot deploy fighters in TerraSpace (safe zone)' };
     }
+
+    // Check if player's corp owns a planet in this sector
+    const planetResult = await client.query(
+      `SELECT 1 FROM planets p
+       JOIN players pl ON p.owner_id = pl.id
+       WHERE p.sector_id = $1 AND pl.corp_name = $2`,
+      [sectorResult.rows[0].sector_id, player.corp_name]
+    );
+
+    const hasPlanet = planetResult.rows.length > 0;
+    const maxFighters = hasPlanet ? MAX_FIGHTERS_PER_SECTOR_WITH_PLANET : MAX_FIGHTERS_PER_SECTOR;
 
     // Check current deployment in this sector
     const existingResult = await client.query(
@@ -108,9 +127,9 @@ export const deployFighters = async (
     }
 
     // Check max per sector
-    if (currentInSector + count > MAX_FIGHTERS_PER_SECTOR) {
+    if (currentInSector + count > maxFighters) {
       await client.query('ROLLBACK');
-      return { success: false, message: `Maximum ${MAX_FIGHTERS_PER_SECTOR} fighters per sector. You have ${currentInSector} here.` };
+      return { success: false, message: `Maximum ${maxFighters} fighters per sector${hasPlanet ? ' (planet bonus)' : ''}. You have ${currentInSector} here.` };
     }
 
     // Remove fighters from ship
@@ -294,8 +313,10 @@ export const attackSectorFighters = async (
 
     // Get attacker data
     const attackerResult = await client.query(
-      `SELECT id, universe_id, current_sector, ship_fighters, ship_shields, corp_name
-       FROM players WHERE id = $1 FOR UPDATE`,
+      `SELECT p.id, p.universe_id, p.current_sector, p.ship_fighters, p.ship_shields, p.corp_name, u.username
+       FROM players p
+       JOIN users u ON p.user_id = u.id
+       WHERE p.id = $1 FOR UPDATE`,
       [attackerId]
     );
 
@@ -414,8 +435,8 @@ export const attackSectorFighters = async (
           `Sector ${deployed.sector_number} Defense`,
           attackerWon ? 'FIGHTERS DESTROYED' : 'FIGHTERS UNDER ATTACK',
           attackerWon 
-            ? `⚠️ ALERT: Your ${initialDefenderFighters} fighters in Sector ${deployed.sector_number} were destroyed by ${attacker.corp_name}!`
-            : `⚠️ ALERT: Your fighters in Sector ${deployed.sector_number} were attacked by ${attacker.corp_name}!\n\nFighters lost: ${defenderFightersLost}\nFighters remaining: ${defenderFighters}`
+            ? `⚠️ ALERT: Your ${initialDefenderFighters} fighters in Sector ${deployed.sector_number} were destroyed by ${attacker.username} (${attacker.corp_name})!`
+            : `⚠️ ALERT: Your fighters in Sector ${deployed.sector_number} were attacked by ${attacker.username} (${attacker.corp_name})!\n\nFighters lost: ${defenderFightersLost}\nFighters remaining: ${defenderFighters}`
         ]
       );
     }

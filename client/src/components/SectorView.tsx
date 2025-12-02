@@ -164,6 +164,10 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
   const [showScanSector, setShowScanSector] = useState(false);
   const [scanningSector, setScanningSector] = useState(false);
   const [scannedSector, setScannedSector] = useState<any | null>(null);
+  const [showDeployMines, setShowDeployMines] = useState(false);
+  const [deployMineCount, setDeployMineCount] = useState(0);
+  const [deployingMines, setDeployingMines] = useState(false);
+  const [mineExplosionResult, setMineExplosionResult] = useState<{message: string, shieldsLost: number, fightersLost: number} | null>(null);
 
   useEffect(() => {
     loadSectorDetails();
@@ -336,6 +340,14 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
         } else {
           // Clear any previous misfire alert on successful warp
           setMisfireAlert(null);
+        }
+        // Check for mine explosions
+        if (data.mineResult && data.mineResult.triggered) {
+          setMineExplosionResult({
+            message: data.mineResult.message,
+            shieldsLost: data.mineResult.shieldsLost || 0,
+            fightersLost: data.mineResult.fightersLost || 0
+          });
         }
         // Update parent with new player data
         onSectorChange(data.player);
@@ -706,6 +718,46 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
     }
   };
 
+  const handleDeployMines = async () => {
+    if (deployMineCount <= 0) return;
+    
+    setDeployingMines(true);
+    setError('');
+    
+    try {
+      const response = await fetch(`${API_URL}/api/mines/deploy`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ count: deployMineCount }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccessMessage(data.message);
+        setDeployMineCount(0);
+        setShowDeployMines(false);
+        loadSectorDetails();
+        const playerResponse = await fetch(`${API_URL}/api/players/${player.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (playerResponse.ok) {
+          const playerData = await playerResponse.json();
+          onSectorChange(playerData.player);
+        }
+      } else {
+        setError(data.error || 'Failed to deploy mines');
+      }
+    } catch (err) {
+      setError('Network error');
+    } finally {
+      setDeployingMines(false);
+    }
+  };
+
   const handleAttackDeployedFighters = async (deploymentId: number) => {
     setAttackingDeployment(deploymentId);
     try {
@@ -767,13 +819,70 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
       if (response.ok) {
         setShowHostileEncounter(false);
         setHostileEncounterData(null);
-        onSectorChange(data.player);
+        
+        // Fetch full player data to ensure all fields are updated
+        let updatedPlayer;
+        try {
+          const fullPlayerResponse = await fetch(`${API_URL}/api/players/${player.id}`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+          if (fullPlayerResponse.ok) {
+            const fullPlayerData = await fullPlayerResponse.json();
+            updatedPlayer = fullPlayerData.player;
+            onSectorChange(updatedPlayer);
+          } else {
+            // Fallback to partial data if full fetch fails
+            updatedPlayer = { ...player, ...data.player };
+            onSectorChange(updatedPlayer);
+          }
+        } catch (fetchErr) {
+          // If fetch fails, use partial data
+          updatedPlayer = { ...player, ...data.player };
+          onSectorChange(updatedPlayer);
+        }
+        
         setSuccessMessage(data.message);
         setTimeout(() => setSuccessMessage(null), 8000);
+        
+        // Force reload sector details - clear current sector state first
+        setSector(null);
+        setLoading(true);
+        
+        // Use the new sector number directly from the response or updated player
+        const newSectorNumber = data.player?.currentSector || updatedPlayer?.currentSector || destinationSector;
+        
+        // Reload after a brief delay to ensure state updates, using the new sector number
+        setTimeout(async () => {
+          try {
+            const sectorResponse = await fetch(`${API_URL}/api/sectors/${newSectorNumber}`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+              },
+            });
+
+            if (sectorResponse.ok) {
+              const sectorData = await sectorResponse.json();
+              if (sectorData.sector) {
+                setSector(sectorData.sector);
+              } else {
+                setError('Invalid sector data received');
+              }
+            } else {
+              const errorData = await sectorResponse.json().catch(() => ({ error: 'Failed to load sector' }));
+              setError(errorData.error || 'Failed to load sector');
+            }
+          } catch (err: any) {
+            console.error('Sector load network error:', err);
+            setError(`Network error: ${err.message || 'Failed to connect to server'}`);
+          } finally {
+            setLoading(false);
+          }
+        }, 300);
       } else {
         setError(data.error || 'Failed to retreat');
       }
     } catch (err) {
+      console.error('Retreat error:', err);
       setError('Network error');
     }
   };
@@ -846,6 +955,20 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
   }
 
   if (!sector) return null;
+
+  // Check if player's corp owns a planet in this sector
+  const currentPlayer = sector.players.find(p => p.id === currentPlayerId);
+  const currentPlayerCorpName = currentPlayer?.corpName || '';
+  const hasPlanetOwnership = sector.planets && sector.planets.some(planet => 
+    planet.ownerName === currentPlayerCorpName
+  );
+  
+  // Get player's fighter count (from sector players list or player prop)
+  const playerFighters = currentPlayer?.fighters || (player as any).shipFighters || (player as any).fighters || 0;
+  
+  // Calculate max limits based on planet ownership
+  const maxFighters = hasPlanetOwnership ? 1500 : 500;
+  const maxMines = hasPlanetOwnership ? 8 : 5;
 
   // Port ASCII art based on type
   const getPortArt = (portType: string) => {
@@ -975,6 +1098,49 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
               background: 'transparent',
               border: 'none',
               color: 'var(--neon-pink)',
+              fontSize: '18px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* Mine Explosion Result */}
+      {mineExplosionResult && (
+        <div style={{
+          margin: '20px 20px 0 20px',
+          padding: '15px',
+          background: 'rgba(255, 100, 0, 0.2)',
+          border: '2px solid #ff6b00',
+          color: '#ff6b00',
+          fontWeight: 'bold',
+          fontSize: '14px',
+          boxShadow: '0 0 20px rgba(255, 100, 0, 0.3)',
+          position: 'relative'
+        }}>
+          <div style={{ marginBottom: '8px' }}>
+            💥 MINE EXPLOSION
+          </div>
+          <div style={{ fontSize: '13px', marginBottom: '5px' }}>
+            {mineExplosionResult.message}
+          </div>
+          {(mineExplosionResult.shieldsLost > 0 || mineExplosionResult.fightersLost > 0) && (
+            <div style={{ fontSize: '12px', opacity: 0.9 }}>
+              Damage: {mineExplosionResult.shieldsLost} shields, {mineExplosionResult.fightersLost} fighters
+            </div>
+          )}
+          <button
+            onClick={() => setMineExplosionResult(null)}
+            style={{
+              position: 'absolute',
+              top: '5px',
+              right: '10px',
+              background: 'transparent',
+              border: 'none',
+              color: '#ff6b00',
               fontSize: '18px',
               cursor: 'pointer',
               fontWeight: 'bold'
@@ -1207,7 +1373,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
             )}
 
             {/* Deploy Fighters Button */}
-            {sector.region !== 'TerraSpace' && (player as any).shipFighters > 0 && (
+            {sector.region !== 'TerraSpace' && playerFighters > 0 && (
               <>
                 {!showDeployFighters ? (
                   <button
@@ -1222,7 +1388,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                       cursor: 'pointer'
                     }}
                   >
-                    ⚔ DEPLOY FIGHTERS ({(player as any).shipFighters} on ship)
+                    ⚔ DEPLOY FIGHTERS ({playerFighters} on ship)
                   </button>
                 ) : (
                   <div style={{
@@ -1237,10 +1403,10 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                     <input
                       type="number"
                       value={deployFighterCount}
-                      onChange={(e) => setDeployFighterCount(Math.max(0, Math.min(parseInt(e.target.value) || 0, (player as any).shipFighters, 500)))}
+                      onChange={(e) => setDeployFighterCount(Math.max(0, Math.min(parseInt(e.target.value) || 0, playerFighters, maxFighters)))}
                       placeholder="Count..."
                       min="1"
-                      max={Math.min((player as any).shipFighters, 500)}
+                      max={Math.min(playerFighters, maxFighters)}
                       style={{
                         width: '100%',
                         padding: '6px',
@@ -1705,12 +1871,12 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
             </div>
           )}
 
-          {/* Deploy Fighters Button */}
-          {sector.region !== 'TerraSpace' && (player as any).shipFighters > 0 && (
+          {/* Deploy Mines Button */}
+          {sector.region !== 'TerraSpace' && (player as any).shipMines > 0 && (
             <div style={{ marginBottom: '15px' }}>
-              {!showDeployFighters ? (
+              {!showDeployMines ? (
                 <button
-                  onClick={() => setShowDeployFighters(true)}
+                  onClick={() => setShowDeployMines(true)}
                   className="cyberpunk-button"
                   style={{
                     width: '100%',
@@ -1720,7 +1886,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                     color: '#ff6b00'
                   }}
                 >
-                  ⚔ DEPLOY FIGHTERS ({(player as any).shipFighters} on ship)
+                  💣 DEPLOY MINES ({(player as any).shipMines} on ship, max {maxMines} per sector{hasPlanetOwnership ? ' (planet bonus)' : ''})
                 </button>
               ) : (
                 <div style={{
@@ -1729,18 +1895,21 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                   border: '1px solid #ff6b00'
                 }}>
                   <div style={{ color: '#ff6b00', marginBottom: '10px', fontWeight: 'bold' }}>
-                    ⚔ DEPLOY FIGHTERS
+                    💣 DEPLOY MINES
                   </div>
                   <div style={{ marginBottom: '10px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    Leave fighters in this sector to defend territory. Max 500 per sector.
+                    Deploy mines that explode when non-corp members enter. Max {maxMines} per sector total{hasPlanetOwnership ? ' (planet bonus)' : ''}.
                   </div>
                   <input
                     type="number"
-                    value={deployFighterCount}
-                    onChange={(e) => setDeployFighterCount(Math.max(0, Math.min(parseInt(e.target.value) || 0, (player as any).shipFighters, 500)))}
-                    placeholder="Number of fighters..."
+                    value={deployMineCount}
+                    onChange={(e) => {
+                      const maxMinesAllowed = Math.min((player as any).shipMines, maxMines - (sector.minesCount || 0));
+                      setDeployMineCount(Math.max(0, Math.min(parseInt(e.target.value) || 0, maxMinesAllowed)));
+                    }}
+                    placeholder="Number of mines..."
                     min="1"
-                    max={Math.min((player as any).shipFighters, 500)}
+                    max={Math.min((player as any).shipMines, maxMines - (sector.minesCount || 0))}
                     style={{
                       width: '100%',
                       padding: '10px',
@@ -1753,28 +1922,29 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                   />
                   <div style={{ display: 'flex', gap: '10px' }}>
                     <button
-                      onClick={handleDeployFighters}
-                      disabled={deployingFighters || deployFighterCount <= 0}
+                      onClick={handleDeployMines}
+                      disabled={deployingMines || deployMineCount <= 0}
                       className="cyberpunk-button"
                       style={{
                         flex: 1,
                         padding: '10px',
-                        background: 'rgba(0, 255, 0, 0.2)',
-                        borderColor: 'var(--neon-green)',
-                        color: 'var(--neon-green)'
+                        background: deployMineCount > 0 ? 'rgba(0, 255, 0, 0.2)' : 'rgba(100, 100, 100, 0.2)',
+                        borderColor: deployMineCount > 0 ? 'var(--neon-green)' : '#666',
+                        color: deployMineCount > 0 ? 'var(--neon-green)' : '#666',
+                        cursor: deployMineCount > 0 ? 'pointer' : 'not-allowed'
                       }}
                     >
-                      {deployingFighters ? '⟳ DEPLOYING...' : '► DEPLOY'}
+                      DEPLOY
                     </button>
                     <button
                       onClick={() => {
-                        setShowDeployFighters(false);
-                        setDeployFighterCount(0);
+                        setShowDeployMines(false);
+                        setDeployMineCount(0);
                       }}
                       className="cyberpunk-button"
                       style={{
-                        padding: '10px 20px',
-                        background: 'rgba(255, 0, 0, 0.1)',
+                        padding: '10px 15px',
+                        background: 'rgba(255, 0, 0, 0.2)',
                         borderColor: 'var(--neon-pink)',
                         color: 'var(--neon-pink)'
                       }}
