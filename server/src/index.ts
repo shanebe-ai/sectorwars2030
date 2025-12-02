@@ -21,6 +21,7 @@ import beaconRoutes from './routes/beacon';
 import sectorFighterRoutes from './routes/sectorFighters';
 import mineRoutes from './routes/mines';
 import { startPortRegeneration } from './services/portService';
+import { startFighterMaintenance } from './services/maintenanceService';
 
 dotenv.config();
 
@@ -203,6 +204,9 @@ httpServer.listen(PORT, () => {
   
   // Start port stock regeneration (every 30 minutes)
   startPortRegeneration(30 * 60 * 1000);
+  
+  // Start fighter maintenance charging (daily - 24 hours)
+  startFighterMaintenance(24 * 60 * 60 * 1000);
 });
 
 // Graceful shutdown

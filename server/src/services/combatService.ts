@@ -82,9 +82,11 @@ interface PlayerCombatStats {
   deaths: number;
 }
 
-const COMBAT_TURN_COST = 3;
+const COMBAT_TURN_COST = 1; // Reduced from 3 to make PvP more profitable
 const TERRASPACE_MAX_SECTOR = 10;
-const LOOT_PERCENTAGE = 0.5; // 50% of victim's credits/cargo
+const LOOT_PERCENTAGE = 0.75; // Increased from 50% to 75% to make PvP profitable
+const DEATH_PENALTY_PERCENTAGE = 0.25; // 25% of credits lost on death (reduced from 50%)
+const BANK_DEATH_PENALTY_PERCENTAGE = 0.25; // 25% of bank balance lost on death
 
 /**
  * Check if a player can attack another player
@@ -381,6 +383,27 @@ export const executeAttack = async (
       }
 
       // Handle defender death - escape pod warps to adjacent sector
+      // Apply death penalty: 25% of remaining credits (after loot) + 25% of bank balance
+      const defenderCreditsAfterLoot = Math.max(0, defender.credits - combatResult.creditsLooted);
+      const creditsDeathPenalty = Math.floor(defenderCreditsAfterLoot * DEATH_PENALTY_PERCENTAGE);
+      
+      // Get defender's bank balance and apply penalty
+      const bankResult = await client.query(
+        `SELECT balance FROM bank_accounts WHERE player_id = $1 AND account_type = 'personal'`,
+        [defenderId]
+      );
+      let bankPenalty = 0;
+      if (bankResult.rows.length > 0) {
+        const bankBalance = parseInt(String(bankResult.rows[0].balance), 10) || 0;
+        bankPenalty = Math.floor(bankBalance * BANK_DEATH_PENALTY_PERCENTAGE);
+        if (bankPenalty > 0) {
+          await client.query(
+            `UPDATE bank_accounts SET balance = balance - $1 WHERE player_id = $2 AND account_type = 'personal'`,
+            [bankPenalty, defenderId]
+          );
+        }
+      }
+      
       await client.query(
         `UPDATE players SET 
           ship_type = 'Escape Pod',
@@ -391,12 +414,12 @@ export const executeAttack = async (
           cargo_organics = 0,
           cargo_equipment = 0,
           colonists = 0,
-          credits = GREATEST(0, credits - $1),
-          current_sector = $2,
+          credits = GREATEST(0, credits - $1 - $2),
+          current_sector = $3,
           in_escape_pod = TRUE,
           deaths = deaths + 1
-         WHERE id = $3`,
-        [combatResult.creditsLooted, combatResult.defenderEscapeSector, defenderId]
+         WHERE id = $4`,
+        [combatResult.creditsLooted, creditsDeathPenalty, combatResult.defenderEscapeSector, defenderId]
       );
     }
 
@@ -444,6 +467,27 @@ export const executeAttack = async (
       }
 
       // Handle attacker death - escape pod warps to adjacent sector
+      // Apply death penalty: 25% of remaining credits (after loot) + 25% of bank balance
+      const attackerCreditsAfterLoot = Math.max(0, attacker.credits - combatResult.creditsLostByAttacker);
+      const creditsDeathPenalty = Math.floor(attackerCreditsAfterLoot * DEATH_PENALTY_PERCENTAGE);
+      
+      // Get attacker's bank balance and apply penalty
+      const bankResult = await client.query(
+        `SELECT balance FROM bank_accounts WHERE player_id = $1 AND account_type = 'personal'`,
+        [attackerId]
+      );
+      let bankPenalty = 0;
+      if (bankResult.rows.length > 0) {
+        const bankBalance = parseInt(String(bankResult.rows[0].balance), 10) || 0;
+        bankPenalty = Math.floor(bankBalance * BANK_DEATH_PENALTY_PERCENTAGE);
+        if (bankPenalty > 0) {
+          await client.query(
+            `UPDATE bank_accounts SET balance = balance - $1 WHERE player_id = $2 AND account_type = 'personal'`,
+            [bankPenalty, attackerId]
+          );
+        }
+      }
+      
       await client.query(
         `UPDATE players SET 
           ship_type = 'Escape Pod',
@@ -454,12 +498,12 @@ export const executeAttack = async (
           cargo_organics = 0,
           cargo_equipment = 0,
           colonists = 0,
-          credits = GREATEST(0, credits - $1),
-          current_sector = $2,
+          credits = GREATEST(0, credits - $1 - $2),
+          current_sector = $3,
           in_escape_pod = TRUE,
           deaths = deaths + 1
-         WHERE id = $3`,
-        [combatResult.creditsLostByAttacker, combatResult.attackerEscapeSector, attackerId]
+         WHERE id = $4`,
+        [combatResult.creditsLostByAttacker, creditsDeathPenalty, combatResult.attackerEscapeSector, attackerId]
       );
     }
 
@@ -477,7 +521,43 @@ export const executeAttack = async (
         );
       }
 
-      // Both die
+      // Both die - apply 25% death penalty to both
+      // Get bank balances for both players
+      const attackerBankResult = await client.query(
+        `SELECT balance FROM bank_accounts WHERE player_id = $1 AND account_type = 'personal'`,
+        [attackerId]
+      );
+      let attackerBankPenalty = 0;
+      if (attackerBankResult.rows.length > 0) {
+        const bankBalance = parseInt(String(attackerBankResult.rows[0].balance), 10) || 0;
+        attackerBankPenalty = Math.floor(bankBalance * BANK_DEATH_PENALTY_PERCENTAGE);
+        if (attackerBankPenalty > 0) {
+          await client.query(
+            `UPDATE bank_accounts SET balance = balance - $1 WHERE player_id = $2 AND account_type = 'personal'`,
+            [attackerBankPenalty, attackerId]
+          );
+        }
+      }
+      
+      const defenderBankResult = await client.query(
+        `SELECT balance FROM bank_accounts WHERE player_id = $1 AND account_type = 'personal'`,
+        [defenderId]
+      );
+      let defenderBankPenalty = 0;
+      if (defenderBankResult.rows.length > 0) {
+        const bankBalance = parseInt(String(defenderBankResult.rows[0].balance), 10) || 0;
+        defenderBankPenalty = Math.floor(bankBalance * BANK_DEATH_PENALTY_PERCENTAGE);
+        if (defenderBankPenalty > 0) {
+          await client.query(
+            `UPDATE bank_accounts SET balance = balance - $1 WHERE player_id = $2 AND account_type = 'personal'`,
+            [defenderBankPenalty, defenderId]
+          );
+        }
+      }
+      
+      const attackerCreditsPenalty = Math.floor(attacker.credits * DEATH_PENALTY_PERCENTAGE);
+      const defenderCreditsPenalty = Math.floor(defender.credits * DEATH_PENALTY_PERCENTAGE);
+      
       await client.query(
         `UPDATE players SET 
           ship_type = 'Escape Pod',
@@ -488,12 +568,12 @@ export const executeAttack = async (
           cargo_organics = 0,
           cargo_equipment = 0,
           colonists = 0,
-          credits = GREATEST(0, credits * 0.5),
-          current_sector = $1,
+          credits = GREATEST(0, credits - $1),
+          current_sector = $2,
           in_escape_pod = TRUE,
           deaths = deaths + 1
-         WHERE id = $2`,
-        [combatResult.attackerEscapeSector, attackerId]
+         WHERE id = $3`,
+        [attackerCreditsPenalty, combatResult.attackerEscapeSector, attackerId]
       );
 
       await client.query(
@@ -506,12 +586,12 @@ export const executeAttack = async (
           cargo_organics = 0,
           cargo_equipment = 0,
           colonists = 0,
-          credits = GREATEST(0, credits * 0.5),
-          current_sector = $1,
+          credits = GREATEST(0, credits - $1),
+          current_sector = $2,
           in_escape_pod = TRUE,
           deaths = deaths + 1
-         WHERE id = $2`,
-        [combatResult.defenderEscapeSector, defenderId]
+         WHERE id = $3`,
+        [defenderCreditsPenalty, combatResult.defenderEscapeSector, defenderId]
       );
     }
 
@@ -804,9 +884,9 @@ async function simulateCombatAsync(
   if (attackerDestroyed) {
     creditsLostByAttacker = Math.floor(attacker.credits * LOOT_PERCENTAGE);
     cargoLostByAttacker = {
-      fuel: attacker.cargo_fuel, // All cargo lost
-      organics: attacker.cargo_organics,
-      equipment: attacker.cargo_equipment
+      fuel: Math.floor(attacker.cargo_fuel * LOOT_PERCENTAGE), // 75% cargo lost (was 100%)
+      organics: Math.floor(attacker.cargo_organics * LOOT_PERCENTAGE),
+      equipment: Math.floor(attacker.cargo_equipment * LOOT_PERCENTAGE)
     };
   }
 

@@ -299,7 +299,9 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
       });
       const data = await response.json();
       if (response.ok) {
-        setMessage(`Withdrew ₡${withdrawAmount.toLocaleString()} from ${selectedAccount} account`);
+        const withdrawalFee = Math.floor(withdrawAmount * 0.05);
+        const receivedAmount = withdrawAmount - withdrawalFee;
+        setMessage(`Withdrew ₡${withdrawAmount.toLocaleString()} from ${selectedAccount} account (Fee: ₡${withdrawalFee.toLocaleString()}, Received: ₡${receivedAmount.toLocaleString()})`);
         setWithdrawAmount(0);
         loadBankingInfo();
         loadStardockInfo(); // Refresh credits
@@ -1229,6 +1231,12 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
               <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginBottom: '10px' }}>
                 {selectedAccount === 'personal' ? 'Personal' : 'Corporate'} Balance: ₡{(bankAccounts.find(a => a.account_type === selectedAccount)?.balance || 0).toLocaleString()}
               </div>
+              {withdrawAmount > 0 && (
+                <div style={{ fontSize: '11px', color: 'rgba(255, 100, 0, 0.8)', marginBottom: '10px', padding: '8px', background: 'rgba(255, 100, 0, 0.1)', border: '1px solid rgba(255, 100, 0, 0.3)' }}>
+                  ⚠️ Withdrawal Fee: ₡{Math.floor(withdrawAmount * 0.05).toLocaleString()} (5%)<br/>
+                  You will receive: ₡{(withdrawAmount - Math.floor(withdrawAmount * 0.05)).toLocaleString()}
+                </div>
+              )}
               <div style={{ display: 'flex', gap: '10px' }}>
                 <input
                   type="number"

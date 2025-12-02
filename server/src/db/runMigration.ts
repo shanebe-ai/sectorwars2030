@@ -2,36 +2,56 @@ import { pool } from './connection';
 import * as fs from 'fs';
 import * as path from 'path';
 
-async function runMigration() {
-  const migrationFile = process.argv[2];
-  
-  if (!migrationFile) {
-    console.log('Usage: npx tsx src/db/runMigration.ts <migration_file.sql>');
-    console.log('Example: npx tsx src/db/runMigration.ts src/db/migrations/add_messages_table.sql');
-    process.exit(1);
-  }
+/**
+ * Run a specific migration file
+ */
+async function runMigrationFile(migrationFile: string) {
+  const client = await pool.connect();
 
-  const filePath = path.resolve(migrationFile);
-  
-  if (!fs.existsSync(filePath)) {
-    console.error(`Migration file not found: ${filePath}`);
-    process.exit(1);
-  }
-
-  const sql = fs.readFileSync(filePath, 'utf-8');
-  
-  console.log(`Running migration: ${migrationFile}`);
-  
   try {
-    await pool.query(sql);
-    console.log('Migration completed successfully!');
+    console.log(`Running migration: ${migrationFile}`);
+    
+    const migrationPath = path.join(__dirname, 'migrations', migrationFile);
+    
+    if (!fs.existsSync(migrationPath)) {
+      throw new Error(`Migration file not found: ${migrationPath}`);
+    }
+
+    const sql = fs.readFileSync(migrationPath, 'utf-8');
+
+    await client.query('BEGIN');
+    await client.query(sql);
+    await client.query('COMMIT');
+
+    console.log(`✓ Migration ${migrationFile} completed successfully`);
   } catch (error) {
-    console.error('Migration failed:', error);
-    process.exit(1);
+    await client.query('ROLLBACK');
+    console.error(`✗ Migration ${migrationFile} failed:`, error);
+    throw error;
   } finally {
-    await pool.end();
+    client.release();
   }
 }
 
-runMigration();
+// Run migration if called directly
+if (require.main === module) {
+  const migrationFile = process.argv[2];
+  
+  if (!migrationFile) {
+    console.error('Usage: tsx src/db/runMigration.ts <migration_file.sql>');
+    process.exit(1);
+  }
+
+  runMigrationFile(migrationFile)
+    .then(() => {
+      console.log('\nMigration completed successfully!');
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error('\nMigration failed:', error);
+      process.exit(1);
+    });
+}
+
+export { runMigrationFile };
 

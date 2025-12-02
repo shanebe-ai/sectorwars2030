@@ -33,7 +33,7 @@ const shipTypes = [
     cloak_capable: false,
     mines_max: 0, // Scout cannot carry mines
     genesis_max: 0,
-    cost_credits: 1000,
+    cost_credits: 10000, // Fixed: was 1000, should be 10000 per documentation
     unlock_level: 0,
     description: 'Light trading vessel. Fast and efficient, good for beginners.',
   },
@@ -51,7 +51,7 @@ const shipTypes = [
     cloak_capable: false,
     mines_max: 2, // Medium ships hold 2 mines
     genesis_max: 1,
-    cost_credits: 10000,
+    cost_credits: 50000, // Fixed: was 10000, should be 50000 per documentation
     unlock_level: 1,
     description: 'Standard trading vessel with moderate combat capability.',
   },
@@ -105,7 +105,7 @@ const shipTypes = [
     cloak_capable: true,
     mines_max: 5, // Large ships hold 5 mines
     genesis_max: 10,
-    cost_credits: 1000000,
+    cost_credits: 500000, // Fixed: was 1000000, should be 500000 per documentation
     unlock_level: 10,
     description: 'Ultimate trading vessel. Maximum cargo and combat capability.',
   },

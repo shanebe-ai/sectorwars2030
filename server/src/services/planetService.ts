@@ -44,14 +44,26 @@ export const CITADEL_LEVELS: CitadelUpgrade[] = [
   { level: 5, name: 'Maximum Citadel', cost: 1000000, description: 'Interdictor generator', features: ['Quasar cannon', 'Enhanced shields', 'Atmospheric defense', 'Transporter beam', 'Interdictor'] },
 ];
 
-// Production rates per 1000 colonists per hour (balanced for meaningful but not OP passive income)
-// 10K colonists on equipment = ~₡11K/hour instead of ~₡113K/hour
-const PRODUCTION_RATES = {
-  fuel: { fuel: 10, organics: 2, equipment: 2 },
-  organics: { fuel: 2, organics: 10, equipment: 2 },
-  equipment: { fuel: 2, organics: 2, equipment: 10 },
-  balanced: { fuel: 5, organics: 5, equipment: 5 },
+// Production rates per 1000 colonists per hour (BUFFED 5x from original)
+// 10K colonists on equipment = ~₡55K/hour (was ~₡11K/hour)
+// Citadel bonuses: +10% production per level (max +50% at level 5)
+const BASE_PRODUCTION_RATES = {
+  fuel: { fuel: 50, organics: 10, equipment: 10 }, // 5x buff
+  organics: { fuel: 10, organics: 50, equipment: 10 },
+  equipment: { fuel: 10, organics: 10, equipment: 50 },
+  balanced: { fuel: 25, organics: 25, equipment: 25 },
 };
+
+function getProductionRates(productionType: 'fuel' | 'organics' | 'equipment' | 'balanced', citadelLevel: number) {
+  const base = BASE_PRODUCTION_RATES[productionType];
+  const citadelBonus = 1 + (citadelLevel * 0.10); // +10% per citadel level
+  
+  return {
+    fuel: Math.floor(base.fuel * citadelBonus),
+    organics: Math.floor(base.organics * citadelBonus),
+    equipment: Math.floor(base.equipment * citadelBonus)
+  };
+}
 
 // ============================================================================
 // PLANET INFO
@@ -795,7 +807,7 @@ export async function calculateAndApplyProduction(planetId: number): Promise<{
     
     // Get planet info
     const planetResult = await client.query(
-      `SELECT id, colonists, production_type, last_production, fuel, organics, equipment
+      `SELECT id, colonists, production_type, last_production, fuel, organics, equipment, citadel_level
        FROM planets WHERE id = $1 FOR UPDATE`,
       [planetId]
     );
@@ -818,8 +830,12 @@ export async function calculateAndApplyProduction(planetId: number): Promise<{
       return { success: true, produced: { fuel: 0, organics: 0, equipment: 0 } };
     }
     
-    // Calculate production based on colonists and time
-    const rates = PRODUCTION_RATES[planet.production_type as keyof typeof PRODUCTION_RATES] || PRODUCTION_RATES.balanced;
+    // Calculate production based on colonists, citadel level, and time
+    const citadelLevel = planet.citadel_level || 0;
+    const rates = getProductionRates(
+      planet.production_type as 'fuel' | 'organics' | 'equipment' | 'balanced',
+      citadelLevel
+    );
     const colonistFactor = planet.colonists / 1000; // Per 1000 colonists
     
     const fuelProduced = Math.floor(rates.fuel * colonistFactor * hoursSinceProduction);

@@ -95,6 +95,7 @@ export async function getPlayerBankAccounts(playerId: number) {
 
 /**
  * Deposit credits to bank account (from player's on-hand credits)
+ * Requires player to be at a StarDock
  */
 export async function depositCredits(
   playerId: number,
@@ -110,9 +111,12 @@ export async function depositCredits(
   try {
     await client.query('BEGIN');
 
-    // Get player's current credits
+    // Get player's current credits and location
     const playerResult = await client.query(
-      'SELECT credits, universe_id FROM players WHERE id = $1',
+      `SELECT p.credits, p.universe_id, p.current_sector, s.port_type
+       FROM players p
+       JOIN sectors s ON s.universe_id = p.universe_id AND s.sector_number = p.current_sector
+       WHERE p.id = $1`,
       [playerId]
     );
 
@@ -123,6 +127,12 @@ export async function depositCredits(
 
     const player = playerResult.rows[0];
     const universeId = player.universe_id;
+
+    // Check if player is at a StarDock
+    if (player.port_type !== 'STARDOCK') {
+      await client.query('ROLLBACK');
+      return { success: false, error: 'You must be at a StarDock to use banking services' };
+    }
 
     if (player.credits < amount) {
       await client.query('ROLLBACK');
@@ -187,6 +197,8 @@ export async function depositCredits(
 
 /**
  * Withdraw credits from bank account (to player's on-hand credits)
+ * Requires player to be at a StarDock
+ * Charges 5% withdrawal fee
  */
 export async function withdrawCredits(
   playerId: number,
@@ -202,9 +214,12 @@ export async function withdrawCredits(
   try {
     await client.query('BEGIN');
 
-    // Get player's universe
+    // Get player's universe and location
     const playerResult = await client.query(
-      'SELECT universe_id FROM players WHERE id = $1',
+      `SELECT p.universe_id, p.current_sector, s.port_type
+       FROM players p
+       JOIN sectors s ON s.universe_id = p.universe_id AND s.sector_number = p.current_sector
+       WHERE p.id = $1`,
       [playerId]
     );
 
@@ -213,16 +228,26 @@ export async function withdrawCredits(
       return { success: false, error: 'Player not found' };
     }
 
-    const universeId = playerResult.rows[0].universe_id;
+    const player = playerResult.rows[0];
+    const universeId = player.universe_id;
+
+    // Check if player is at a StarDock
+    if (player.port_type !== 'STARDOCK') {
+      await client.query('ROLLBACK');
+      return { success: false, error: 'You must be at a StarDock to use banking services' };
+    }
 
     // Get the appropriate account
     let account: BankAccount;
     if (accountType === 'personal') {
       account = await getOrCreatePersonalAccount(playerId, universeId);
     } else {
-      // Get player's corporation
+      // Get player's corporation and rank
       const corpResult = await client.query(
-        'SELECT corp_id FROM corp_members WHERE player_id = $1',
+        `SELECT cm.corp_id, cm.rank, c.founder_id
+         FROM corp_members cm
+         JOIN corporations c ON cm.corp_id = c.id
+         WHERE cm.player_id = $1`,
         [playerId]
       );
 
@@ -231,7 +256,23 @@ export async function withdrawCredits(
         return { success: false, error: 'Player is not in a corporation' };
       }
 
-      const corpId = corpResult.rows[0].corp_id;
+      const corp = corpResult.rows[0];
+      const corpId = corp.corp_id;
+      const rank = corp.rank || 'member';
+      const isFounder = corp.founder_id === playerId;
+
+      // Check withdrawal permissions: Founder = unlimited, Officer = ₡100K/day, Member = ₡10K/day
+      if (!isFounder && rank !== 'founder') {
+        if (rank === 'member' && amount > 10000) {
+          await client.query('ROLLBACK');
+          return { success: false, error: 'Members can only withdraw up to ₡10,000 per transaction from corporate accounts' };
+        }
+        if (rank === 'officer' && amount > 100000) {
+          await client.query('ROLLBACK');
+          return { success: false, error: 'Officers can only withdraw up to ₡100,000 per transaction from corporate accounts' };
+        }
+      }
+
       account = await getOrCreateCorporateAccount(corpId, universeId);
     }
 
@@ -243,12 +284,15 @@ export async function withdrawCredits(
       return { success: false, error: 'Insufficient funds in bank account' };
     }
 
+    // Calculate withdrawal fee (5%)
+    const withdrawalFee = Math.floor(amount * 0.05);
+    const amountAfterFee = amount - withdrawalFee;
     const balanceAfter = balanceBefore - amount;
 
-    // Update player credits
+    // Update player credits (receive amount minus fee)
     await client.query(
       'UPDATE players SET credits = credits + $1 WHERE id = $2',
-      [amount, playerId]
+      [amountAfterFee, playerId]
     );
 
     // Update bank account balance
@@ -257,12 +301,13 @@ export async function withdrawCredits(
       [balanceAfter, account.id]
     );
 
-    // Create transaction record
+    // Create transaction record (include fee in memo)
     const transactionResult = await client.query(
-      `INSERT INTO bank_transactions (universe_id, account_id, transaction_type, amount, balance_before, balance_after)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO bank_transactions (universe_id, account_id, transaction_type, amount, balance_before, balance_after, memo)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [universeId, account.id, 'withdraw', amount, balanceBefore, balanceAfter]
+      [universeId, account.id, 'withdraw', amount, balanceBefore, balanceAfter, 
+       withdrawalFee > 0 ? `Withdrawal fee: ₡${withdrawalFee.toLocaleString()}` : null]
     );
 
     await client.query('COMMIT');
@@ -279,6 +324,7 @@ export async function withdrawCredits(
 
 /**
  * Transfer credits to another player's personal account
+ * Requires sender to be at a StarDock
  */
 export async function transferCredits(
   senderPlayerId: number,
@@ -299,9 +345,12 @@ export async function transferCredits(
   try {
     await client.query('BEGIN');
 
-    // Get sender's personal account
+    // Get sender's personal account and location
     const senderPlayerResult = await client.query(
-      'SELECT universe_id, corp_name FROM players WHERE id = $1',
+      `SELECT p.universe_id, p.corp_name, p.current_sector, s.port_type
+       FROM players p
+       JOIN sectors s ON s.universe_id = p.universe_id AND s.sector_number = p.current_sector
+       WHERE p.id = $1`,
       [senderPlayerId]
     );
 
@@ -313,6 +362,12 @@ export async function transferCredits(
     const senderPlayer = senderPlayerResult.rows[0];
     const universeId = senderPlayer.universe_id;
     const senderName = senderPlayer.corp_name;
+
+    // Check if sender is at a StarDock
+    if (senderPlayer.port_type !== 'STARDOCK') {
+      await client.query('ROLLBACK');
+      return { success: false, error: 'You must be at a StarDock to use banking services' };
+    }
 
     const senderAccount = await getOrCreatePersonalAccount(senderPlayerId, universeId);
 

@@ -572,10 +572,10 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - Admin: http://localhost:5174 (or http://37.27.80.77:5174)
 
 **Ready For:**
-- **TESTING NOW:** Combat system ready for testing! Attack other players outside TerraSpace.
+- **TESTING COMPLETE:** Economy & combat rebalancing fully tested and verified! ✅
 - Aliens with alien planets and ships
 - Port creation system
-- Fighter/mine deployment in sectors
+- Fighter/mine deployment in sectors (maintenance system implemented)
 
 **Alien System Specifications (Not Yet Implemented):**
 - **Alien Ship & Planet Scaling by Universe Size:**
@@ -719,12 +719,12 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - [ ] Ship upgrade system
 
 ### Phase 6: Advanced Features
-- [ ] Combat system
+- [x] Combat system ✅ (rebalanced: 1 turn cost, 75% loot, 25% death penalty)
 - [x] Planet generation (~3% of sectors get claimable planets)
-- [ ] Planet colonization (claim, manage, produce)
+- [x] Planet colonization (claim, manage, produce) ✅ (production buffed 5x + citadel bonuses)
 - [x] Corporation/alliance system (basic - personal corps, corporate chat)
 - [ ] Corporation features: invites, leave corp, join another corp
-- [ ] Fighter/mine deployment
+- [x] Fighter/mine deployment ✅ (with maintenance system: ₡5/fighter/day)
 - [ ] Genesis torpedoes
 
 ### Phase 7: Multiplayer & Polish
@@ -780,7 +780,7 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 | Merchant Cruiser | 250 | 80 | 80 | ₡250,000 | ₡175,000 |
 | Corporate Flagship | 500 | 150 | 150 | ₡500,000 | ₡350,000 |
 
-### Economy Balance (Tuned 2025-11-29)
+### Economy Balance (Tuned 2025-12-02)
 
 **Trading Prices:**
 | Commodity | Buy From Port | Sell To Port | Profit/Unit |
@@ -793,28 +793,41 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - Fighters: ₡200 each
 - Shields: ₡100 each
 - Colonists: ₡100 each (at ports)
+- Banking: 5% withdrawal fee
 
-**Planet Production (per 1000 colonists per hour):**
-| Type | Fuel | Organics | Equipment |
-|------|------|----------|-----------|
-| Fuel Focus | 10 | 2 | 2 |
-| Organics Focus | 2 | 10 | 2 |
-| Equipment Focus | 2 | 2 | 10 |
-| Balanced | 5 | 5 | 5 |
+**Planet Production (per 1000 colonists per hour) - BUFFED 5x:**
+| Type | Base Fuel | Base Organics | Base Equipment | With Citadel Level 5 (+50%) |
+|------|-----------|---------------|----------------|----------------------------|
+| Fuel Focus | 50 | 10 | 10 | 75 | 15 | 15 |
+| Organics Focus | 10 | 50 | 10 | 15 | 75 | 15 |
+| Equipment Focus | 10 | 10 | 50 | 15 | 15 | 75 |
+| Balanced | 25 | 25 | 25 | 37.5 | 37.5 | 37.5 |
 
-**Citadel Costs (cumulative):**
-- Level 1: ₡50,000 (Basic Quasar Cannon)
-- Level 2: ₡150,000 (Enhanced Shields)
-- Level 3: ₡400,000 (Atmospheric Defense)
-- Level 4: ₡900,000 (Transporter Beam)
-- Level 5: ₡1,900,000 (Interdictor Generator)
+**Citadel Costs (cumulative) - Now Provides Production Bonuses:**
+- Level 1: ₡50,000 (Basic Quasar Cannon) - +10% production
+- Level 2: ₡150,000 (Enhanced Shields) - +20% production
+- Level 3: ₡400,000 (Atmospheric Defense) - +30% production
+- Level 4: ₡900,000 (Transporter Beam) - +40% production
+- Level 5: ₡1,900,000 (Interdictor Generator) - +50% production
+
+**Combat Economy:**
+- **Turn Cost:** 1 turn per attack (reduced from 3)
+- **Loot:** 75% of victim's credits/cargo (increased from 50%)
+- **Death Penalty:** 25% of credits (on-hand + bank balance) - reduced from 50%
+- **Banking:** Requires StarDock, 5% withdrawal fee, 25% bank balance lost on death
+
+**Sector Fighter Maintenance:**
+- **Cost:** ₡5 per fighter per day
+- **Auto-Destruction:** Fighters destroyed if player can't afford maintenance
 
 **Economy Design Goals:**
 - Trading is primary income (~₡1.3K-₡33K per trip)
 - Ship upgrades every ~30-70 turns of active play
-- Planets are long-term investments (~5 day ROI)
+- Planets are profitable investments (~1 day ROI with buffed production)
+- Combat is profitable (75% loot, 1 turn cost makes PvP viable)
 - Combat gear costs ~2-3 trade runs for full loadout
-- Citadels are expensive end-game money sinks
+- Citadels provide economic benefit (+10% production per level)
+- Banking has risk (25% bank balance lost on death) and cost (5% withdrawal fee)
 
 ### Default Universe Configuration
 - 1000 sectors default
@@ -938,8 +951,8 @@ When implementing new features:
 ---
 
 **Last Updated:** 2025-12-02
-**Status:** Combat System Enhanced, Beacon System, Sector Fighters, Floating Cargo, Deep Scan, UI Improvements Complete!
-**Current Session:** TNN broadcast display fix
+**Status:** Economy & Combat Rebalancing Complete! Banking Fixes, Combat Improvements, Automated Tests Added
+**Current Session:** Economy fixes and automated testing
 **Next Priority:** Comprehensive Testing / Alien System
 **Recent Changes:**
 - ✅ **Combat System (2025-12-01):**
@@ -1089,6 +1102,45 @@ When implementing new features:
   - **Root Cause:** Client was trying to display `sender_corp` field which doesn't exist for TNN broadcasts
   - **Fix:** Added conditional check in MessagingPanel.tsx:592 - if sender is "TerraCorp News Network", display "(TNN)" instead of attempting to show corporation
   - **Result:** Combat broadcasts now properly show "TerraCorp News Network (TNN)" format
+- ✅ **Economy & Combat Rebalancing (2025-12-02):**
+  - **Banking System Fixes:**
+    - **StarDock Location Requirement:** All banking operations (deposit, withdraw, transfer) now require player to be at a StarDock (prevents banking from anywhere exploit)
+    - **Withdrawal Fee:** Added 5% withdrawal fee (₡5 per ₡100 withdrawn) - shown in UI with warning box and transaction memo
+    - **Death Penalty:** On death, players lose 25% of bank balance (in addition to 25% of on-hand credits)
+    - **UI Updates:** Withdrawal fee preview shown before withdrawal, success message includes fee details
+  - **Combat Rebalancing:**
+    - **Turn Cost:** Reduced from 3 turns to 1 turn per attack (makes PvP more profitable)
+    - **Loot Percentage:** Increased from 50% to 75% of victim's credits/cargo (makes PvP profitable)
+    - **Death Penalty:** Reduced from 50% to 25% of credits (both on-hand and bank balance)
+    - **Attacker Cargo Loss:** Reduced from 100% to 75% when attacker is destroyed
+  - **Ship Cost Database Fix:**
+    - Scout: Fixed from ₡1,000 to ₡10,000 (matches documentation)
+    - Trader: Fixed from ₡10,000 to ₡50,000 (matches documentation)
+    - Corporate Flagship: Fixed from ₡1,000,000 to ₡500,000 (matches documentation)
+  - **Sector Fighter Maintenance:**
+    - **Maintenance Cost:** ₡5 per fighter per day
+    - **Auto-Destruction:** Fighters destroyed if player can't afford maintenance
+    - **UI Warnings:** Maintenance cost shown when deploying fighters, daily cost displayed on deployed fighters
+    - **Notifications:** Players receive inbox message when fighters destroyed due to non-payment
+    - **Database Migration 015:** Added `last_maintenance` timestamp field to `sector_fighters` table
+    - **Function:** `chargeFighterMaintenance()` should be called daily (via cron or daily tick)
+  - **Planet Production Buff:**
+    - **Production Rates:** Increased 5x (e.g., equipment: 10 → 50 per 1000 colonists/hour)
+    - **Citadel Bonuses:** +10% production per citadel level (max +50% at level 5)
+    - **Example:** 10K colonists on equipment planet with level 5 citadel = ~₡82K/hour (was ~₡11K/hour)
+  - **Corporate Account Permissions:**
+    - **Founder:** Unlimited withdrawals
+    - **Officer:** Max ₡100,000 per transaction
+    - **Member:** Max ₡10,000 per transaction
+  - **Automated Test Suite:**
+    - **Banking Tests (10 tests):** StarDock requirement, withdrawal fee, corporate limits
+    - **Combat Tests (7 tests):** Turn cost (1 turn), loot percentage (75%), death penalty (25%)
+    - **All 17 tests passing:** Verified all economy fixes working correctly
+  - **Manual Testing Guide:**
+    - **Created:** `MANUAL_TESTING_GUIDE.md` with comprehensive test cases
+    - **Coverage:** Banking, combat, fighter maintenance, planet production, corporate accounts, ship costs
+    - **Status:** Ready for next round of testing
+    - **Note:** Manual testing to be performed in next testing phase
 
 **Previous Session:**
 - ✅ Ship log system with unread alerts

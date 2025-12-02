@@ -3,6 +3,7 @@ import { emitSectorEvent } from '../index';
 
 const MAX_FIGHTERS_PER_SECTOR = 500;
 const MAX_FIGHTERS_PER_SECTOR_WITH_PLANET = 1500; // Increased limit if corp owns planet
+const MAINTENANCE_COST_PER_FIGHTER_PER_DAY = 5; // ₡5 per fighter per day
 
 export interface DeployedFighters {
   id: number;
@@ -141,13 +142,13 @@ export const deployFighters = async (
     // Add to sector (upsert)
     if (existingResult.rows.length > 0) {
       await client.query(
-        `UPDATE sector_fighters SET fighter_count = fighter_count + $1 WHERE id = $2`,
+        `UPDATE sector_fighters SET fighter_count = fighter_count + $1, last_maintenance = CURRENT_TIMESTAMP WHERE id = $2`,
         [count, existingResult.rows[0].id]
       );
     } else {
       await client.query(
-        `INSERT INTO sector_fighters (universe_id, sector_number, owner_id, owner_name, fighter_count)
-         VALUES ($1, $2, $3, $4, $5)`,
+        `INSERT INTO sector_fighters (universe_id, sector_number, owner_id, owner_name, fighter_count, last_maintenance)
+         VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)`,
         [player.universe_id, player.current_sector, playerId, player.corp_name, count]
       );
     }
@@ -614,6 +615,88 @@ export const retreatFromSector = async (
       newSector: destinationSector,
       died: false
     };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+/**
+ * Charge daily maintenance for deployed fighters
+ * Should be called daily (e.g., via cron job or daily tick)
+ * Charges ₡5 per fighter per day from player's credits
+ * If player can't afford maintenance, fighters are automatically retrieved (destroyed)
+ */
+export const chargeFighterMaintenance = async (): Promise<{
+  totalCharged: number;
+  fightersDestroyed: number;
+  playersAffected: number;
+}> => {
+  const client = await getClient();
+  let totalCharged = 0;
+  let fightersDestroyed = 0;
+  let playersAffected = 0;
+
+  try {
+    await client.query('BEGIN');
+
+    // Get all deployed fighters that need maintenance (older than 24 hours)
+    const fightersResult = await client.query(
+      `SELECT sf.id, sf.owner_id, sf.fighter_count, sf.universe_id, sf.sector_number,
+              p.credits, p.corp_name
+       FROM sector_fighters sf
+       JOIN players p ON sf.owner_id = p.id
+       WHERE sf.fighter_count > 0
+         AND (sf.last_maintenance IS NULL OR sf.last_maintenance < NOW() - INTERVAL '24 hours')
+       FOR UPDATE OF sf, p`
+    );
+
+    for (const fighter of fightersResult.rows) {
+      const maintenanceCost = fighter.fighter_count * MAINTENANCE_COST_PER_FIGHTER_PER_DAY;
+      const playerCredits = parseInt(String(fighter.credits), 10) || 0;
+
+      if (playerCredits >= maintenanceCost) {
+        // Player can afford maintenance - charge them
+        await client.query(
+          `UPDATE players SET credits = credits - $1 WHERE id = $2`,
+          [maintenanceCost, fighter.owner_id]
+        );
+        await client.query(
+          `UPDATE sector_fighters SET last_maintenance = CURRENT_TIMESTAMP WHERE id = $1`,
+          [fighter.id]
+        );
+        totalCharged += maintenanceCost;
+        playersAffected++;
+      } else {
+        // Player can't afford maintenance - destroy fighters
+        await client.query(
+          `DELETE FROM sector_fighters WHERE id = $1`,
+          [fighter.id]
+        );
+        fightersDestroyed += fighter.fighter_count;
+        playersAffected++;
+
+        // Notify player with detailed message
+        await client.query(
+          `INSERT INTO messages (universe_id, sender_id, recipient_id, sender_name, subject, body, message_type)
+           VALUES ($1, NULL, $2, 'Banking System', '⚠️ Fighter Maintenance Failure', $3, 'DIRECT')`,
+          [
+            fighter.universe_id,
+            fighter.owner_id,
+            `💀 MAINTENANCE FAILURE: Your ${fighter.fighter_count} fighters in Sector ${fighter.sector_number} were destroyed!\n\n` +
+            `Required: ₡${maintenanceCost.toLocaleString()} (₡5 per fighter per day)\n` +
+            `Your balance: ₡${playerCredits.toLocaleString()}\n\n` +
+            `Fighters require daily maintenance. Keep credits on-hand or in bank to avoid losing them!`
+          ]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+
+    return { totalCharged, fightersDestroyed, playersAffected };
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;

@@ -1437,6 +1437,24 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                     <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
                       Max 500 per sector
                     </div>
+                    {deployFighterCount > 0 && (
+                      <div style={{
+                        fontSize: '10px',
+                        color: 'rgba(255, 200, 0, 0.8)',
+                        marginBottom: '6px',
+                        padding: '4px',
+                        background: 'rgba(255, 200, 0, 0.1)',
+                        border: '1px solid rgba(255, 200, 0, 0.3)',
+                        borderRadius: '2px'
+                      }}>
+                        💰 Daily maintenance: ₡{deployFighterCount * 5}/day
+                        {player.credits < deployFighterCount * 5 && (
+                          <span style={{ color: 'var(--neon-pink)', marginLeft: '4px' }}>
+                            ⚠️ Insufficient funds!
+                          </span>
+                        )}
+                      </div>
+                    )}
                     <div style={{ display: 'flex', gap: '6px' }}>
                       <button
                         onClick={handleDeployFighters}
@@ -1818,6 +1836,17 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
               <div style={{ color: '#ff6b00', fontWeight: 'bold', marginBottom: '10px' }}>
                 ⚔ STATIONED FIGHTERS ({sector.deployedFighters.reduce((sum, f) => sum + f.fighterCount, 0)} total)
               </div>
+              <div style={{
+                fontSize: '10px',
+                color: 'rgba(255, 200, 0, 0.8)',
+                padding: '6px',
+                background: 'rgba(255, 200, 0, 0.1)',
+                border: '1px solid rgba(255, 200, 0, 0.3)',
+                marginBottom: '10px',
+                borderRadius: '4px'
+              }}>
+                💰 Maintenance: ₡5 per fighter per day. Insufficient funds = fighters destroyed!
+              </div>
               {sector.deployedFighters.map(deployment => (
                 <div key={deployment.id} style={{
                   padding: '12px',
@@ -1844,6 +1873,11 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                       <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
                         {deployment.fighterCount} fighters stationed
                       </div>
+                      {deployment.isOwn && (
+                        <div style={{ fontSize: '10px', color: 'rgba(255, 200, 0, 0.7)', marginTop: '4px' }}>
+                          💰 Daily cost: ₡{deployment.fighterCount * 5}/day
+                        </div>
+                      )}
                     </div>
                     <div style={{ display: 'flex', gap: '8px' }}>
                       {deployment.isOwn ? (
