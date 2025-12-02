@@ -588,7 +588,9 @@ function MessageList({ messages, loading, onOpenMessage, type, formatDateTime }:
               {' '}
               <span style={{ color: 'var(--neon-cyan)', fontWeight: 'bold' }}>{msg.sender_name || '[Unknown]'}</span>
               {' '}
-              <span style={{ color: 'var(--text-secondary)' }}>({(msg as any).sender_corp || '[Unknown Corp]'})</span>
+              <span style={{ color: 'var(--text-secondary)' }}>
+                ({msg.sender_name === 'TerraCorp News Network' ? 'TNN' : (msg as any).sender_corp || '[Unknown Corp]'})
+              </span>
               <span style={{ color: 'var(--text-primary)' }}>: {msg.body}</span>
             </div>
             <div style={{ whiteSpace: 'nowrap', marginLeft: '1rem', color: 'var(--text-secondary)', fontSize: '11px' }}>
@@ -893,27 +895,29 @@ function MessageView({ message, onReply, onDelete, onBack, previousView }: any) 
         </div>
       </div>
 
-      {message.message_type === 'DIRECT' && message.sender_id && (
+      {message.message_type === 'DIRECT' && (
         <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
-          <button
-            onClick={() => onReply(message)}
-            style={{
-              flex: 1,
-              padding: '10px',
-              background: 'var(--neon-green)',
-              color: '#000',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: 'bold'
-            }}
-          >
-            ↩ REPLY
-          </button>
+          {message.sender_id && (
+            <button
+              onClick={() => onReply(message)}
+              style={{
+                flex: 1,
+                padding: '10px',
+                background: 'var(--neon-green)',
+                color: '#000',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              ↩ REPLY
+            </button>
+          )}
           <button
             onClick={() => onDelete(message.id)}
             style={{
-              flex: 1,
+              flex: message.sender_id ? 1 : 'auto',
               padding: '10px',
               background: 'transparent',
               color: 'var(--neon-pink)',

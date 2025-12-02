@@ -17,39 +17,69 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
   const [showShipLog, setShowShipLog] = useState(false);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [unreadLogCount, setUnreadLogCount] = useState(0);
+  const [loginNotification, setLoginNotification] = useState<any>(null);
+
+  // Fetch unread message and log counts
+  const fetchUnreadCounts = async () => {
+    try {
+      const [messagesRes, logsRes] = await Promise.all([
+        fetch(`${API_URL}/api/messages/unread-count`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/api/shiplogs/unread-count`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ]);
+      const messagesData = await messagesRes.json();
+      const logsData = await logsRes.json();
+      if (messagesRes.ok) {
+        setUnreadMessageCount(messagesData.unreadCount);
+      }
+      if (logsRes.ok) {
+        setUnreadLogCount(logsData.unreadCount);
+      }
+    } catch (err) {
+      // Silent fail
+    }
+  };
 
   // WebSocket notifications for sector events
   const { notifications, dismissNotification } = useSocketNotifications({
     universeId: player?.universeId || null,
     sectorNumber: player?.currentSector || null,
     playerId: player?.id || null,
-    enabled: !!player
+    enabled: !!player,
+    onNewBroadcast: fetchUnreadCounts
   });
+
+  // Check for escape pod notification on mount
+  useEffect(() => {
+    const checkPlayerStatus = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/players/${player.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.notification) {
+            setLoginNotification(data.notification);
+            // Auto-dismiss after 15 seconds
+            setTimeout(() => setLoginNotification(null), 15000);
+          }
+          // Update player data
+          if (data.player) {
+            setPlayer(data.player);
+          }
+        }
+      } catch (err) {
+        console.error('Error checking player status:', err);
+      }
+    };
+    checkPlayerStatus();
+  }, []);
 
   // Fetch unread message and log counts on mount
   useEffect(() => {
-    const fetchUnreadCounts = async () => {
-      try {
-        const [messagesRes, logsRes] = await Promise.all([
-          fetch(`${API_URL}/api/messages/unread-count`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          }),
-          fetch(`${API_URL}/api/shiplogs/unread-count`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          })
-        ]);
-        const messagesData = await messagesRes.json();
-        const logsData = await logsRes.json();
-        if (messagesRes.ok) {
-          setUnreadMessageCount(messagesData.unreadCount);
-        }
-        if (logsRes.ok) {
-          setUnreadLogCount(logsData.unreadCount);
-        }
-      } catch (err) {
-        // Silent fail
-      }
-    };
     fetchUnreadCounts();
   }, [token]);
 
@@ -58,6 +88,53 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
   };
   return (
     <div className="cyberpunk-container">
+      {/* Login Notification (Escape Pod Alert) */}
+      {loginNotification && (
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 10000,
+          background: 'rgba(255, 50, 50, 0.98)',
+          border: '3px solid var(--neon-pink)',
+          padding: '30px',
+          maxWidth: '600px',
+          boxShadow: '0 0 40px rgba(255, 20, 147, 0.8)',
+          animation: 'pulse 2s infinite'
+        }}>
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setLoginNotification(null)}
+              style={{
+                position: 'absolute',
+                top: '-15px',
+                right: '-15px',
+                background: 'var(--neon-pink)',
+                color: '#000',
+                border: 'none',
+                borderRadius: '50%',
+                width: '30px',
+                height: '30px',
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              ✕
+            </button>
+            <h2 style={{ color: '#fff', marginTop: 0, textShadow: '0 0 10px #fff' }}>
+              {loginNotification.title}
+            </h2>
+            <p style={{ color: '#fff', fontSize: '16px', lineHeight: '1.6' }}>
+              {loginNotification.message}
+            </p>
+            <p style={{ color: '#ffcccc', fontSize: '12px', marginTop: '15px' }}>
+              Time: {new Date(loginNotification.timestamp).toLocaleString()}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Real-time Sector Notifications */}
       {notifications.length > 0 && (
         <div style={{

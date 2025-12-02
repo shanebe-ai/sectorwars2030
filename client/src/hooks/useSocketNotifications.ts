@@ -15,13 +15,15 @@ interface UseSocketNotificationsProps {
   sectorNumber: number | null;
   playerId: number | null;
   enabled: boolean;
+  onNewBroadcast?: () => void;
 }
 
 export function useSocketNotifications({
   universeId,
   sectorNumber,
   playerId,
-  enabled
+  enabled,
+  onNewBroadcast
 }: UseSocketNotificationsProps) {
   const [notifications, setNotifications] = useState<SectorNotification[]>([]);
   const [connected, setConnected] = useState(false);
@@ -145,11 +147,19 @@ export function useSocketNotifications({
       });
     });
 
+    // Handle new broadcast messages (TNN, combat reports, planet claims, etc.)
+    socket.on('new_broadcast', (data: any) => {
+      // Call the callback to refresh unread counts
+      if (onNewBroadcast) {
+        onNewBroadcast();
+      }
+    });
+
     return () => {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [enabled, universeId, playerId]); // Note: NOT including sectorNumber to avoid reconnecting on every move
+  }, [enabled, universeId, playerId, onNewBroadcast]); // Note: NOT including sectorNumber to avoid reconnecting on every move
 
   // Update sector room when sector changes
   useEffect(() => {

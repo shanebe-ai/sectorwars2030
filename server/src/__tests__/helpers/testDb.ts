@@ -34,7 +34,7 @@ export async function cleanupTestDb(): Promise<void> {
   
   try {
     await client.query('BEGIN');
-    
+
     // Delete in reverse order of dependencies
     await client.query('DELETE FROM game_events');
     await client.query('DELETE FROM combat_log');
@@ -42,10 +42,11 @@ export async function cleanupTestDb(): Promise<void> {
     await client.query('DELETE FROM sector_warps');
     await client.query('DELETE FROM sectors');
     await client.query('DELETE FROM planets');
+    await client.query('DELETE FROM corporations'); // Delete corporations before players
     await client.query('DELETE FROM players');
     await client.query('DELETE FROM universes');
     await client.query('DELETE FROM users WHERE username LIKE \'test_%\'');
-    
+
     await client.query('COMMIT');
   } catch (error) {
     await client.query('ROLLBACK');

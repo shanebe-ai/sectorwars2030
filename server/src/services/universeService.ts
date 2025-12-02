@@ -393,11 +393,11 @@ export async function generateUniverse(config: UniverseConfig) {
     // 5. Create Earth planet in Sector 1 (Sol) - owned by Terra Corp (unclaimable)
     const sector1Id = sectorIdMap.get(1);
     if (sector1Id) {
-      // Create Earth planet (unclaimable - owned by Terra Corp)
+      // Create Earth planet (unclaimable - owned by Terra Corp with 20,000 colonists)
       const planetResult = await client.query(
         `INSERT INTO planets (universe_id, sector_id, name, owner_id, owner_name, ore, fuel, organics, equipment,
           colonists, fighters, is_claimable, created_at)
-         VALUES ($1, $2, $3, NULL, 'Terra Corp', 0, 0, 0, 0, 0, 0, FALSE, CURRENT_TIMESTAMP)
+         VALUES ($1, $2, $3, NULL, 'Terra Corp', 0, 0, 0, 0, 20000, 0, FALSE, CURRENT_TIMESTAMP)
          RETURNING id`,
         [universeId, sector1Id, 'Earth']
       );

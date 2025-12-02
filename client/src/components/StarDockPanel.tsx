@@ -791,9 +791,13 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                 <input
                   type="number"
-                  value={fighterQty || ''}
-                  onChange={e => setFighterQty(Math.max(0, Math.min(maxFighters, parseInt(e.target.value) || 0)))}
-                  placeholder="Quantity..."
+                  value={fighterQty === 0 ? '' : fighterQty}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setFighterQty(val === '' ? 0 : Math.max(0, Math.min(maxFighters, parseInt(val) || 0)));
+                  }}
+                  onFocus={(e) => e.target.select()}
+                  placeholder="0"
                   min="0"
                   max={maxFighters}
                   style={{
@@ -868,8 +872,12 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                 <input
                   type="number"
-                  value={shieldQty || ''}
-                  onChange={e => setShieldQty(Math.max(0, Math.min(maxShields, parseInt(e.target.value) || 0)))}
+                  value={shieldQty === 0 ? '' : shieldQty}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setShieldQty(val === '' ? 0 : Math.max(0, Math.min(maxShields, parseInt(val) || 0)));
+                  }}
+                  onFocus={(e) => e.target.select()}
                   placeholder="Quantity..."
                   min="0"
                   max={maxShields}

@@ -43,6 +43,7 @@ export interface Player {
   cargo_fuel: number;
   cargo_organics: number;
   cargo_equipment: number;
+  colonists: number;
   is_alive: boolean;
   last_turn_update: string;
   created_at: string;

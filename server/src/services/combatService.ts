@@ -1,5 +1,5 @@
 import { query, getClient } from '../db/connection';
-import { emitSectorEvent } from '../index';
+import { emitSectorEvent, emitUniverseEvent } from '../index';
 
 /**
  * Combat Service for TradeWars 2030
@@ -563,7 +563,71 @@ export const executeAttack = async (
       ]
     );
 
+    // Send inbox messages to both players about the combat
+    const attackerUsername = await client.query(
+      `SELECT username FROM users WHERE id = (SELECT user_id FROM players WHERE id = $1)`,
+      [attackerId]
+    );
+    const defenderUsername = await client.query(
+      `SELECT username FROM users WHERE id = (SELECT user_id FROM players WHERE id = $1)`,
+      [defenderId]
+    );
+
+    const attackerName = attackerUsername.rows[0]?.username || 'Unknown';
+    const defenderName = defenderUsername.rows[0]?.username || 'Unknown';
+
+    // Broadcast combat results via TNN (TerraCorp News Network)
+    let broadcastMessage = '';
+    let broadcastSubject = '';
+
+    if (combatResult.defenderDestroyed) {
+      broadcastSubject = '⚔️ Combat Reported';
+      const lootDetails = [];
+      if (combatResult.creditsLooted > 0) {
+        lootDetails.push(`₡${combatResult.creditsLooted.toLocaleString()} credits`);
+      }
+      const totalCargo = combatResult.cargoLooted.fuel + combatResult.cargoLooted.organics + combatResult.cargoLooted.equipment;
+      if (totalCargo > 0) {
+        lootDetails.push(`${totalCargo} cargo units`);
+      }
+      const lootText = lootDetails.length > 0 ? ` Loot recovered: ${lootDetails.join(', ')}.` : '';
+
+      broadcastMessage = `${attackerName} (${attacker.corp_name}) destroyed ${defenderName} (${defender.corp_name}) in Sector ${attacker.current_sector}.${lootText}`;
+    } else if (combatResult.attackerDestroyed) {
+      broadcastSubject = '🛡️ Combat Reported';
+      const lootDetails = [];
+      if (combatResult.creditsLostByAttacker > 0) {
+        lootDetails.push(`₡${combatResult.creditsLostByAttacker.toLocaleString()} credits`);
+      }
+      const totalCargo = combatResult.cargoLostByAttacker.fuel + combatResult.cargoLostByAttacker.organics + combatResult.cargoLostByAttacker.equipment;
+      if (totalCargo > 0) {
+        lootDetails.push(`${totalCargo} cargo units`);
+      }
+      const lootText = lootDetails.length > 0 ? ` Loot recovered: ${lootDetails.join(', ')}.` : '';
+
+      broadcastMessage = `${defenderName} (${defender.corp_name}) successfully defended against ${attackerName} (${attacker.corp_name}) in Sector ${attacker.current_sector}.${lootText}`;
+    } else {
+      // Stalemate or ongoing combat
+      broadcastSubject = '⚔️ Combat Reported';
+      broadcastMessage = `Combat between ${attackerName} (${attacker.corp_name}) and ${defenderName} (${defender.corp_name}) in Sector ${attacker.current_sector} ended in a draw.`;
+    }
+
+    // Send broadcast from TerraCorp News Network
+    await client.query(
+      `INSERT INTO messages (universe_id, sender_id, recipient_id, sender_name, subject, body, message_type)
+       VALUES ($1, NULL, NULL, 'TerraCorp News Network', $2, $3, 'BROADCAST')`,
+      [attacker.universe_id, broadcastSubject, broadcastMessage]
+    );
+
     await client.query('COMMIT');
+
+    // Emit universe-wide event for new broadcast message
+    emitUniverseEvent(attacker.universe_id, 'new_broadcast', {
+      sender: 'TerraCorp News Network',
+      subject: broadcastSubject,
+      body: broadcastMessage,
+      timestamp: new Date().toISOString()
+    });
 
     // Emit WebSocket event to all players in sector about the combat
     emitSectorEvent(attacker.universe_id, attacker.current_sector, 'combat_occurred', {

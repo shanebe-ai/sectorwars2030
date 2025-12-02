@@ -483,6 +483,7 @@ export const retreatFromSector = async (
   shieldsLost: number;
   fightersLost: number;
   newSector: number;
+  died?: boolean;
 }> => {
   const client = await getClient();
 
@@ -544,13 +545,53 @@ export const retreatFromSector = async (
     const damagePercent = Math.random() * 0.10; // 0-10%
     const totalDefense = player.ship_shields + player.ship_fighters;
     const totalDamage = Math.floor(totalDefense * damagePercent);
-    
+
     let shieldsLost = Math.min(player.ship_shields, totalDamage);
     let fightersLost = Math.min(player.ship_fighters, totalDamage - shieldsLost);
 
+    const remainingShields = player.ship_shields - shieldsLost;
+    const remainingFighters = player.ship_fighters - fightersLost;
+
+    // Check if player dies from retreat damage
+    if (remainingFighters <= 0 && remainingShields <= 0) {
+      // Player destroyed during retreat - respawn in escape pod
+      const escapeSector = await findEscapeSector(player.universe_id, player.current_sector, client);
+
+      await client.query(
+        `UPDATE players SET
+          ship_type = 'Escape Pod',
+          ship_holds_max = 5,
+          ship_fighters = 0,
+          ship_shields = 0,
+          ship_torpedoes = 0,
+          ship_mines = 0,
+          cargo_fuel = 0,
+          cargo_organics = 0,
+          cargo_equipment = 0,
+          colonists = 0,
+          current_sector = $1,
+          in_escape_pod = TRUE,
+          deaths = deaths + 1,
+          turns_remaining = turns_remaining - 1
+         WHERE id = $2`,
+        [escapeSector, playerId]
+      );
+
+      await client.query('COMMIT');
+
+      return {
+        success: true,
+        message: `💀 DESTROYED! You were killed by enemy fire while retreating! Respawned in Escape Pod at Sector ${escapeSector}.`,
+        shieldsLost: player.ship_shields,
+        fightersLost: player.ship_fighters,
+        newSector: escapeSector,
+        died: true
+      };
+    }
+
     // Apply damage and move
     await client.query(
-      `UPDATE players SET 
+      `UPDATE players SET
         ship_shields = ship_shields - $1,
         ship_fighters = ship_fighters - $2,
         current_sector = $3,
@@ -570,7 +611,8 @@ export const retreatFromSector = async (
       message,
       shieldsLost,
       fightersLost,
-      newSector: destinationSector
+      newSector: destinationSector,
+      died: false
     };
   } catch (error) {
     await client.query('ROLLBACK');

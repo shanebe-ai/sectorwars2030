@@ -819,7 +819,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
       if (response.ok) {
         setShowHostileEncounter(false);
         setHostileEncounterData(null);
-        
+
         // Fetch full player data to ensure all fields are updated
         let updatedPlayer;
         try {
@@ -840,9 +840,22 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
           updatedPlayer = { ...player, ...data.player };
           onSectorChange(updatedPlayer);
         }
-        
-        setSuccessMessage(data.message);
-        setTimeout(() => setSuccessMessage(null), 8000);
+
+        // Show death message if died, otherwise show retreat message
+        if (data.died) {
+          setFighterAttackResult({
+            attackerWon: false,
+            message: data.message,
+            losses: {
+              fighters: data.fightersLost,
+              shields: data.shieldsLost,
+              defenderFighters: 0
+            }
+          });
+        } else {
+          setSuccessMessage(data.message);
+          setTimeout(() => setSuccessMessage(null), 8000);
+        }
         
         // Force reload sector details - clear current sector state first
         setSector(null);
@@ -1402,9 +1415,13 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                     </div>
                     <input
                       type="number"
-                      value={deployFighterCount}
-                      onChange={(e) => setDeployFighterCount(Math.max(0, Math.min(parseInt(e.target.value) || 0, playerFighters, maxFighters)))}
-                      placeholder="Count..."
+                      value={deployFighterCount === 0 ? '' : deployFighterCount}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setDeployFighterCount(val === '' ? 0 : Math.max(0, Math.min(parseInt(val) || 0, playerFighters, maxFighters)));
+                      }}
+                      onFocus={(e) => e.target.select()}
+                      placeholder="0"
                       min="1"
                       max={Math.min(playerFighters, maxFighters)}
                       style={{
@@ -1902,12 +1919,14 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                   </div>
                   <input
                     type="number"
-                    value={deployMineCount}
+                    value={deployMineCount === 0 ? '' : deployMineCount}
                     onChange={(e) => {
+                      const val = e.target.value;
                       const maxMinesAllowed = Math.min((player as any).shipMines, maxMines - (sector.minesCount || 0));
-                      setDeployMineCount(Math.max(0, Math.min(parseInt(e.target.value) || 0, maxMinesAllowed)));
+                      setDeployMineCount(val === '' ? 0 : Math.max(0, Math.min(parseInt(val) || 0, maxMinesAllowed)));
                     }}
-                    placeholder="Number of mines..."
+                    onFocus={(e) => e.target.select()}
+                    placeholder="0"
                     min="1"
                     max={Math.min((player as any).shipMines, maxMines - (sector.minesCount || 0))}
                     style={{

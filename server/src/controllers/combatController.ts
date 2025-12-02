@@ -38,7 +38,9 @@ export const attackPlayer = async (req: Request, res: Response) => {
 
     // Check if attack is valid
     const attackCheck = await canAttack(attackerId, targetId);
+    console.log(`[COMBAT] Attack validation - Attacker: ${attackerId}, Target: ${targetId}, Can Attack: ${attackCheck.canAttack}, Reason: ${attackCheck.reason}`);
     if (!attackCheck.canAttack) {
+      console.log(`[COMBAT] Attack REJECTED: ${attackCheck.reason}`);
       return res.status(400).json({ error: attackCheck.reason });
     }
 

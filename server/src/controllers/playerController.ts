@@ -8,6 +8,7 @@ import {
   regenerateTurns,
   getPlayerByIdWithTurns,
 } from '../services/playerService';
+import { query } from '../db/connection';
 
 /**
  * POST /api/players
@@ -166,6 +167,47 @@ export const getPlayer = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Player not found' });
     }
 
+    // Check for unseen combat deaths (escape pod events)
+    let notification = null;
+    const combatResult = await query(
+      `SELECT cl.*,
+        u_attacker.username as attacker_name,
+        c_attacker.name as attacker_corp
+       FROM combat_log cl
+       LEFT JOIN players p_attacker ON cl.attacker_id = p_attacker.id
+       LEFT JOIN users u_attacker ON p_attacker.user_id = u_attacker.id
+       LEFT JOIN corporations c_attacker ON p_attacker.corp_id = c_attacker.id
+       WHERE cl.defender_id = $1
+         AND cl.defender_destroyed = TRUE
+         AND cl.notification_seen = FALSE
+       ORDER BY cl.created_at DESC
+       LIMIT 1`,
+      [playerId]
+    );
+
+    if (combatResult.rows.length > 0) {
+      const combat = combatResult.rows[0];
+      const attackerName = combat.attacker_name || 'Unknown';
+      const attackerCorp = combat.attacker_corp || 'Independent';
+      const creditsLost = combat.credits_looted || 0;
+      const cargoData = combat.cargo_looted || {};
+      const cargoLost = (cargoData.fuel || 0) + (cargoData.organics || 0) + (cargoData.equipment || 0);
+
+      notification = {
+        type: 'escape_pod',
+        title: '⚠️ SHIP DESTROYED',
+        message: `Your ship was destroyed by ${attackerName} (${attackerCorp}) in Sector ${combat.sector_number}! You escaped in an escape pod. Lost: ₡${creditsLost.toLocaleString()} credits and ${cargoLost} cargo units.`,
+        timestamp: combat.created_at,
+        combatLogId: combat.id
+      };
+
+      // Mark this combat event as seen
+      await query(
+        `UPDATE combat_log SET notification_seen = TRUE WHERE id = $1`,
+        [combat.id]
+      );
+    }
+
     res.json({
       player: {
         id: player.id,
@@ -191,6 +233,7 @@ export const getPlayer = async (req: Request, res: Response) => {
         lastTurnUpdate: player.last_turn_update,
         createdAt: player.created_at,
       },
+      notification,
     });
   } catch (error) {
     console.error('Get player error:', error);

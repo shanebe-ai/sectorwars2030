@@ -46,7 +46,7 @@ const io = new Server(httpServer, {
   },
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = parseInt(process.env.PORT || '3000', 10);
 
 // Middleware
 app.use(cors({
@@ -131,19 +131,21 @@ io.on('connection', (socket) => {
 
   // Player joins a sector room to receive notifications
   socket.on('join_sector', async (data: { universeId: number; sectorNumber: number; playerId: number }) => {
-    const roomName = `universe_${data.universeId}_sector_${data.sectorNumber}`;
-    
+    const sectorRoomName = `universe_${data.universeId}_sector_${data.sectorNumber}`;
+    const universeRoomName = `universe_${data.universeId}`;
+
     // Leave any previous sector rooms for this universe
     socket.rooms.forEach(room => {
       if (room.startsWith(`universe_${data.universeId}_sector_`)) {
         socket.leave(room);
       }
     });
-    
-    // Join the new sector room
-    socket.join(roomName);
-    console.log(`[WS] Player ${data.playerId} joined ${roomName}`);
-    
+
+    // Join the universe room (for broadcasts) and sector room
+    socket.join(universeRoomName);
+    socket.join(sectorRoomName);
+    console.log(`[WS] Player ${data.playerId} joined ${sectorRoomName}`);
+
     // Store player info on socket for later use
     (socket as any).playerData = data;
   });
@@ -170,6 +172,16 @@ export const emitSectorEvent = (
   io.to(roomName).emit(event, data);
 };
 
+// Export function to emit universe-wide events (e.g., broadcasts)
+export const emitUniverseEvent = (
+  universeId: number,
+  event: string,
+  data: any
+) => {
+  const roomName = `universe_${universeId}`;
+  io.to(roomName).emit(event, data);
+};
+
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Error:', err);
@@ -179,7 +191,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 });
 
 // Start server
-httpServer.listen(PORT, '0.0.0.0', () => {
+httpServer.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════════════╗
 ║   TradeWars 2030 - Server                     ║

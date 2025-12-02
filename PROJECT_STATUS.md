@@ -910,17 +910,24 @@ When implementing new features:
 
 **IMPORTANT:** This `PROJECT_STATUS.md` file serves as the primary memory and context for AI assistants working on this project.
 
-**⚠️ DO NOT USE IDEAS.md** - That file is for the user's personal notes only. AI assistants should not read from or write to IDEAS.md.
+**⚠️ DO NOT USE IDEAS.md** - That file is for the user's personal brainstorming notes only. AI assistants should NOT read from or write to IDEAS.md. It contains informal ideas and is not part of the project documentation.
 
 **Always keep updated:**
 - `PROJECT_STATUS.md` - Current state, completed features, bugs, session context
 - `README.md` - User-facing documentation, setup instructions, feature list
 
+**Update this file FREQUENTLY:**
+- After ANY bug fix or feature change (no matter how small)
+- This file serves as your context log and memory
+- Document all changes in "Recent Changes" section with date
+- Include technical details: what was broken, why, and how it was fixed
+- Link to specific files and line numbers when relevant
+
 **After each significant change:**
-1. Update "Current Session Context" section with what was done
+1. Update "Current Session Context" or "Recent Changes" section with what was done
 2. Move completed items to "Completed ✅" section
 3. Update phase checklists in "Next Steps"
-4. Log any bug fixes in "Bug Fixes Applied"
+4. Log any bug fixes with technical details
 5. Commit changes with descriptive messages
 
 **Before starting work:**
@@ -930,9 +937,9 @@ When implementing new features:
 
 ---
 
-**Last Updated:** 2025-12-01
+**Last Updated:** 2025-12-02
 **Status:** Combat System Enhanced, Beacon System, Sector Fighters, Floating Cargo, Deep Scan, UI Improvements Complete!
-**Current Session:** Enhanced combat, beacons, sector fighters, floating cargo, deep scan, UI notifications, beacon fixes, universe generation fixes
+**Current Session:** TNN broadcast display fix
 **Next Priority:** Comprehensive Testing / Alien System
 **Recent Changes:**
 - ✅ **Combat System (2025-12-01):**
@@ -1077,6 +1084,12 @@ When implementing new features:
   - **Retreat Black Screen Fix:** Fixed black screen when fleeing to a sector - now directly fetches new sector details using sector number from response instead of relying on prop updates
   - **Fighter Destruction Messages:** Updated inbox messages when deployed fighters are destroyed to show "Playername (Corpname)" format instead of just "Corpname"
   - **SQL Query Enhancement:** Updated fighter attack query to join with users table to fetch attacker username for proper message formatting
+- ✅ **TNN Broadcast Display Fix (2025-12-02):**
+  - **Issue:** TerraCorp News Network broadcasts showed "TerraCorp News Network (Unknown)" instead of "TerraCorp News Network (TNN)"
+  - **Root Cause:** Client was trying to display `sender_corp` field which doesn't exist for TNN broadcasts
+  - **Fix:** Added conditional check in MessagingPanel.tsx:592 - if sender is "TerraCorp News Network", display "(TNN)" instead of attempting to show corporation
+  - **Result:** Combat broadcasts now properly show "TerraCorp News Network (TNN)" format
+
 **Previous Session:**
 - ✅ Ship log system with unread alerts
 - ✅ Port trading system with colonist recruitment

@@ -471,13 +471,16 @@ export default function PortTradingPanel({
                   <input
                     type="number"
                     min="0"
-                    value={quantities[commodity]}
-                    onChange={(e) =>
+                    value={quantities[commodity] === 0 ? '' : quantities[commodity]}
+                    onChange={(e) => {
+                      const val = e.target.value;
                       setQuantities((prev) => ({
                         ...prev,
-                        [commodity]: Math.max(0, parseInt(e.target.value) || 0),
-                      }))
-                    }
+                        [commodity]: val === '' ? 0 : Math.max(0, parseInt(val) || 0),
+                      }));
+                    }}
+                    onFocus={(e) => e.target.select()}
+                    placeholder="0"
                     style={{
                       flex: 1,
                       padding: '10px',
@@ -571,9 +574,13 @@ export default function PortTradingPanel({
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
               <input
                 type="number"
-                value={colonistQty || ''}
-                onChange={(e) => setColonistQty(Math.max(0, parseInt(e.target.value) || 0))}
-                placeholder="Quantity..."
+                value={colonistQty === 0 ? '' : colonistQty}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setColonistQty(val === '' ? 0 : Math.max(0, parseInt(val) || 0));
+                }}
+                onFocus={(e) => e.target.select()}
+                placeholder="0"
                 min="0"
                 max="1000"
                 style={{
