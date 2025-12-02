@@ -157,6 +157,10 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
   const [showDeployFighters, setShowDeployFighters] = useState(false);
   const [deployFighterCount, setDeployFighterCount] = useState(0);
   const [deployingFighters, setDeployingFighters] = useState(false);
+  const [showRetrieveFighters, setShowRetrieveFighters] = useState<number | null>(null);
+  const [retrieveFighterCount, setRetrieveFighterCount] = useState(0);
+  const [retrievingFighters, setRetrievingFighters] = useState(false);
+  const [localFighterCount, setLocalFighterCount] = useState<number | null>(null);
   const [attackingDeployment, setAttackingDeployment] = useState<number | null>(null);
   const [showHostileEncounter, setShowHostileEncounter] = useState(false);
   const [hostileEncounterData, setHostileEncounterData] = useState<{fighters: DeployedFighter[], totalCount: number} | null>(null);
@@ -670,14 +674,36 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
       if (response.ok) {
         setShowDeployFighters(false);
         setDeployFighterCount(0);
-        loadSectorDetails();
-        const playerResponse = await fetch(`${API_URL}/api/players/${player.id}`, {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-        if (playerResponse.ok) {
-          const playerData = await playerResponse.json();
-          onSectorChange(playerData.player);
+        
+        // Update local fighter count immediately for UI responsiveness
+        if (data.shipFighters !== undefined) {
+          setLocalFighterCount(data.shipFighters);
+          
+          // Update parent state immediately with new fighter count
+          // Pass the fighter count to parent so Ship Status updates immediately
+          onSectorChange({
+            shipFighters: data.shipFighters
+          } as any);
         }
+        
+        // Reload sector details to update deployed fighters list
+        loadSectorDetails();
+        
+        // Fetch full player data in background to sync state (without blocking UI)
+        fetch(`${API_URL}/api/players/${player.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        })
+          .then(playerResponse => playerResponse.json())
+          .then(playerData => {
+            if (playerData.player) {
+              setLocalFighterCount(null); // Clear local override once we have real data
+              onSectorChange(playerData.player);
+            }
+          })
+          .catch(() => {
+            // Silent fail - local update is already applied
+            setLocalFighterCount(null);
+          });
       } else {
         setError(data.error || 'Failed to deploy fighters');
       }
@@ -689,6 +715,8 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
   };
 
   const handleRetrieveFighters = async (count: number) => {
+    if (count <= 0) return;
+    setRetrievingFighters(true);
     try {
       const response = await fetch(`${API_URL}/api/sector-fighters/retrieve`, {
         method: 'POST',
@@ -702,19 +730,45 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
       const data = await response.json();
 
       if (response.ok) {
-        loadSectorDetails();
-        const playerResponse = await fetch(`${API_URL}/api/players/${player.id}`, {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-        if (playerResponse.ok) {
-          const playerData = await playerResponse.json();
-          onSectorChange(playerData.player);
+        setShowRetrieveFighters(null);
+        setRetrieveFighterCount(0);
+        
+        // Update local fighter count immediately for UI responsiveness
+        if (data.shipFighters !== undefined) {
+          setLocalFighterCount(data.shipFighters);
+          
+          // Update parent state immediately with new fighter count
+          // Pass the fighter count to parent so Ship Status updates immediately
+          onSectorChange({
+            shipFighters: data.shipFighters
+          } as any);
         }
+        
+        // Reload sector details to update deployed fighters list
+        loadSectorDetails();
+        
+        // Fetch full player data in background to sync state (without blocking UI)
+        fetch(`${API_URL}/api/players/${player.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        })
+          .then(playerResponse => playerResponse.json())
+          .then(playerData => {
+            if (playerData.player) {
+              setLocalFighterCount(null); // Clear local override once we have real data
+              onSectorChange(playerData.player);
+            }
+          })
+          .catch(() => {
+            // Silent fail - local update is already applied
+            setLocalFighterCount(null);
+          });
       } else {
         setError(data.error || 'Failed to retrieve fighters');
       }
     } catch (err) {
       setError('Network error');
+    } finally {
+      setRetrievingFighters(false);
     }
   };
 
@@ -976,8 +1030,10 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
     planet.ownerName === currentPlayerCorpName
   );
   
-  // Get player's fighter count (from sector players list or player prop)
-  const playerFighters = currentPlayer?.fighters || (player as any).shipFighters || (player as any).fighters || 0;
+  // Get player's fighter count (use local override if set, otherwise use player prop)
+  const playerFighters = localFighterCount !== null 
+    ? localFighterCount 
+    : (player as any).shipFighters || (player as any).fighters || currentPlayer?.fighters || 0;
   
   // Calculate max limits based on planet ownership
   const maxFighters = hasPlanetOwnership ? 1500 : 500;
@@ -1881,24 +1937,97 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                     </div>
                     <div style={{ display: 'flex', gap: '8px' }}>
                       {deployment.isOwn ? (
-                        <button
-                          onClick={() => {
-                            const count = prompt(`Retrieve how many fighters? (max ${deployment.fighterCount})`);
-                            if (count && parseInt(count) > 0) {
-                              handleRetrieveFighters(parseInt(count));
-                            }
-                          }}
-                          className="cyberpunk-button"
-                          style={{
-                            padding: '6px 12px',
-                            fontSize: '11px',
-                            background: 'rgba(0, 255, 0, 0.2)',
-                            borderColor: 'var(--neon-green)',
-                            color: 'var(--neon-green)'
-                          }}
-                        >
-                          RETRIEVE
-                        </button>
+                        showRetrieveFighters === deployment.id ? (
+                          <div style={{
+                            padding: '8px',
+                            background: 'rgba(0, 255, 0, 0.1)',
+                            border: '1px solid var(--neon-green)',
+                            fontSize: '10px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '6px',
+                            minWidth: '150px'
+                          }}>
+                            <div style={{ color: 'var(--neon-green)', fontWeight: 'bold', fontSize: '11px' }}>
+                              ⬆ RETRIEVE FIGHTERS
+                            </div>
+                            <input
+                              type="number"
+                              value={retrieveFighterCount === 0 ? '' : retrieveFighterCount}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setRetrieveFighterCount(val === '' ? 0 : Math.max(0, Math.min(parseInt(val) || 0, deployment.fighterCount)));
+                              }}
+                              onFocus={(e) => e.target.select()}
+                              placeholder="0"
+                              min="1"
+                              max={deployment.fighterCount}
+                              style={{
+                                width: '100%',
+                                padding: '4px',
+                                background: 'rgba(0, 0, 0, 0.5)',
+                                border: '1px solid var(--neon-green)',
+                                color: 'var(--text-primary)',
+                                fontSize: '10px',
+                                marginBottom: '4px'
+                              }}
+                            />
+                            <div style={{ fontSize: '9px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                              Max {deployment.fighterCount} available
+                            </div>
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                              <button
+                                onClick={() => handleRetrieveFighters(retrieveFighterCount)}
+                                disabled={retrievingFighters || retrieveFighterCount <= 0}
+                                className="cyberpunk-button"
+                                style={{
+                                  flex: 1,
+                                  padding: '4px',
+                                  fontSize: '9px',
+                                  background: retrieveFighterCount > 0 ? 'rgba(0, 255, 0, 0.2)' : 'rgba(100, 100, 100, 0.2)',
+                                  borderColor: retrieveFighterCount > 0 ? 'var(--neon-green)' : '#666',
+                                  color: retrieveFighterCount > 0 ? 'var(--neon-green)' : '#666',
+                                  cursor: retrieveFighterCount > 0 ? 'pointer' : 'not-allowed'
+                                }}
+                              >
+                                {retrievingFighters ? '⟳...' : 'RETRIEVE'}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setShowRetrieveFighters(null);
+                                  setRetrieveFighterCount(0);
+                                }}
+                                className="cyberpunk-button"
+                                style={{
+                                  padding: '4px 8px',
+                                  fontSize: '9px',
+                                  background: 'rgba(255, 0, 0, 0.1)',
+                                  borderColor: 'var(--neon-pink)',
+                                  color: 'var(--neon-pink)'
+                                }}
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setShowRetrieveFighters(deployment.id);
+                              setRetrieveFighterCount(0);
+                            }}
+                            className="cyberpunk-button"
+                            style={{
+                              padding: '6px 12px',
+                              fontSize: '11px',
+                              background: 'rgba(0, 255, 0, 0.2)',
+                              borderColor: 'var(--neon-green)',
+                              color: 'var(--neon-green)'
+                            }}
+                          >
+                            RETRIEVE
+                          </button>
+                        )
                       ) : (
                         <button
                           onClick={() => handleAttackDeployedFighters(deployment.id)}

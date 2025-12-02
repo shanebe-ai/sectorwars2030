@@ -84,7 +84,11 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
   }, [token]);
 
   const handleSectorChange = (updatedPlayer: any) => {
-    setPlayer(updatedPlayer);
+    // Merge with existing player state to preserve all fields
+    setPlayer((prevPlayer: any) => ({
+      ...prevPlayer,
+      ...updatedPlayer
+    }));
   };
   return (
     <div className="cyberpunk-container">

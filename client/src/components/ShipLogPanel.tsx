@@ -63,6 +63,8 @@ export const ShipLogPanel: React.FC<ShipLogPanelProps> = ({ token, onClose, onUn
   const [newNoteSector, setNewNoteSector] = useState('');
   const [newNoteText, setNewNoteText] = useState('');
   const [addingNote, setAddingNote] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [deletingNote, setDeletingNote] = useState(false);
 
   const loadLogs = useCallback(async () => {
     try {
@@ -148,8 +150,7 @@ export const ShipLogPanel: React.FC<ShipLogPanelProps> = ({ token, onClose, onUn
   };
 
   const handleDeleteNote = async (logId: number) => {
-    if (!confirm('Delete this note?')) return;
-
+    setDeletingNote(true);
     try {
       const response = await fetch(`${API_URL}/api/shiplogs/${logId}`, {
         method: 'DELETE',
@@ -157,12 +158,15 @@ export const ShipLogPanel: React.FC<ShipLogPanelProps> = ({ token, onClose, onUn
       });
       const data = await response.json();
       if (response.ok) {
+        setDeleteConfirmId(null);
         loadLogs();
       } else {
         setError(data.error || 'Failed to delete note');
       }
     } catch (err) {
       setError('Network error');
+    } finally {
+      setDeletingNote(false);
     }
   };
 
@@ -562,21 +566,67 @@ export const ShipLogPanel: React.FC<ShipLogPanelProps> = ({ token, onClose, onUn
                       {formatDate(log.discovered_at)}
                     </span>
                     {log.is_manual && (
-                      <button
-                        onClick={() => handleDeleteNote(log.id)}
-                        style={{
-                          background: 'transparent',
+                      deleteConfirmId === log.id ? (
+                        <div style={{
+                          display: 'flex',
+                          gap: '4px',
+                          alignItems: 'center',
+                          padding: '4px',
+                          background: 'rgba(255, 0, 0, 0.1)',
                           border: '1px solid var(--neon-red)',
-                          color: 'var(--neon-red)',
-                          padding: '3px 8px',
-                          cursor: 'pointer',
-                          fontSize: '11px',
-                          fontFamily: 'var(--font-mono)'
-                        }}
-                        title="Delete this note"
-                      >
-                        🗑
-                      </button>
+                          borderRadius: '3px'
+                        }}>
+                          <span style={{ fontSize: '10px', color: 'var(--neon-red)', marginRight: '4px' }}>
+                            Delete?
+                          </span>
+                          <button
+                            onClick={() => handleDeleteNote(log.id)}
+                            disabled={deletingNote}
+                            style={{
+                              background: 'rgba(255, 0, 0, 0.2)',
+                              border: '1px solid var(--neon-red)',
+                              color: 'var(--neon-red)',
+                              padding: '2px 6px',
+                              cursor: deletingNote ? 'not-allowed' : 'pointer',
+                              fontSize: '9px',
+                              fontFamily: 'var(--font-mono)'
+                            }}
+                          >
+                            {deletingNote ? '...' : 'YES'}
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirmId(null)}
+                            disabled={deletingNote}
+                            style={{
+                              background: 'rgba(100, 100, 100, 0.2)',
+                              border: '1px solid #666',
+                              color: '#666',
+                              padding: '2px 6px',
+                              cursor: deletingNote ? 'not-allowed' : 'pointer',
+                              fontSize: '9px',
+                              fontFamily: 'var(--font-mono)'
+                            }}
+                          >
+                            NO
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setDeleteConfirmId(log.id)}
+                          style={{
+                            background: 'transparent',
+                            border: '1px solid var(--neon-red)',
+                            color: 'var(--neon-red)',
+                            padding: '3px 8px',
+                            cursor: 'pointer',
+                            fontSize: '11px',
+                            fontFamily: 'var(--font-mono)'
+                          }}
+                          title="Delete this note"
+                        >
+                          🗑
+                        </button>
+                      )
                     )}
                   </div>
                 </div>

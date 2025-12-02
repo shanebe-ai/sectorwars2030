@@ -188,15 +188,26 @@ Format: `[Fuel][Organics][Equipment]`
   - [x] Reply and delete functionality
 - [x] **Automated Testing**
   - [x] Jest + ts-jest framework
-  - [x] 11 tests for navigation and player creation
+  - [x] 17 tests total (navigation, player creation, banking, combat)
   - [x] Run with: `cd server && npm test`
+- [x] **Economy & Combat Rebalancing (2025-12-02)**
+  - [x] Banking system fixes (StarDock requirement, 5% withdrawal fee, death penalty on bank balance)
+  - [x] Combat improvements (1 turn cost, 75% loot, 25% death penalty)
+  - [x] Fighter maintenance system (₡5/fighter/day, auto-destruction on non-payment)
+  - [x] Planet production buff (5x rates, citadel bonuses)
+  - [x] Corporate account withdrawal limits (founder/officer/member tiers)
+  - [x] Ship cost database fixes
+- [x] **UI Improvements**
+  - [x] No browser popups (prompt/alert/confirm) - all interactions use UI modals
+  - [x] Real-time ship status updates (fighters update immediately on deploy/retrieve)
+  - [x] Fighter maintenance cost warnings in deployment UI
 
 ### In Progress 🚧
-- [ ] Combat system (attack, defend, loot)
-- [ ] Planet colonization (claim, colonists, production)
+- [x] Combat system (attack, defend, loot) ✅
+- [x] Planet colonization (claim, colonists, production) ✅
 - [ ] Ship upgrade system
-- [ ] Corporation/alliance system
-- [ ] Real-time WebSocket events
+- [x] Corporation/alliance system ✅
+- [x] Real-time WebSocket events ✅
 
 ## Running Tests
 
@@ -210,6 +221,7 @@ npm run test:coverage # With coverage report
 ## Documentation
 
 - **PROJECT_STATUS.md** - Detailed development status and session context
+- **MANUAL_TESTING_GUIDE.md** - Comprehensive manual testing procedures
 - **IDEAS.md** - Brainstorming and future feature ideas
 - **server/DATABASE_SETUP.md** - Database configuration guide
 

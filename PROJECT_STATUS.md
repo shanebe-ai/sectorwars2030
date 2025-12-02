@@ -1141,6 +1141,12 @@ When implementing new features:
     - **Coverage:** Banking, combat, fighter maintenance, planet production, corporate accounts, ship costs
     - **Status:** Ready for next round of testing
     - **Note:** Manual testing to be performed in next testing phase
+  - **UI Improvements (2025-12-02):**
+    - **No Browser Popups:** Replaced all `prompt()`, `alert()`, and `confirm()` calls with UI modals
+    - **Fighter Retrieval:** Modal input instead of browser prompt
+    - **Delete Confirmation:** Inline confirmation UI instead of browser confirm
+    - **Real-time Updates:** Ship status (fighters) updates immediately on deploy/retrieve
+    - **State Management:** Improved parent-child state synchronization for instant UI updates
 
 **Previous Session:**
 - ✅ Ship log system with unread alerts
