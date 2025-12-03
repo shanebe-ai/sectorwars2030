@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import SectorView from './SectorView';
 import MessagingPanel from './MessagingPanel';
 import ShipLogPanel from './ShipLogPanel';
+import CorporationPanel from './CorporationPanel';
 import { API_URL } from '../config/api';
 import { useSocketNotifications } from '../hooks/useSocketNotifications';
 
@@ -15,6 +16,7 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
   const [player, setPlayer] = useState(initialPlayer);
   const [showMessaging, setShowMessaging] = useState(false);
   const [showShipLog, setShowShipLog] = useState(false);
+  const [showCorporation, setShowCorporation] = useState(false);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [unreadLogCount, setUnreadLogCount] = useState(0);
   const [loginNotification, setLoginNotification] = useState<any>(null);
@@ -304,6 +306,17 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
                 </span>
               )}
             </button>
+            <button
+              onClick={() => setShowCorporation(true)}
+              className="cyberpunk-button"
+              style={{
+                background: 'rgba(255, 215, 0, 0.1)',
+                borderColor: 'var(--neon-yellow)',
+                color: 'var(--neon-yellow)'
+              }}
+            >
+              ★ CORP
+            </button>
             <button onClick={onLogout} className="cyberpunk-button" style={{
               background: 'rgba(255, 20, 147, 0.1)',
               borderColor: 'var(--neon-pink)',
@@ -414,6 +427,16 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
           token={token}
           onClose={() => setShowShipLog(false)}
           onUnreadCountChange={setUnreadLogCount}
+        />
+      )}
+
+      {showCorporation && (
+        <CorporationPanel
+          token={token}
+          onClose={() => setShowCorporation(false)}
+          playerId={player.id}
+          corpId={player.corpId || null}
+          corpName={player.corpName || ''}
         />
       )}
 

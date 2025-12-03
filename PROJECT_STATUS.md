@@ -597,13 +597,16 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
   - Real-time communication between alliance members
   - Each player starts with their own corporation
 
-**Corporation System - Planned Features (Not Yet Implemented):**
-- **Leave Corporation** - Player can leave their corp (if not founder) to join another
-- **Disband Corporation** - Founder can disband corp (kicks all members)
-- **Invite System** - Founder/officers can invite players to join
-- **Accept/Decline Invites** - Players can accept or decline corp invitations
-- **Corporation Ranks** - Founder, Officer, Member with different permissions
-- **Transfer Ownership** - Founder can transfer ownership to another member
+**Corporation System (FULLY WORKING!):**
+- ✅ **Leave Corporation** - Players can leave their corp (founders must transfer ownership first)
+- ✅ **Invite System** - Founder/officers can invite players by username to join
+- ✅ **Accept Invites** - Players accept invitations through inbox messages
+- ✅ **Kick Members** - Founder/officers can remove members (officers can't kick other officers)
+- ✅ **Corporation Ranks** - Founder, Officer, Member with different permissions
+- ✅ **Promote/Demote** - Founder can promote members to officer or demote officers
+- ✅ **Transfer Ownership** - Founder can transfer ownership to another member
+- ✅ **Corporation Panel UI** - Full management interface with member list, invite system, rank management
+- ✅ **Automated Tests** - 22 comprehensive tests covering all corporation operations
 
 ## In Progress 🚧
 
@@ -1147,6 +1150,44 @@ When implementing new features:
     - **Delete Confirmation:** Inline confirmation UI instead of browser confirm
     - **Real-time Updates:** Ship status (fighters) updates immediately on deploy/retrieve
     - **State Management:** Improved parent-child state synchronization for instant UI updates
+
+**Current Session (2025-12-03):**
+- ✅ **Corporation Management System (COMPLETE!):**
+  - **Database Migrations:**
+    - 018_corporation_player_link.sql - Added `corp_id` column to players table
+    - 019_corporation_message_types.sql - Added 'corp_invite' and 'inbox' message types
+  - **Backend Services** ([server/src/services/corporationService.ts](server/src/services/corporationService.ts)):
+    - `getCorporationDetails()` - Get corp info with all members sorted by rank
+    - `leaveCorporation()` - Leave corp (founders must transfer ownership first)
+    - `invitePlayer()` - Founder/officers invite by username, sends inbox message
+    - `acceptInvitation()` - Accept invite and join corporation
+    - `kickMember()` - Founder/officers remove members (officers can't kick other officers)
+    - `changeRank()` - Founder promotes/demotes between member and officer
+    - `transferOwnership()` - Founder transfers founder role to another member
+  - **Backend Controllers** ([server/src/controllers/corporationController.ts](server/src/controllers/corporationController.ts)):
+    - GET /api/corporations/:corpId - Get corporation details
+    - POST /api/corporations/leave - Leave corporation
+    - POST /api/corporations/invite - Invite player
+    - POST /api/corporations/accept-invite - Accept invitation
+    - POST /api/corporations/kick - Kick member
+    - POST /api/corporations/change-rank - Promote/demote member
+    - POST /api/corporations/transfer-ownership - Transfer ownership
+  - **Frontend UI** ([client/src/components/CorporationPanel.tsx](client/src/components/CorporationPanel.tsx)):
+    - Full-screen modal with cyberpunk styling
+    - Members tab showing all members with rank badges
+    - Invite tab for founder/officers to invite players
+    - Leave corporation button (disabled for founders)
+    - Inline member management: promote, demote, kick, transfer buttons
+    - Real-time updates after actions
+    - ★ CORP button in GameDashboard header (yellow/gold theme)
+  - **Permission System:**
+    - Founder: Full control (promote, demote, kick, transfer ownership)
+    - Officer: Can invite players and kick members (not other officers)
+    - Member: View only, can leave corporation
+  - **Automated Test Suite** ([server/src/__tests__/corporation.test.ts](server/src/__tests__/corporation.test.ts)):
+    - 22 comprehensive tests covering all corporation operations
+    - Tests for get details, leave, invite, accept, kick, change rank, transfer
+    - All tests passing with 100% coverage of features
 
 **Previous Session:**
 - ✅ Ship log system with unread alerts

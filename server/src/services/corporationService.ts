@@ -14,9 +14,10 @@ export async function getCorporationDetails(corpId: number) {
   try {
     // Get corporation info
     const corpResult = await client.query(`
-      SELECT c.*, p.username as founder_username
+      SELECT c.*, u.username as founder_username
       FROM corporations c
       LEFT JOIN players p ON c.founder_id = p.id
+      LEFT JOIN users u ON p.user_id = u.id
       WHERE c.id = $1
     `, [corpId]);
 
@@ -33,7 +34,7 @@ export async function getCorporationDetails(corpId: number) {
         cm.rank,
         cm.joined_at,
         p.id as player_id,
-        p.username,
+        u.username,
         p.ship_type,
         p.alignment,
         p.kills,
@@ -184,7 +185,7 @@ export async function invitePlayer(inviterId: number, targetUsername: string) {
     // Create invitation (store in messages as a special type)
     await client.query(`
       INSERT INTO messages (
-        player_id,
+        recipient_id,
         sender_name,
         subject,
         body,
@@ -302,9 +303,10 @@ export async function kickMember(kickerId: number, targetPlayerId: number) {
 
     // Get target's corp membership
     const targetResult = await client.query(`
-      SELECT cm.*, p.username
+      SELECT cm.*, u.username
       FROM corp_members cm
       JOIN players p ON cm.player_id = p.id
+      JOIN users u ON p.user_id = u.id
       WHERE cm.player_id = $1 AND cm.corp_id = $2
     `, [targetPlayerId, kickerMembership.corp_id]);
 
@@ -339,7 +341,7 @@ export async function kickMember(kickerId: number, targetPlayerId: number) {
     // Send notification to kicked player
     await client.query(`
       INSERT INTO messages (
-        player_id,
+        recipient_id,
         sender_name,
         subject,
         body,
@@ -398,9 +400,10 @@ export async function changeRank(changerId: number, targetPlayerId: number, newR
 
     // Get target's membership
     const targetResult = await client.query(`
-      SELECT cm.*, p.username
+      SELECT cm.*, u.username
       FROM corp_members cm
       JOIN players p ON cm.player_id = p.id
+      JOIN users u ON p.user_id = u.id
       WHERE cm.player_id = $1 AND cm.corp_id = $2
     `, [targetPlayerId, changerMembership.corp_id]);
 
@@ -425,7 +428,7 @@ export async function changeRank(changerId: number, targetPlayerId: number, newR
     // Send notification
     await client.query(`
       INSERT INTO messages (
-        player_id,
+        recipient_id,
         sender_name,
         subject,
         body,
@@ -485,9 +488,10 @@ export async function transferOwnership(currentFounderId: number, newFounderId: 
 
     // Get new founder's membership
     const newFounderResult = await client.query(`
-      SELECT cm.*, p.username
+      SELECT cm.*, u.username
       FROM corp_members cm
       JOIN players p ON cm.player_id = p.id
+      JOIN users u ON p.user_id = u.id
       WHERE cm.player_id = $1 AND cm.corp_id = $2
     `, [newFounderId, founderMembership.corp_id]);
 
@@ -521,7 +525,7 @@ export async function transferOwnership(currentFounderId: number, newFounderId: 
     // Send notification to new founder
     await client.query(`
       INSERT INTO messages (
-        player_id,
+        recipient_id,
         sender_name,
         subject,
         body,
