@@ -97,6 +97,10 @@ Admin panel runs on http://localhost:5174
 - **corporations** - Team/alliance system
 - **game_events** - Historical event log
 - **combat_log** - Combat history
+- **alien_planets** - Alien planet locations and details
+- **alien_ships** - Alien ship configurations and positions
+- **alien_communications** - Alien message history
+- **player_alien_unlocks** - Tracks which players have unlocked alien comms
 
 See [server/src/db/schema.sql](server/src/db/schema.sql) for complete schema.
 
@@ -112,6 +116,12 @@ See [server/src/db/schema.sql](server/src/db/schema.sql) for complete schema.
 - **Ship communications** - Message other ships in your sector, stored for offline players
 - **Combat system** - Attack other players and aliens (coming soon)
 - **Planets** - ~30 claimable planets per universe, colonize and produce resources
+- **Alien System** - Alien planets, ships, and communications
+  - Alien planets scale with universe size (0.3% formula for 1000+ sectors)
+  - Alien ships with different behaviors (patrol, trade, aggressive, defensive)
+  - Alien communications channel (read-only), unlocked after visiting an alien planet
+  - Alien ships move automatically via game tick system
+  - Alien planets logged in ship log with special identification
 - **Corporations** - Form alliances with other players
 - **Territory control** - Deploy fighters and mines
 
@@ -201,6 +211,17 @@ Format: `[Fuel][Organics][Equipment]`
   - [x] No browser popups (prompt/alert/confirm) - all interactions use UI modals
   - [x] Real-time ship status updates (fighters update immediately on deploy/retrieve)
   - [x] Fighter maintenance cost warnings in deployment UI
+- [x] **Alien System (2025-12-02)**
+  - [x] Alien planet generation with scaling formula (0.3% for 1000+ sectors)
+  - [x] Alien ship generation with multiple races and ship types
+  - [x] Alien communications channel (read-only)
+  - [x] Auto-unlock alien comms when entering alien planet sector
+  - [x] Alien comms integrated into MessagingPanel as separate tab
+  - [x] Alien ship AI movement system (game tick every 5 minutes)
+  - [x] Alien ship behaviors (patrol, trade, aggressive, defensive)
+  - [x] Alien alignment system (traders: neutral/friendly, others: hostile)
+  - [x] Alien planet detection and logging in ship log
+  - [x] Admin panel configuration for alien planet count
 
 ### In Progress 🚧
 - [x] Combat system (attack, defend, loot) ✅

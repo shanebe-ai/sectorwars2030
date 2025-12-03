@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { Message, MessageType, KnownTrader } from '../../../shared/types';
+import type { Message, MessageType, KnownTrader, AlienCommunication, AlienCommsResponse } from '../../../shared/types';
 import { API_URL } from '../config/api';
 
 interface MessagingPanelProps {
@@ -20,8 +20,8 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
     });
   };
 
-  const [view, setView] = useState<'inbox' | 'broadcasts' | 'corporate' | 'sent' | 'compose' | 'read'>('inbox');
-  const [previousView, setPreviousView] = useState<'inbox' | 'broadcasts' | 'corporate' | 'sent'>('inbox');
+  const [view, setView] = useState<'inbox' | 'broadcasts' | 'corporate' | 'alien' | 'sent' | 'compose' | 'read'>('inbox');
+  const [previousView, setPreviousView] = useState<'inbox' | 'broadcasts' | 'corporate' | 'alien' | 'sent'>('inbox');
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [knownTraders, setKnownTraders] = useState<KnownTrader[]>([]);
@@ -34,6 +34,10 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
   
   // Corporation state (includes member count to hide corp chat if only 1 member)
   const [corporation, setCorporation] = useState<{ id: number; name: string; memberCount: number } | null>(null);
+  
+  // Alien comms state
+  const [alienComms, setAlienComms] = useState<AlienCommunication[]>([]);
+  const [alienCommsUnlocked, setAlienCommsUnlocked] = useState(false);
 
   // Compose form state
   const [messageType, setMessageType] = useState<MessageType>('DIRECT');
@@ -156,6 +160,27 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
     }
   };
 
+  const loadAlienComms = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await fetch(`${API_URL}/api/aliens/comms`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data: AlienCommsResponse = await response.json();
+      if (response.ok) {
+        setAlienCommsUnlocked(data.unlocked);
+        setAlienComms(data.communications);
+      } else {
+        setError(data.error || 'Failed to load alien communications');
+      }
+    } catch (err) {
+      setError('Network error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const loadCorporateMessages = async () => {
     try {
       setLoading(true);
@@ -179,6 +204,9 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
   };
 
   const handleViewChange = (newView: typeof view) => {
+    if (newView !== 'read' && newView !== 'compose') {
+      setPreviousView(newView);
+    }
     setView(newView);
     setError('');
     setSuccess('');
@@ -190,6 +218,8 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
       loadBroadcasts();
     } else if (newView === 'corporate') {
       loadCorporateMessages();
+    } else if (newView === 'alien') {
+      loadAlienComms();
     } else if (newView === 'sent') {
       loadSentMessages();
     } else if (newView === 'compose') {
@@ -386,6 +416,13 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
             />
           )}
           <TabButton
+            label="👽 ALIEN"
+            active={view === 'alien'}
+            onClick={() => handleViewChange('alien')}
+            color="purple"
+            style={{ color: alienCommsUnlocked ? '#9d00ff' : '#666' }}
+          />
+          <TabButton
             label="► SENT"
             active={view === 'sent'}
             onClick={() => handleViewChange('sent')}
@@ -444,6 +481,141 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
               type="corporate"
               formatDateTime={formatDateTime}
             />
+          )}
+
+          {view === 'alien' && (
+            <div>
+              {loading ? (
+                <div style={{ textAlign: 'center', padding: '2rem', color: '#9d00ff' }}>
+                  ⟳ Scanning frequencies...
+                </div>
+              ) : !alienCommsUnlocked ? (
+                <div style={{
+                  border: '2px solid #ff0099',
+                  borderRadius: '8px',
+                  padding: '2rem',
+                  background: 'rgba(255, 0, 153, 0.1)',
+                  textAlign: 'center'
+                }}>
+                  <h3 style={{ color: '#ff0099', marginBottom: '1rem' }}>🔒 CHANNEL LOCKED</h3>
+                  <p style={{ color: '#ffffff', marginBottom: '1rem' }}>
+                    This frequency is encrypted and cannot be accessed.
+                  </p>
+                  <p style={{ color: '#00ffff', fontSize: '0.9rem' }}>
+                    Hint: Alien communications can be intercepted after encountering<br/>
+                    an alien-controlled sector. Explore the universe to find them.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <div style={{
+                    background: 'rgba(0, 255, 255, 0.1)',
+                    border: '1px solid #00ffff',
+                    borderRadius: '4px',
+                    padding: '0.75rem',
+                    marginBottom: '1rem',
+                    fontSize: '0.85rem',
+                    color: '#00ffff'
+                  }}>
+                    <strong>ℹ️ INTERCEPTED TRANSMISSIONS:</strong> You are monitoring the alien communications network.
+                    This channel is read-only. All alien activity in this universe will appear here.
+                  </div>
+                  {alienComms.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '2rem', color: '#888' }}>
+                      <p>📡 No transmissions detected yet.</p>
+                      <p style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>
+                        Alien activity will appear here as it happens.
+                      </p>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {alienComms.map((comm) => {
+                        const getMessageTypeColor = (type: string) => {
+                          switch (type) {
+                            case 'encounter': return '#00ff00';
+                            case 'combat': return '#ff0099';
+                            case 'death': return '#ff0000';
+                            case 'escape_pod': return '#ff9900';
+                            case 'sector_entry': return '#00ffff';
+                            case 'planet_attack': return '#ff0000';
+                            case 'threat': return '#ff0099';
+                            default: return '#ffffff';
+                          }
+                        };
+                        const getMessageTypeIcon = (type: string) => {
+                          switch (type) {
+                            case 'encounter': return '👁️';
+                            case 'combat': return '⚔️';
+                            case 'death': return '💀';
+                            case 'escape_pod': return '🚀';
+                            case 'sector_entry': return '📡';
+                            case 'planet_attack': return '🌍';
+                            case 'threat': return '⚠️';
+                            default: return '📻';
+                          }
+                        };
+                        const formatTimestamp = (dateStr: string) => {
+                          const date = new Date(dateStr);
+                          const now = new Date();
+                          const diff = now.getTime() - date.getTime();
+                          const minutes = Math.floor(diff / 60000);
+                          const hours = Math.floor(diff / 3600000);
+                          const days = Math.floor(diff / 86400000);
+                          if (minutes < 1) return 'just now';
+                          if (minutes < 60) return `${minutes}m ago`;
+                          if (hours < 24) return `${hours}h ago`;
+                          return `${days}d ago`;
+                        };
+                        return (
+                          <div
+                            key={comm.id}
+                            style={{
+                              background: 'rgba(0, 0, 0, 0.5)',
+                              border: `1px solid ${getMessageTypeColor(comm.messageType)}`,
+                              borderRadius: '4px',
+                              padding: '0.75rem'
+                            }}
+                          >
+                            <div style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              marginBottom: '0.5rem',
+                              fontSize: '0.8rem'
+                            }}>
+                              <span style={{ color: getMessageTypeColor(comm.messageType) }}>
+                                {getMessageTypeIcon(comm.messageType)} {comm.messageType.toUpperCase().replace('_', ' ')}
+                                {comm.alienRace && ` - ${comm.alienRace}`}
+                              </span>
+                              <span style={{ color: '#888' }}>
+                                {formatTimestamp(comm.createdAt)}
+                              </span>
+                            </div>
+                            <div style={{
+                              color: '#ffffff',
+                              fontSize: '0.9rem',
+                              lineHeight: '1.4',
+                              fontFamily: 'monospace'
+                            }}>
+                              {comm.message}
+                            </div>
+                            {comm.sectorNumber && (
+                              <div style={{
+                                marginTop: '0.5rem',
+                                fontSize: '0.75rem',
+                                color: '#00ff00'
+                              }}>
+                                📍 Sector {comm.sectorNumber}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           )}
 
           {view === 'sent' && (

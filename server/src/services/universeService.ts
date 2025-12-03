@@ -1,5 +1,6 @@
 import { query, getClient } from '../db/connection';
 import { PortType } from '../../../shared/types';
+import { generateAliensForUniverse } from './alienService';
 
 interface UniverseConfig {
   name: string;
@@ -12,6 +13,7 @@ interface UniverseConfig {
   portPercentage?: number; // Percentage of sectors with ports (default 12%)
   stardockCount?: number; // Number of stardocks to create (default: calculated)
   allowDeadEnds?: boolean; // Allow dead-end sectors (~0.25% chance)
+  alienPlanetCount?: number; // Number of alien planets (default: formula based on sector count)
   createdBy: number;
 }
 
@@ -531,6 +533,21 @@ export async function generateUniverse(config: UniverseConfig) {
 
     // Commit transaction
     await client.query('COMMIT');
+
+    // 8. Generate alien planets and ships (after commit, uses separate transaction)
+    console.log('Generating alien presence...');
+    try {
+      await generateAliensForUniverse({
+        universeId: universeId,
+        sectorCount: maxSectors,
+        customPlanetCount: config.alienPlanetCount
+      });
+      console.log('Alien generation completed successfully');
+    } catch (alienError) {
+      console.error('ERROR: Alien generation failed:', alienError);
+      console.error('Alien error details:', JSON.stringify(alienError, null, 2));
+      // Don't throw - universe is already created, just log the error
+    }
 
     console.log(`Universe "${name}" generated successfully!`);
 

@@ -1,6 +1,6 @@
 import { pool } from '../db/connection';
 
-export type LogType = 'SOL' | 'PLANET' | 'PORT' | 'DEAD_END' | 'STARDOCK' | 'MANUAL';
+export type LogType = 'SOL' | 'PLANET' | 'PORT' | 'DEAD_END' | 'STARDOCK' | 'MANUAL' | 'ALIEN_PLANET';
 
 export interface ShipLogEntry {
   id: number;
@@ -162,10 +162,12 @@ export async function autoLogSector(
     has_planet?: boolean;
     planet_name?: string;
     warp_count?: number;
+    alien_planet_name?: string;
+    alien_planet_race?: string;
   }
 ): Promise<ShipLogEntry[]> {
   const logs: ShipLogEntry[] = [];
-  const { sector_number, name, port_type, has_planet, planet_name, warp_count } = sectorData;
+  const { sector_number, name, port_type, has_planet, planet_name, warp_count, alien_planet_name, alien_planet_race } = sectorData;
 
   // Log Sol (sector 1)
   if (sector_number === 1) {
@@ -195,8 +197,23 @@ export async function autoLogSector(
     if (entry) logs.push(entry);
   }
 
-  // Log planets (but not Sol/Earth - that's already logged as SOL)
-  if (has_planet && planet_name && sector_number !== 1) {
+  // Log alien planets first (they take priority over regular planets)
+  if (alien_planet_name && alien_planet_race) {
+    console.log(`[ShipLog] Logging alien planet: ${alien_planet_name} (${alien_planet_race}) in sector ${sector_number} for player ${playerId}`);
+    const entry = await addLogEntry(playerId, universeId, sector_number, 'ALIEN_PLANET', {
+      planetName: alien_planet_name,
+      sectorName: name,
+      note: `🛸 ALIEN PLANET: ${alien_planet_name} (${alien_planet_race} race) - Alien-controlled territory`
+    });
+    if (entry) {
+      console.log(`[ShipLog] Successfully logged alien planet entry: ${entry.id}`);
+      logs.push(entry);
+    } else {
+      console.log(`[ShipLog] Failed to create alien planet log entry (may already exist)`);
+    }
+  }
+  // Log regular planets (but not Sol/Earth - that's already logged as SOL)
+  else if (has_planet && planet_name && sector_number !== 1) {
     const entry = await addLogEntry(playerId, universeId, sector_number, 'PLANET', {
       planetName: planet_name,
       sectorName: name,
@@ -224,6 +241,7 @@ export async function getLogStats(playerId: number): Promise<{
   total: number;
   ports: number;
   planets: number;
+  alienPlanets: number;
   deadEnds: number;
   stardocks: number;
   manual: number;
@@ -231,11 +249,11 @@ export async function getLogStats(playerId: number): Promise<{
   const result = await pool.query(
     `SELECT
        COUNT(*) as total,
-       COUNT(*) FILTER (WHERE log_type = 'PORT') as ports,
-       COUNT(*) FILTER (WHERE log_type = 'PLANET') as planets,
-       COUNT(*) FILTER (WHERE log_type = 'DEAD_END') as dead_ends,
-       COUNT(*) FILTER (WHERE log_type = 'STARDOCK') as stardocks,
-       COUNT(*) FILTER (WHERE log_type = 'MANUAL') as manual
+      COUNT(*) FILTER (WHERE log_type = 'PORT') as ports,
+      COUNT(*) FILTER (WHERE log_type IN ('SOL', 'PLANET', 'ALIEN_PLANET')) as planets,
+      COUNT(*) FILTER (WHERE log_type = 'DEAD_END') as dead_ends,
+      COUNT(*) FILTER (WHERE log_type = 'STARDOCK') as stardocks,
+      COUNT(*) FILTER (WHERE log_type = 'MANUAL') as manual
      FROM ship_logs WHERE player_id = $1`,
     [playerId]
   );
@@ -245,6 +263,7 @@ export async function getLogStats(playerId: number): Promise<{
     total: parseInt(row.total) || 0,
     ports: parseInt(row.ports) || 0,
     planets: parseInt(row.planets) || 0,
+    alienPlanets: 0, // Deprecated - kept for compatibility but always 0
     deadEnds: parseInt(row.dead_ends) || 0,
     stardocks: parseInt(row.stardocks) || 0,
     manual: parseInt(row.manual) || 0

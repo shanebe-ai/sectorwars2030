@@ -20,8 +20,10 @@ import cargoRoutes from './routes/cargo';
 import beaconRoutes from './routes/beacon';
 import sectorFighterRoutes from './routes/sectorFighters';
 import mineRoutes from './routes/mines';
+import alienRoutes from './routes/alien';
 import { startPortRegeneration } from './services/portService';
 import { startFighterMaintenance } from './services/maintenanceService';
+import { startAlienShipMovement } from './services/alienService';
 
 dotenv.config();
 
@@ -126,6 +128,9 @@ app.use('/api/sector-fighters', sectorFighterRoutes);
 // Mine routes (purchase/deploy mines)
 app.use('/api/mines', mineRoutes);
 
+// Alien routes (alien communications and encounters)
+app.use('/api/aliens', alienRoutes);
+
 // WebSocket connection handling
 io.on('connection', (socket) => {
   console.log(`[WS] Client connected: ${socket.id}`);
@@ -207,6 +212,9 @@ httpServer.listen(PORT, () => {
   
   // Start fighter maintenance charging (daily - 24 hours)
   startFighterMaintenance(24 * 60 * 60 * 1000);
+  
+  // Start alien ship movement (every 5 minutes)
+  startAlienShipMovement(5 * 60 * 1000);
 });
 
 // Graceful shutdown

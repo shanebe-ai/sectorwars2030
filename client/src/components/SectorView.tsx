@@ -54,6 +54,24 @@ interface DeployedFighter {
   isOwn: boolean;
 }
 
+interface AlienShip {
+  id: number;
+  alienRace: string;
+  shipName: string;
+  shipType: string;
+  fighters: number;
+  shields: number;
+  behavior: string;
+}
+
+interface AlienPlanet {
+  id: number;
+  name: string;
+  alienRace: string;
+  citadelLevel: number;
+  fighters: number;
+}
+
 interface Sector {
   sectorNumber: number;
   name: string | null;
@@ -73,6 +91,8 @@ interface Sector {
   deployedFighters?: DeployedFighter[];
   hasHostileFighters?: boolean;
   hostileFighterCount?: number;
+  alienShips?: AlienShip[];
+  alienPlanet?: AlienPlanet | null;
 }
 
 interface CombatTarget {
@@ -2201,6 +2221,87 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                   )}
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Alien Ships */}
+          {sector.alienShips && sector.alienShips.length > 0 && (
+            <div style={{
+              padding: '15px',
+              background: 'rgba(157, 0, 255, 0.05)',
+              border: '1px solid #9d00ff',
+              marginBottom: '15px'
+            }}>
+              <div style={{ color: '#9d00ff', fontWeight: 'bold', marginBottom: '10px' }}>
+                👽 ALIEN SHIPS ({sector.alienShips.length})
+              </div>
+              {sector.alienShips.map(alien => (
+                <div key={alien.id} style={{
+                  padding: '10px',
+                  background: 'rgba(157, 0, 255, 0.1)',
+                  marginBottom: '8px',
+                  fontSize: '13px',
+                  color: 'var(--text-primary)',
+                  border: '1px solid rgba(157, 0, 255, 0.3)'
+                }}>
+                  <div style={{ color: '#9d00ff', fontWeight: 'bold' }}>
+                    {alien.shipName}
+                  </div>
+                  <div style={{ fontSize: '11px', opacity: 0.9, marginTop: '4px' }}>
+                    Race: {alien.alienRace} • Ship: {alien.shipType} • Behavior: {alien.behavior.toUpperCase()}
+                  </div>
+                  <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '2px', color: '#ff9900' }}>
+                    ⚔ {alien.fighters} Fighters • 🛡️ {alien.shields} Shields
+                  </div>
+                  <div style={{
+                    marginTop: '8px',
+                    fontSize: '11px',
+                    color: '#ff0099',
+                    fontStyle: 'italic'
+                  }}>
+                    ⚠️ Hostile NPC - Combat not yet implemented
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Alien Planet */}
+          {sector.alienPlanet && (
+            <div style={{
+              padding: '15px',
+              background: 'rgba(157, 0, 255, 0.1)',
+              border: '2px solid #9d00ff',
+              marginBottom: '15px'
+            }}>
+              <div style={{ color: '#9d00ff', fontWeight: 'bold', marginBottom: '10px' }}>
+                🛸 ALIEN PLANET DETECTED
+              </div>
+              <div style={{
+                padding: '10px',
+                background: 'rgba(0, 0, 0, 0.5)',
+                border: '1px solid rgba(157, 0, 255, 0.5)'
+              }}>
+                <div style={{ color: '#ff0099', fontWeight: 'bold', fontSize: '14px' }}>
+                  {sector.alienPlanet.name}
+                </div>
+                <div style={{ fontSize: '12px', marginTop: '6px', color: '#00ffff' }}>
+                  Race: {sector.alienPlanet.alienRace}
+                </div>
+                <div style={{ fontSize: '12px', marginTop: '4px', color: '#ff9900' }}>
+                  🏰 Citadel Level {sector.alienPlanet.citadelLevel} • ⚔ {sector.alienPlanet.fighters.toLocaleString()} Fighters
+                </div>
+                <div style={{
+                  marginTop: '10px',
+                  padding: '8px',
+                  background: 'rgba(0, 255, 255, 0.1)',
+                  border: '1px solid #00ffff',
+                  fontSize: '11px',
+                  color: '#00ffff'
+                }}>
+                  📡 ALIEN COMMUNICATIONS UNLOCKED! Check the ALIEN COMMS channel to monitor their network.
+                </div>
+              </div>
             </div>
           )}
         </div>

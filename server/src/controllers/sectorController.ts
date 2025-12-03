@@ -4,6 +4,7 @@ import { recordEncounter } from '../services/messageService';
 import { autoLogSector } from '../services/shipLogService';
 import { emitSectorEvent } from '../index';
 import { checkMinesOnEntry } from '../services/mineService';
+import { getAlienShipsInSector, getAlienPlanetInSector, unlockAlienComms, broadcastAlienMessage } from '../services/alienService';
 
 /**
  * Get sector details including warps
@@ -207,10 +208,78 @@ export const getSectorDetails = async (req: Request, res: Response) => {
     // Check for hostile fighters (not owned by player)
     const hostileFighters = deployedFighters.filter(f => !f.isOwn);
 
+    // Get alien presence in sector (with error handling)
+    let alienShips: any[] = [];
+    let alienPlanet: any = null;
+    try {
+      alienShips = await getAlienShipsInSector(universeId, parseInt(sectorNumber as string));
+    } catch (alienShipError: any) {
+      console.error('Error fetching alien ships:', alienShipError);
+      // Continue without alien ships rather than crashing
+      alienShips = [];
+    }
+    
+    try {
+      alienPlanet = await getAlienPlanetInSector(universeId, parseInt(sectorNumber as string));
+    } catch (alienPlanetError: any) {
+      console.error('Error fetching alien planet:', alienPlanetError);
+      // Continue without alien planet rather than crashing
+      alienPlanet = null;
+    }
+
+    // If alien planet exists and player is viewing current sector, unlock alien comms
+    if (alienPlanet && parseInt(sectorNumber as string) === currentSector) {
+      try {
+        await unlockAlienComms(playerId, universeId);
+        console.log(`Player ${playerId} unlocked alien communications in sector ${sectorNumber}`);
+      } catch (error) {
+        console.error('Error unlocking alien comms:', error);
+      }
+    }
+
+    // Broadcast alien encounter if aliens are present and player is entering
+    if (alienShips.length > 0 && parseInt(sectorNumber as string) === currentSector) {
+      const playerInfo = await pool.query(
+        `SELECT u.username, p.corp_name
+         FROM players p
+         JOIN users u ON p.user_id = u.id
+         WHERE p.id = $1`,
+        [playerId]
+      );
+
+      if (playerInfo.rows.length > 0) {
+        const player = playerInfo.rows[0];
+        for (const alienShip of alienShips) {
+          await broadcastAlienMessage(
+            universeId,
+            'encounter',
+            `Encounter detected: ${player.username} (${player.corp_name || 'Independent'}) and ${alienShip.shipName} in Sector ${sectorNumber}`,
+            {
+              alienRace: alienShip.alienRace,
+              sectorNumber: parseInt(sectorNumber as string),
+              relatedPlayerId: playerId,
+              relatedShipId: alienShip.id
+            }
+          );
+        }
+      }
+    }
+
     // Auto-log sector when viewing current sector (for initial spawn and returning visits)
     if (parseInt(sectorNumber as string) === currentSector) {
       // Get planet name if exists
       const planetName = planets.length > 0 ? planets[0].name : undefined;
+      
+      // Get alien planet info if exists
+      const alienPlanetName = alienPlanet ? alienPlanet.name : undefined;
+      const alienPlanetRace = alienPlanet ? alienPlanet.alienRace : undefined;
+      
+      console.log(`[SectorController] Auto-logging sector ${sector.sector_number} for player ${playerId}:`, {
+        hasPlanet: sector.has_planet,
+        planetName,
+        alienPlanetName,
+        alienPlanetRace
+      });
       
       // Fire and forget - don't block the response
       autoLogSector(playerId, universeId, {
@@ -219,7 +288,9 @@ export const getSectorDetails = async (req: Request, res: Response) => {
         port_type: sector.port_type,
         has_planet: sector.has_planet,
         planet_name: planetName,
-        warp_count: warps.length
+        warp_count: warps.length,
+        alien_planet_name: alienPlanetName,
+        alien_planet_race: alienPlanetRace
       }).catch(err => console.error('Failed to auto-log sector:', err));
     }
 
@@ -242,7 +313,23 @@ export const getSectorDetails = async (req: Request, res: Response) => {
         beacons,
         deployedFighters,
         hasHostileFighters: hostileFighters.length > 0,
-        hostileFighterCount: hostileFighters.reduce((sum, f) => sum + f.fighterCount, 0)
+        hostileFighterCount: hostileFighters.reduce((sum, f) => sum + f.fighterCount, 0),
+        alienShips: (alienShips || []).map(a => ({
+          id: a.id,
+          alienRace: a.alienRace,
+          shipName: a.shipName,
+          shipType: a.shipTypeName || 'Unknown',
+          fighters: a.fighters,
+          shields: a.shields,
+          behavior: a.behavior
+        })),
+        alienPlanet: alienPlanet ? {
+          id: alienPlanet.id,
+          name: alienPlanet.name,
+          alienRace: alienPlanet.alienRace,
+          citadelLevel: alienPlanet.citadelLevel,
+          fighters: alienPlanet.fighters
+        } : null
       }
     });
   } catch (error: any) {
@@ -701,6 +788,23 @@ export const moveToSector = async (req: Request, res: Response) => {
         [player.universe_id, actualDestination]
       );
 
+      // Get alien planet info if exists
+      let alienPlanetName: string | undefined;
+      let alienPlanetRace: string | undefined;
+      try {
+        const alienPlanetResult = await client.query(
+          `SELECT name, alien_race FROM alien_planets
+           WHERE universe_id = $1 AND sector_number = $2`,
+          [player.universe_id, actualDestination]
+        );
+        if (alienPlanetResult.rows.length > 0) {
+          alienPlanetName = alienPlanetResult.rows[0].name;
+          alienPlanetRace = alienPlanetResult.rows[0].alien_race;
+        }
+      } catch (err) {
+        // Silent fail - alien planet check is optional
+      }
+
       // Auto-log the sector discovery
       if (destSectorResult.rows[0]) {
         const sectorInfo = destSectorResult.rows[0];
@@ -710,7 +814,9 @@ export const moveToSector = async (req: Request, res: Response) => {
           port_type: sectorInfo.port_type,
           has_planet: sectorInfo.has_planet,
           planet_name: sectorInfo.planet_name,
-          warp_count: parseInt(sectorInfo.warp_count) || 0
+          warp_count: parseInt(sectorInfo.warp_count) || 0,
+          alien_planet_name: alienPlanetName,
+          alien_planet_race: alienPlanetRace
         });
       }
 

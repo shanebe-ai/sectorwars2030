@@ -32,6 +32,7 @@ export const createUniverse = async (req: Request, res: Response) => {
       portPercentage,
       stardockCount,
       allowDeadEnds,
+      alienPlanetCount,
     } = req.body;
 
     // Validation
@@ -56,6 +57,7 @@ export const createUniverse = async (req: Request, res: Response) => {
       portPercentage,
       stardockCount,
       allowDeadEnds: allowDeadEnds === true,
+      alienPlanetCount,
       createdBy: req.user.userId,
     });
 

@@ -181,6 +181,7 @@ export interface CreateUniverseRequest {
   turns_per_day?: number;
   starting_credits?: number;
   starting_ship_type?: string;
+  alien_planet_count?: number; // Number of alien planets, defaults to formula: 0.3% of sectors for 1000+
 }
 
 export interface MoveRequest {
@@ -420,7 +421,7 @@ export interface DeployedFighters {
   isOwn?: boolean;
 }
 
-// Floating Cargo types  
+// Floating Cargo types
 export interface FloatingCargo {
   id: number;
   sectorNumber: number;
@@ -430,4 +431,39 @@ export interface FloatingCargo {
   colonists: number;
   source: 'combat' | 'jettison';
   expiresAt: string;
+}
+
+// Alien types
+export interface AlienShip {
+  id: number;
+  alienRace: string;
+  shipName: string;
+  shipType: string;
+  fighters: number;
+  shields: number;
+  behavior: 'patrol' | 'trade' | 'aggressive' | 'defensive';
+}
+
+export interface AlienPlanet {
+  id: number;
+  name: string;
+  alienRace: string;
+  citadelLevel: number;
+  fighters: number;
+}
+
+export interface AlienCommunication {
+  id: number;
+  alienRace?: string;
+  messageType: 'encounter' | 'combat' | 'death' | 'escape_pod' | 'sector_entry' | 'planet_attack' | 'port_visit' | 'beacon_attack' | 'threat';
+  message: string;
+  sectorNumber?: number;
+  playerUsername?: string;
+  playerCorp?: string;
+  createdAt: string;
+}
+
+export interface AlienCommsResponse {
+  unlocked: boolean;
+  communications: AlienCommunication[];
 }

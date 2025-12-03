@@ -6,7 +6,7 @@ interface ShipLogEntry {
   player_id: number;
   universe_id: number;
   sector_number: number;
-  log_type: 'SOL' | 'PLANET' | 'PORT' | 'DEAD_END' | 'STARDOCK' | 'MANUAL';
+  log_type: 'SOL' | 'PLANET' | 'PORT' | 'DEAD_END' | 'STARDOCK' | 'MANUAL' | 'ALIEN_PLANET';
   port_type?: string;
   planet_name?: string;
   sector_name?: string;
@@ -20,6 +20,7 @@ interface LogStats {
   total: number;
   ports: number;
   planets: number;
+  alienPlanets: number;
   deadEnds: number;
   stardocks: number;
   manual: number;
@@ -37,6 +38,7 @@ type SortType = 'date' | 'sector';
 const LOG_TYPE_COLORS: Record<string, string> = {
   SOL: 'var(--neon-yellow)',
   PLANET: 'var(--neon-green)',
+  ALIEN_PLANET: '#9d00ff', // Purple for alien planets
   PORT: 'var(--neon-cyan)',
   DEAD_END: 'var(--neon-red)',
   STARDOCK: 'var(--neon-purple)',
@@ -46,6 +48,7 @@ const LOG_TYPE_COLORS: Record<string, string> = {
 const LOG_TYPE_ICONS: Record<string, string> = {
   SOL: '☀',
   PLANET: '🌍',
+  ALIEN_PLANET: '🛸',
   PORT: '🏪',
   DEAD_END: '⚠',
   STARDOCK: '🚀',
@@ -173,7 +176,7 @@ export const ShipLogPanel: React.FC<ShipLogPanelProps> = ({ token, onClose, onUn
   const filteredLogs = filter === 'ALL'
     ? logs
     : filter === 'PLANET'
-      ? logs.filter(log => log.log_type === 'PLANET' || log.log_type === 'SOL')
+      ? logs.filter(log => log.log_type === 'PLANET' || log.log_type === 'SOL' || log.log_type === 'ALIEN_PLANET')
       : logs.filter(log => log.log_type === filter);
 
   // Sort logs based on selected sort type
@@ -202,6 +205,8 @@ export const ShipLogPanel: React.FC<ShipLogPanelProps> = ({ token, onClose, onUn
         return 'Home Sector - Earth';
       case 'PLANET':
         return log.planet_name || 'Unknown Planet';
+      case 'ALIEN_PLANET':
+        return log.planet_name ? `${log.planet_name} (Alien)` : 'Alien Planet';
       case 'PORT':
         return `Port Type: ${log.port_type}`;
       case 'STARDOCK':

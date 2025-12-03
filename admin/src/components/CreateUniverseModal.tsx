@@ -14,6 +14,7 @@ export default function CreateUniverseModal({ token, onClose, onSuccess }: Creat
     maxSectors: 1000,
     portPercentage: 12,
     stardockCount: 2, // Default: Math.max(1, Math.floor(1000 / 500))
+    alienPlanetCount: 3, // Default: Math.ceil(1000 * 0.003)
     maxPlayers: 100,
     turnsPerDay: 1000,
     startingCredits: 2000,
@@ -58,15 +59,18 @@ export default function CreateUniverseModal({ token, onClose, onSuccess }: Creat
       ...formData,
       [name]: type === 'checkbox'
         ? (e.target as HTMLInputElement).checked
-        : ['maxSectors', 'portPercentage', 'stardockCount', 'maxPlayers', 'turnsPerDay', 'startingCredits'].includes(name)
+        : ['maxSectors', 'portPercentage', 'stardockCount', 'alienPlanetCount', 'maxPlayers', 'turnsPerDay', 'startingCredits'].includes(name)
         ? parseInt(value) || 0
         : value
     };
 
-    // Auto-update stardockCount when maxSectors changes
+    // Auto-update stardockCount and alienPlanetCount when maxSectors changes
     if (name === 'maxSectors') {
-      const calculatedStardocks = Math.max(1, Math.floor((parseInt(value) || 0) / 500));
+      const sectors = parseInt(value) || 0;
+      const calculatedStardocks = Math.max(1, Math.floor(sectors / 500));
+      const calculatedAlienPlanets = sectors >= 1000 ? Math.ceil(sectors * 0.003) : sectors >= 500 ? 3 : sectors >= 100 ? 2 : sectors >= 50 ? 1 : 0;
       newFormData.stardockCount = calculatedStardocks;
+      newFormData.alienPlanetCount = calculatedAlienPlanets;
     }
 
     setFormData(newFormData);
@@ -156,6 +160,21 @@ export default function CreateUniverseModal({ token, onClose, onSuccess }: Creat
                 required
               />
               <div className="form-hint">Default: 1 per 500 sectors (min 1)</div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">👽 Alien Planets</label>
+              <input
+                type="number"
+                name="alienPlanetCount"
+                className="cyberpunk-input"
+                value={formData.alienPlanetCount}
+                onChange={handleChange}
+                min={0}
+                max={1000}
+                required
+              />
+              <div className="form-hint">Default: 0.3% of sectors (3 per 1000)</div>
             </div>
           </div>
 
