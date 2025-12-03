@@ -9,7 +9,8 @@ import {
   getAlienComms,
   getAlienPresence,
   unlockComms,
-  attackAlien
+  attackAlien,
+  attackPlanet
 } from '../controllers/alienController';
 
 const router = Router();
@@ -28,5 +29,8 @@ router.post('/unlock', unlockComms);
 
 // POST /api/aliens/attack - Attack an alien ship
 router.post('/attack', attackAlien);
+
+// POST /api/aliens/attack-planet - Attack an alien planet
+router.post('/attack-planet', attackPlanet);
 
 export default router;

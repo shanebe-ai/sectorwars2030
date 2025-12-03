@@ -483,6 +483,105 @@ This guide covers manual testing of all economy and combat fixes implemented on 
 
 ---
 
+### 9.6 Attack Alien Planet
+**Test:** Player can attack alien planets
+
+**Steps:**
+1. Navigate to a sector with an alien planet
+2. Verify alien planet is visible in sector details
+3. Click "Attack" on the alien planet
+4. Verify combat simulation runs
+5. Check combat results displayed
+
+**Expected Results:**
+- ✅ Combat costs 1 turn
+- ✅ Combat simulation shows rounds
+- ✅ Citadel level provides defense bonus (10% per level)
+- ✅ Planet fighters are citadel-enhanced
+- ✅ Winner determined (player or planet)
+- ✅ Planet destroyed if fighters reach 0
+- ✅ Player loots 75% of planet resources on victory
+- ✅ Alien comms broadcasts combat result
+
+---
+
+### 9.7 Planet Victory Loot
+**Test:** Verify player receives loot when destroying alien planet
+
+**Steps:**
+1. Have 200 fighters, 100 shields
+2. Attack alien planet with 50 fighters, Citadel Level 2
+3. Win the combat
+4. Check loot received
+
+**Expected Results:**
+- ✅ Alien planet removed from sector
+- ✅ Player receives 75% of planet's credits
+- ✅ Player receives 75% of planet's fuel
+- ✅ Player receives 75% of planet's organics
+- ✅ Player receives 75% of planet's equipment
+- ✅ Cargo respects ship holds max
+- ✅ Kill count incremented
+- ✅ Alien comms shows destruction message
+- ✅ Combat log shows citadel-enhanced fighters
+
+---
+
+### 9.8 Player Death to Alien Planet
+**Test:** Verify death penalty when player loses to planet
+
+**Steps:**
+1. Have weak ship (20 fighters, 10 shields)
+2. Attack strong alien planet (200 fighters, Citadel Level 5)
+3. Get destroyed by planetary defenses
+4. Check respawn and penalties
+
+**Expected Results:**
+- ✅ Player respawns in Escape Pod
+- ✅ 25% of on-hand credits lost
+- ✅ 25% of bank balance lost
+- ✅ Respawn in adjacent sector or Sol
+- ✅ Death count incremented
+- ✅ All cargo lost
+- ✅ Planet fighters reduced by combat losses
+
+---
+
+### 9.9 Citadel Defense Bonus
+**Test:** Verify citadel level increases planetary defense
+
+**Steps:**
+1. Attack planet with Citadel Level 0 (50 fighters base)
+2. Note combat difficulty
+3. Attack planet with Citadel Level 5 (50 fighters base)
+4. Compare combat difficulty
+
+**Expected Results:**
+- ✅ Level 0: 50 fighters in combat
+- ✅ Level 5: 75 fighters in combat (50 × 1.5)
+- ✅ Higher citadel = more rounds of combat
+- ✅ Combat log shows "(citadel-enhanced)"
+- ✅ Citadel bonus: 10% per level
+
+---
+
+### 9.10 Planet Attack Restrictions
+**Test:** Verify combat restrictions apply
+
+**Steps:**
+1. Try to attack planet in TerraSpace (sectors 1-10)
+2. Try to attack with 0 fighters
+3. Try to attack with 0 turns
+4. Try to attack planet in different sector
+
+**Expected Results:**
+- ✅ Cannot attack in TerraSpace (error message)
+- ✅ Cannot attack without fighters (error message)
+- ✅ Cannot attack without turns (error message)
+- ✅ Cannot attack planet from different sector (error message)
+
+---
+
 ## Testing Checklist Summary
 
 - [ ] Banking: StarDock requirement enforced
@@ -507,6 +606,11 @@ This guide covers manual testing of all economy and combat fixes implemented on 
 - [ ] Alien Combat: Death penalty on loss (25%)
 - [ ] Alien Combat: Restrictions enforced
 - [ ] Alien Combat: Comms integration works
+- [ ] Alien Planets: Can attack alien planets
+- [ ] Alien Planets: Loot on victory (75% resources)
+- [ ] Alien Planets: Death penalty on loss (25%)
+- [ ] Alien Planets: Citadel defense bonus (10% per level)
+- [ ] Alien Planets: Restrictions enforced
 
 ---
 

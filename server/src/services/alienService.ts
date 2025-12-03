@@ -319,6 +319,7 @@ export async function broadcastAlienMessage(
     sectorNumber?: number;
     relatedPlayerId?: number;
     relatedShipId?: number;
+    relatedPlanetId?: number;
   } = {}
 ): Promise<void> {
   await pool.query(`
@@ -334,7 +335,7 @@ export async function broadcastAlienMessage(
     message,
     options.sectorNumber || null,
     options.relatedPlayerId || null,
-    options.relatedShipId || null
+    options.relatedShipId || options.relatedPlanetId || null
   ]);
 }
 
@@ -1076,6 +1077,364 @@ async function alienAttacksPlayer(
     await client.query('ROLLBACK');
     throw error;
   }
+}
+
+/**
+ * Attack an alien planet
+ * Player attempts to attack an alien-controlled planet
+ */
+export async function attackAlienPlanet(
+  playerId: number,
+  planetId: number
+): Promise<AlienCombatResult> {
+  const client = await pool.connect();
+
+  const combatResult: AlienCombatResult = {
+    success: false,
+    winner: 'draw',
+    rounds: 0,
+    playerFightersLost: 0,
+    alienFightersLost: 0,
+    playerShieldsLost: 0,
+    alienShieldsLost: 0,
+    alienDestroyed: false,
+    playerDestroyed: false,
+    creditsLooted: 0,
+    playerEscapeSector: null,
+    message: '',
+    combatLog: []
+  };
+
+  try {
+    await client.query('BEGIN');
+
+    // Get player stats
+    const playerResult = await client.query(`
+      SELECT p.*, u.username, s.region
+      FROM players p
+      JOIN users u ON p.user_id = u.id
+      JOIN sectors s ON s.universe_id = p.universe_id AND s.sector_number = p.current_sector
+      WHERE p.id = $1
+      FOR UPDATE OF p
+    `, [playerId]);
+
+    if (playerResult.rows.length === 0) {
+      throw new Error('Player not found');
+    }
+
+    const player = playerResult.rows[0];
+
+    // Get alien planet stats
+    const planetResult = await client.query(`
+      SELECT p.*, s.sector_number
+      FROM planets p
+      JOIN sectors s ON p.sector_id = s.id
+      WHERE p.id = $1 AND p.is_alien = true
+      FOR UPDATE OF p
+    `, [planetId]);
+
+    if (planetResult.rows.length === 0) {
+      throw new Error('Alien planet not found');
+    }
+
+    const planet = planetResult.rows[0];
+
+    // Verify player is in the same sector as the planet
+    if (player.current_sector !== planet.sector_number) {
+      throw new Error('You must be in the same sector as the planet to attack it');
+    }
+
+    // Verify player is not in TerraSpace
+    if (player.region === 'TerraSpace') {
+      throw new Error('Combat is not allowed in TerraSpace');
+    }
+
+    // Verify player has fighters
+    if (player.ship_fighters <= 0) {
+      throw new Error('You need fighters to attack');
+    }
+
+    // Verify player has at least 1 turn
+    if (player.turns_remaining < 1) {
+      throw new Error('Not enough turns');
+    }
+
+    // Calculate planetary defenses
+    // Citadel provides 10% defense bonus per level
+    const citadelBonus = 1 + (planet.citadel_level * 0.1);
+    const planetaryFighters = Math.floor(planet.fighters * citadelBonus);
+
+    // Simulate combat
+    const combatSim = simulatePlanetCombat({
+      fighters: player.ship_fighters,
+      shields: player.ship_shields
+    }, {
+      fighters: planetaryFighters,
+      shields: 0, // Planets don't have shields, only citadel-boosted fighters
+      citadelLevel: planet.citadel_level,
+      alienRace: planet.alien_race
+    });
+
+    combatResult.rounds = combatSim.rounds;
+    combatResult.playerFightersLost = combatSim.playerFightersLost;
+    combatResult.alienFightersLost = combatSim.alienFightersLost;
+    combatResult.playerShieldsLost = combatSim.playerShieldsLost;
+    combatResult.alienShieldsLost = combatSim.alienShieldsLost;
+    combatResult.combatLog = combatSim.combatLog;
+    combatResult.winner = combatSim.winner;
+
+    const playerFightersRemaining = player.ship_fighters - combatSim.playerFightersLost;
+    const playerShieldsRemaining = player.ship_shields - combatSim.playerShieldsLost;
+    const planetFightersRemaining = planetaryFighters - combatSim.alienFightersLost;
+
+    // Deduct 1 turn
+    await client.query(`
+      UPDATE players SET turns_remaining = turns_remaining - 1 WHERE id = $1
+    `, [playerId]);
+
+    if (combatSim.winner === 'player') {
+      // Player victory - loot 75% of planet resources
+      const fuelLooted = Math.floor(planet.cargo_fuel * 0.75);
+      const organicsLooted = Math.floor(planet.cargo_organics * 0.75);
+      const equipmentLooted = Math.floor(planet.cargo_equipment * 0.75);
+      const creditsLooted = Math.floor(planet.credits * 0.75);
+
+      combatResult.creditsLooted = creditsLooted;
+      combatResult.alienDestroyed = true;
+
+      // Update player with loot and remaining fighters/shields
+      await client.query(`
+        UPDATE players SET
+          ship_fighters = $1,
+          ship_shields = $2,
+          credits = credits + $3,
+          cargo_fuel = LEAST(cargo_fuel + $4, ship_holds_max),
+          cargo_organics = LEAST(cargo_organics + $5, ship_holds_max),
+          cargo_equipment = LEAST(cargo_equipment + $6, ship_holds_max),
+          kills = kills + 1
+        WHERE id = $7
+      `, [playerFightersRemaining, playerShieldsRemaining, creditsLooted,
+          fuelLooted, organicsLooted, equipmentLooted, playerId]);
+
+      // Destroy the alien planet
+      await client.query(`DELETE FROM planets WHERE id = $1`, [planetId]);
+
+      combatResult.message = `Victory! You destroyed the ${planet.alien_race} colony and looted ₡${creditsLooted.toLocaleString()}, ${fuelLooted} fuel, ${organicsLooted} organics, and ${equipmentLooted} equipment!`;
+
+      // Broadcast to alien comms
+      await broadcastAlienMessage(player.universe_id, 'combat',
+        `🔥 ${planet.alien_race} colony in Sector ${planet.sector_number} destroyed by ${player.username}!`,
+        {
+          alienRace: planet.alien_race,
+          sectorNumber: planet.sector_number,
+          relatedPlayerId: playerId,
+          relatedPlanetId: planetId
+        }
+      );
+
+    } else if (combatSim.winner === 'alien') {
+      // Player destroyed - apply death penalty
+      const onHandCredits = parseInt(player.credits);
+      const bankBalance = parseInt(player.bank_balance);
+
+      const onHandLoss = Math.floor(onHandCredits * 0.25);
+      const bankLoss = Math.floor(bankBalance * 0.25);
+
+      combatResult.playerDestroyed = true;
+      combatResult.creditsLooted = onHandLoss;
+
+      // Find escape sector
+      const escapeSector = await findEscapeSector(client, player.universe_id, player.current_sector);
+      combatResult.playerEscapeSector = escapeSector;
+
+      // Respawn player in escape pod
+      await client.query(`
+        UPDATE players SET
+          ship_type = 'Escape Pod',
+          ship_fighters = 0,
+          ship_shields = 0,
+          ship_holds_max = 5,
+          cargo_fuel = 0,
+          cargo_organics = 0,
+          cargo_equipment = 0,
+          credits = credits - $1,
+          bank_balance = bank_balance - $2,
+          deaths = deaths + 1,
+          current_sector = $3
+        WHERE id = $4
+      `, [onHandLoss, bankLoss, escapeSector, playerId]);
+
+      // Update planet fighters (they took losses too)
+      const actualPlanetFighters = Math.floor(planetFightersRemaining / citadelBonus);
+      await client.query(`
+        UPDATE planets SET fighters = $1 WHERE id = $2
+      `, [actualPlanetFighters, planetId]);
+
+      combatResult.message = `Defeated! The ${planet.alien_race} planetary defenses destroyed your ship. You lost ₡${(onHandLoss + bankLoss).toLocaleString()} and respawned in an escape pod.`;
+
+      // Broadcast to alien comms
+      await broadcastAlienMessage(player.universe_id, 'combat',
+        `⚔️ ${planet.alien_race} colony in Sector ${planet.sector_number} repelled attack by ${player.username}`,
+        {
+          alienRace: planet.alien_race,
+          sectorNumber: planet.sector_number,
+          relatedPlayerId: playerId,
+          relatedPlanetId: planetId
+        }
+      );
+
+    } else {
+      // Draw - both sides took damage
+      await client.query(`
+        UPDATE players SET
+          ship_fighters = $1,
+          ship_shields = $2
+        WHERE id = $3
+      `, [playerFightersRemaining, playerShieldsRemaining, playerId]);
+
+      // Update planet fighters
+      const actualPlanetFighters = Math.floor(planetFightersRemaining / citadelBonus);
+      await client.query(`
+        UPDATE planets SET fighters = $1 WHERE id = $2
+      `, [actualPlanetFighters, planetId]);
+
+      combatResult.message = `Stalemate! Both forces withdrew after sustaining heavy losses.`;
+    }
+
+    await client.query('COMMIT');
+    combatResult.success = true;
+    return combatResult;
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Simulate combat between player and alien planet
+ */
+function simulatePlanetCombat(
+  player: { fighters: number; shields: number },
+  planet: { fighters: number; shields: number; citadelLevel: number; alienRace: string }
+): Omit<AlienCombatResult, 'success' | 'creditsLooted' | 'playerEscapeSector' | 'message'> {
+  let playerFighters = player.fighters;
+  let playerShields = player.shields;
+  let planetFighters = planet.fighters;
+  let planetShields = planet.shields;
+
+  const combatLog: Array<{
+    round: number;
+    playerFighters: number;
+    alienFighters: number;
+    playerShields: number;
+    alienShields: number;
+    playerDamageDealt: number;
+    alienDamageDealt: number;
+    description: string;
+  }> = [];
+
+  // Add initial state
+  combatLog.push({
+    round: 0,
+    playerFighters,
+    alienFighters: planetFighters,
+    playerShields,
+    alienShields: planetShields,
+    playerDamageDealt: 0,
+    alienDamageDealt: 0,
+    description: `⚔️ Combat initiated against ${planet.alienRace} colony (Citadel Level ${planet.citadelLevel})`
+  });
+
+  let round = 0;
+  const maxRounds = 50;
+
+  while (round < maxRounds && playerFighters > 0 && planetFighters > 0) {
+    round++;
+
+    // Player attacks planet
+    const playerDamage = Math.floor(playerFighters * (Math.random() * 0.5 + 0.75)); // 75-125% of fighters
+    const initialPlanetFighters = planetFighters;
+    const initialPlanetShields = planetShields;
+
+    if (planetShields > 0) {
+      const shieldDamage = Math.min(playerDamage, planetShields);
+      planetShields -= shieldDamage;
+      const overflow = playerDamage - shieldDamage;
+      if (overflow > 0) {
+        const fighterLoss = Math.floor(overflow / 10);
+        planetFighters -= fighterLoss;
+      }
+    } else {
+      const fighterLoss = Math.floor(playerDamage / 10);
+      planetFighters -= fighterLoss;
+    }
+
+    if (planetFighters <= 0) {
+      combatLog.push({
+        round,
+        playerFighters,
+        alienFighters: 0,
+        playerShields,
+        alienShields: planetShields,
+        playerDamageDealt: playerDamage,
+        alienDamageDealt: 0,
+        description: '🏆 All planetary defenses eliminated!'
+      });
+      break;
+    }
+
+    // Planet attacks player
+    const planetDamage = Math.floor(planetFighters * (Math.random() * 0.5 + 0.75));
+
+    if (playerShields > 0) {
+      const shieldDamage = Math.min(planetDamage, playerShields);
+      playerShields -= shieldDamage;
+      const overflow = planetDamage - shieldDamage;
+      if (overflow > 0) {
+        const fighterLoss = Math.floor(overflow / 10);
+        playerFighters -= fighterLoss;
+      }
+    } else {
+      const fighterLoss = Math.floor(planetDamage / 10);
+      playerFighters -= fighterLoss;
+    }
+
+    combatLog.push({
+      round,
+      playerFighters,
+      alienFighters: planetFighters,
+      playerShields,
+      alienShields: planetShields,
+      playerDamageDealt: playerDamage,
+      alienDamageDealt: planetDamage,
+      description: `Round ${round}: Player dealt ${playerDamage} damage, Planet dealt ${planetDamage} damage`
+    });
+
+    if (playerFighters <= 0) {
+      combatLog[combatLog.length - 1].description += ' - 💀 Player ship destroyed!';
+      break;
+    }
+
+    // End early if one side is destroyed
+    if (playerFighters <= 0 || planetFighters <= 0) {
+      break;
+    }
+  }
+
+  return {
+    winner: playerFighters > 0 ? (planetFighters > 0 ? 'draw' : 'player') : 'alien',
+    rounds: round,
+    playerFightersLost: player.fighters - playerFighters,
+    alienFightersLost: planet.fighters - planetFighters,
+    playerShieldsLost: player.shields - playerShields,
+    alienShieldsLost: planet.shields - planetShields,
+    alienDestroyed: planetFighters <= 0,
+    playerDestroyed: playerFighters <= 0,
+    combatLog
+  };
 }
 
 /**
