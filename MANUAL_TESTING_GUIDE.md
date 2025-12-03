@@ -623,6 +623,277 @@ This guide covers manual testing of all economy and combat fixes implemented on 
 
 ---
 
+## 11. Corporation Management System Tests
+
+### 11.1 View Corporation Panel
+**Test:** Access corporation management interface
+
+**Steps:**
+1. Login as any player
+2. Click the ★ CORP button in the header (yellow/gold colored)
+3. Verify corporation panel opens
+
+**Expected Results:**
+- ✅ Panel opens as full-screen modal with cyberpunk styling
+- ✅ Shows corporation name in header
+- ✅ Shows corporation info (Founder, Members, Your Rank)
+- ✅ Members tab displays all members with rank badges
+- ✅ Founder shows ★ FOUNDER badge (yellow)
+- ✅ Officers show ◆ OFFICER badge (cyan)
+- ✅ Members show • MEMBER badge (white)
+- ✅ Your own member entry is highlighted with cyan border
+
+---
+
+### 11.2 Invite Player to Corporation
+**Test:** Founder/Officer invites a player
+
+**Setup:** Need 2 players - Player A (founder/officer), Player B (not in corp or in different corp)
+
+**Steps:**
+1. Login as Player A (founder or officer)
+2. Open corporation panel
+3. Click INVITE tab
+4. Enter Player B's username
+5. Click SEND INVITATION
+6. Login as Player B
+7. Check inbox messages
+
+**Expected Results:**
+- ✅ Success message shows "Invitation sent to [username]"
+- ✅ Player B receives inbox message with subject "Corporation Invitation"
+- ✅ Message body shows corporation name and corp ID
+- ✅ Message type is 'corp_invite'
+
+**Edge Cases:**
+- ❌ Member (not founder/officer) should NOT see INVITE tab
+- ❌ Inviting player already in corp shows error "already in a corporation"
+- ❌ Inviting non-existent username shows error "Player not found in this universe"
+
+---
+
+### 11.3 Accept Corporation Invitation
+**Test:** Player accepts invitation to join corporation
+
+**Setup:** Player has received corp invitation (from test 11.2)
+
+**Steps:**
+1. Login as invited player
+2. Open COMMS panel
+3. Read the corp invitation message
+4. Note the Corp ID from message body
+5. Use API or future UI to accept: `POST /api/corporations/accept-invite` with `{ corpId: X }`
+6. Refresh or check corporation panel
+
+**Expected Results:**
+- ✅ Success message "You have joined [CorpName]!"
+- ✅ Player's corp_name updates to new corporation
+- ✅ Player added to corp_members table with rank 'member'
+- ✅ Corporation panel shows player as member
+- ✅ Player now sees CORPORATE chat tab in messaging
+
+**Edge Cases:**
+- ❌ Accepting when already in corp shows error "already in a corporation"
+- ❌ Accepting invalid corp ID shows error "Corporation not found"
+
+---
+
+### 11.4 Kick Member from Corporation
+**Test:** Founder/Officer removes a member
+
+**Setup:** 3 players - Player A (founder), Player B (officer), Player C (member)
+
+**Steps:**
+1. Login as Player A (founder)
+2. Open corporation panel → Members tab
+3. Find Player C in member list
+4. Click KICK button next to Player C
+5. Confirm the kick action
+6. Check that Player C is removed from list
+7. Login as Player C and verify they're no longer in corp
+
+**Expected Results:**
+- ✅ Confirmation dialog appears before kicking
+- ✅ Success message: "[Username] has been removed from the corporation"
+- ✅ Member disappears from member list
+- ✅ Player C's corp_id set to NULL
+- ✅ Player C receives inbox message "Removed from Corporation"
+- ✅ corp_members record deleted for Player C
+
+**Permission Tests:**
+- ✅ Founder can kick officers and members
+- ✅ Officer can kick members
+- ❌ Officer CANNOT kick other officers (error: "Officers cannot kick other officers")
+- ❌ Officer CANNOT kick founder (error: "Cannot kick the founder")
+- ❌ Member CANNOT kick anyone (no kick buttons shown)
+
+---
+
+### 11.5 Promote Member to Officer
+**Test:** Founder promotes member to officer rank
+
+**Setup:** Player A (founder), Player B (member)
+
+**Steps:**
+1. Login as Player A (founder)
+2. Open corporation panel → Members tab
+3. Find Player B with • MEMBER badge
+4. Click PROMOTE button next to Player B
+5. Confirm promotion
+6. Check Player B's rank badge updates
+
+**Expected Results:**
+- ✅ Confirmation dialog appears
+- ✅ Success message: "[Username] is now an officer"
+- ✅ Badge changes from • MEMBER to ◆ OFFICER (cyan)
+- ✅ corp_members.rank updates to 'officer'
+- ✅ Player B receives inbox message "Rank Changed" with new rank
+- ✅ Player B can now invite players and kick members
+
+**Edge Cases:**
+- ❌ Officer trying to promote shows error "Only the founder can change member ranks"
+- ❌ Promoting founder shows error "Cannot change founder rank"
+
+---
+
+### 11.6 Demote Officer to Member
+**Test:** Founder demotes officer to member rank
+
+**Setup:** Player A (founder), Player B (officer)
+
+**Steps:**
+1. Login as Player A (founder)
+2. Open corporation panel → Members tab
+3. Find Player B with ◆ OFFICER badge
+4. Click DEMOTE button next to Player B
+5. Confirm demotion
+6. Check Player B's rank badge updates
+
+**Expected Results:**
+- ✅ Confirmation dialog appears
+- ✅ Success message: "[Username] is now a member"
+- ✅ Badge changes from ◆ OFFICER to • MEMBER
+- ✅ corp_members.rank updates to 'member'
+- ✅ Player B receives inbox message "Rank Changed"
+- ✅ Player B loses ability to invite/kick
+
+---
+
+### 11.7 Transfer Corporation Ownership
+**Test:** Founder transfers ownership to another member
+
+**Setup:** Player A (founder), Player B (officer or member)
+
+**Steps:**
+1. Login as Player A (founder)
+2. Open corporation panel → Members tab
+3. Find Player B in member list
+4. Click TRANSFER button next to Player B
+5. Confirm transfer (shows warning about becoming officer)
+6. Check rank badges update
+
+**Expected Results:**
+- ✅ Confirmation dialog with warning: "You will become an officer"
+- ✅ Success message: "Ownership transferred to [Username]"
+- ✅ Player A's badge changes to ◆ OFFICER
+- ✅ Player B's badge changes to ★ FOUNDER (yellow)
+- ✅ corporations.founder_id updates to Player B's ID
+- ✅ Player B receives inbox message "Corporation Ownership Transferred"
+- ✅ Player B now has full control (promote, demote, kick, transfer)
+
+**Edge Cases:**
+- ❌ Officer trying to transfer shows error "Only the founder can transfer ownership"
+- ❌ Transferring to player not in corp shows error "not in your corporation"
+
+---
+
+### 11.8 Leave Corporation
+**Test:** Member/Officer leaves corporation
+
+**Setup:** Player A (member or officer, NOT founder)
+
+**Steps:**
+1. Login as Player A
+2. Open corporation panel
+3. Click LEAVE CORPORATION button (red, at bottom)
+4. Confirm leave action
+5. Check corp panel closes or shows "not in corporation"
+
+**Expected Results:**
+- ✅ Confirmation dialog appears
+- ✅ Success message: "You have left [CorpName]. Refreshing..."
+- ✅ Player's corp_id set to NULL
+- ✅ Player's corp_name set to NULL
+- ✅ corp_members record deleted
+- ✅ Page refreshes after 1.5 seconds
+- ✅ Corp panel shows "not in a corporation" message
+
+**Edge Cases:**
+- ❌ Founder trying to leave shows error "Founder cannot leave. Transfer ownership first"
+- ✅ After leaving, can accept new invitations to other corps
+
+---
+
+### 11.9 Multiple Corporation Workflow
+**Test:** End-to-end workflow with multiple corporations
+
+**Setup:** 3 players in different initial corporations
+
+**Steps:**
+1. Player A (Corp Alpha founder) invites Player B
+2. Player B leaves Corp Beta
+3. Player B accepts invitation to Corp Alpha
+4. Player A promotes Player B to officer
+5. Player B invites Player C
+6. Player C accepts invitation
+7. Player A transfers ownership to Player B
+8. Player B (now founder) promotes Player C to officer
+9. Player B kicks Player A (now officer)
+
+**Expected Results:**
+- ✅ All operations succeed in sequence
+- ✅ Final state: Corp Alpha has Player B (founder), Player C (officer)
+- ✅ Player A is not in any corporation
+- ✅ All players receive appropriate inbox notifications
+- ✅ Corp member count updates correctly throughout
+
+---
+
+### 11.10 Corporation Permission Matrix
+**Test:** Verify all permission rules
+
+| Action | Founder | Officer | Member |
+|--------|---------|---------|--------|
+| View Members | ✅ | ✅ | ✅ |
+| Invite Players | ✅ | ✅ | ❌ |
+| Accept Invitations | ✅ | ✅ | ✅ |
+| Kick Members | ✅ | ✅ | ❌ |
+| Kick Officers | ✅ | ❌ | ❌ |
+| Kick Founder | ❌ | ❌ | ❌ |
+| Promote Member | ✅ | ❌ | ❌ |
+| Demote Officer | ✅ | ❌ | ❌ |
+| Transfer Ownership | ✅ | ❌ | ❌ |
+| Leave Corporation | ❌* | ✅ | ✅ |
+
+*Founder must transfer ownership before leaving
+
+**Test Method:**
+- Login as each rank
+- Try each action
+- Verify allowed actions succeed
+- Verify forbidden actions show error or hide UI
+
+---
+
+## Testing Tips
+
+- **Combat Testing:** Requires 2 players. Use 2 browser windows or coordinate with another tester.
+- **Corporation Testing:** Requires 2-3 players for full testing. Use multiple browser windows (different users).
+- **Planet Production:** Wait 1 hour for production to accumulate, or check production calculation logic.
+- **Banking:** All operations require StarDock location - verify UI hides banking when not at StarDock.
+
+---
+
 ## Reporting Issues
 
 If you find any issues during testing:
