@@ -192,6 +192,9 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
   const [deployMineCount, setDeployMineCount] = useState(0);
   const [deployingMines, setDeployingMines] = useState(false);
   const [mineExplosionResult, setMineExplosionResult] = useState<{message: string, shieldsLost: number, fightersLost: number} | null>(null);
+  const [attackingAlienShip, setAttackingAlienShip] = useState<number | null>(null);
+  const [attackingAlienPlanet, setAttackingAlienPlanet] = useState<number | null>(null);
+  const [alienCombatResult, setAlienCombatResult] = useState<any | null>(null);
 
   useEffect(() => {
     loadSectorDetails();
@@ -974,6 +977,78 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
     }
   };
 
+  const handleAttackAlienShip = async (alienShipId: number) => {
+    setAttackingAlienShip(alienShipId);
+    try {
+      const response = await fetch(`${API_URL}/api/aliens/attack`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ alienShipId }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setAlienCombatResult(data);
+        loadSectorDetails();
+
+        // Refresh player data
+        const playerResponse = await fetch(`${API_URL}/api/players/${player.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (playerResponse.ok) {
+          const playerData = await playerResponse.json();
+          onSectorChange(playerData.player);
+        }
+      } else {
+        setError(data.error || 'Failed to attack alien ship');
+      }
+    } catch (err) {
+      setError('Network error');
+    } finally {
+      setAttackingAlienShip(null);
+    }
+  };
+
+  const handleAttackAlienPlanet = async (planetId: number) => {
+    setAttackingAlienPlanet(planetId);
+    try {
+      const response = await fetch(`${API_URL}/api/aliens/attack-planet`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ planetId }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setAlienCombatResult(data);
+        loadSectorDetails();
+
+        // Refresh player data
+        const playerResponse = await fetch(`${API_URL}/api/players/${player.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (playerResponse.ok) {
+          const playerData = await playerResponse.json();
+          onSectorChange(playerData.player);
+        }
+      } else {
+        setError(data.error || 'Failed to attack alien planet');
+      }
+    } catch (err) {
+      setError('Network error');
+    } finally {
+      setAttackingAlienPlanet(null);
+    }
+  };
+
   // Check for hostile fighters when sector loads
   useEffect(() => {
     if (sector && sector.hasHostileFighters && sector.deployedFighters) {
@@ -1283,6 +1358,141 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
           >
             ×
           </button>
+        </div>
+      )}
+
+      {/* Alien Combat Result Modal */}
+      {alienCombatResult && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.9)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #1a0033 0%, #0a001a 100%)',
+            border: `3px solid ${alienCombatResult.combat.winner === 'player' ? '#00ff00' : alienCombatResult.combat.winner === 'alien' ? '#ff0066' : '#ff9900'}`,
+            borderRadius: '10px',
+            padding: '30px',
+            maxWidth: '600px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflow: 'auto',
+            boxShadow: `0 0 30px ${alienCombatResult.combat.winner === 'player' ? 'rgba(0, 255, 0, 0.5)' : alienCombatResult.combat.winner === 'alien' ? 'rgba(255, 0, 102, 0.5)' : 'rgba(255, 153, 0, 0.5)'}`
+          }}>
+            <div style={{
+              textAlign: 'center',
+              fontSize: '24px',
+              fontWeight: 'bold',
+              marginBottom: '20px',
+              color: alienCombatResult.combat.winner === 'player' ? '#00ff00' : alienCombatResult.combat.winner === 'alien' ? '#ff0066' : '#ff9900'
+            }}>
+              {alienCombatResult.combat.winner === 'player' && '🏆 VICTORY!'}
+              {alienCombatResult.combat.winner === 'alien' && '💀 DEFEAT'}
+              {alienCombatResult.combat.winner === 'draw' && '⚔️ STALEMATE'}
+            </div>
+
+            <div style={{
+              fontSize: '14px',
+              color: 'var(--text-primary)',
+              marginBottom: '20px',
+              textAlign: 'center'
+            }}>
+              {alienCombatResult.message}
+            </div>
+
+            <div style={{
+              background: 'rgba(0, 0, 0, 0.5)',
+              border: '1px solid #9d00ff',
+              padding: '15px',
+              marginBottom: '20px'
+            }}>
+              <div style={{ color: '#00ffff', fontWeight: 'bold', marginBottom: '10px' }}>
+                COMBAT STATISTICS
+              </div>
+              <div style={{ fontSize: '13px', color: 'var(--text-primary)' }}>
+                <div style={{ marginBottom: '5px' }}>
+                  Rounds: {alienCombatResult.combat.rounds}
+                </div>
+                <div style={{ marginBottom: '5px', color: '#ff9900' }}>
+                  Your Losses: ⚔️ {alienCombatResult.combat.playerFightersLost} fighters, 🛡️ {alienCombatResult.combat.playerShieldsLost} shields
+                </div>
+                <div style={{ marginBottom: '5px', color: '#9d00ff' }}>
+                  Alien Losses: ⚔️ {alienCombatResult.combat.alienFightersLost} fighters, 🛡️ {alienCombatResult.combat.alienShieldsLost} shields
+                </div>
+                {alienCombatResult.combat.creditsLooted > 0 && (
+                  <div style={{ marginTop: '10px', color: '#00ff00', fontWeight: 'bold' }}>
+                    💰 Looted: ₡{alienCombatResult.combat.creditsLooted.toLocaleString()}
+                  </div>
+                )}
+                {alienCombatResult.combat.playerEscapeSector && (
+                  <div style={{ marginTop: '10px', color: '#ff0066' }}>
+                    🚨 Escaped to Sector {alienCombatResult.combat.playerEscapeSector} in Escape Pod
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Combat Log */}
+            {alienCombatResult.combatLog && alienCombatResult.combatLog.length > 0 && (
+              <div style={{
+                background: 'rgba(0, 0, 0, 0.5)',
+                border: '1px solid #00ffff',
+                padding: '15px',
+                marginBottom: '20px',
+                maxHeight: '300px',
+                overflow: 'auto'
+              }}>
+                <div style={{ color: '#00ffff', fontWeight: 'bold', marginBottom: '10px' }}>
+                  COMBAT LOG
+                </div>
+                {alienCombatResult.combatLog.map((log: any, index: number) => (
+                  <div key={index} style={{
+                    fontSize: '11px',
+                    color: 'var(--text-primary)',
+                    marginBottom: '8px',
+                    paddingBottom: '8px',
+                    borderBottom: index < alienCombatResult.combatLog.length - 1 ? '1px solid rgba(0, 255, 255, 0.2)' : 'none'
+                  }}>
+                    <div style={{ color: log.round === 0 ? '#ff9900' : '#00ffff', fontWeight: 'bold' }}>
+                      {log.round === 0 ? '⚔️ INITIAL' : `Round ${log.round}`}
+                    </div>
+                    <div style={{ marginTop: '4px', opacity: 0.9 }}>
+                      {log.description}
+                    </div>
+                    {log.round > 0 && (
+                      <div style={{ marginTop: '4px', fontSize: '10px', opacity: 0.7 }}>
+                        Player: ⚔️{log.playerFighters} 🛡️{log.playerShields} • Alien: ⚔️{log.alienFighters} 🛡️{log.alienShields}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button
+              onClick={() => setAlienCombatResult(null)}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: 'linear-gradient(135deg, #ff0066 0%, #9d00ff 100%)',
+                color: 'white',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                borderRadius: '5px'
+              }}
+            >
+              CLOSE
+            </button>
+          </div>
         </div>
       )}
 
@@ -2253,14 +2463,35 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                   <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '2px', color: '#ff9900' }}>
                     ⚔ {alien.fighters} Fighters • 🛡️ {alien.shields} Shields
                   </div>
-                  <div style={{
-                    marginTop: '8px',
-                    fontSize: '11px',
-                    color: '#ff0099',
-                    fontStyle: 'italic'
-                  }}>
-                    ⚠️ Hostile NPC - Combat not yet implemented
-                  </div>
+                  {sector.region !== 'TerraSpace' && (
+                    <button
+                      onClick={() => handleAttackAlienShip(alien.id)}
+                      disabled={attackingAlienShip === alien.id || player.turnsRemaining < 1}
+                      style={{
+                        marginTop: '8px',
+                        padding: '6px 12px',
+                        background: attackingAlienShip === alien.id ? '#666' : 'linear-gradient(135deg, #ff0066 0%, #9d00ff 100%)',
+                        color: 'white',
+                        border: 'none',
+                        cursor: attackingAlienShip === alien.id || player.turnsRemaining < 1 ? 'not-allowed' : 'pointer',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        opacity: attackingAlienShip === alien.id || player.turnsRemaining < 1 ? 0.5 : 1
+                      }}
+                    >
+                      {attackingAlienShip === alien.id ? 'ATTACKING...' : '⚔️ ATTACK'}
+                    </button>
+                  )}
+                  {sector.region === 'TerraSpace' && (
+                    <div style={{
+                      marginTop: '8px',
+                      fontSize: '11px',
+                      color: '#00ffff',
+                      fontStyle: 'italic'
+                    }}>
+                      🛡️ Protected by TerraSpace security
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -2301,6 +2532,37 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                 }}>
                   📡 ALIEN COMMUNICATIONS UNLOCKED! Check the ALIEN COMMS channel to monitor their network.
                 </div>
+                {sector.region !== 'TerraSpace' && (
+                  <button
+                    onClick={() => handleAttackAlienPlanet(sector.alienPlanet!.id)}
+                    disabled={attackingAlienPlanet === sector.alienPlanet!.id || player.turnsRemaining < 1}
+                    style={{
+                      marginTop: '12px',
+                      padding: '8px 16px',
+                      background: attackingAlienPlanet === sector.alienPlanet!.id ? '#666' : 'linear-gradient(135deg, #ff0066 0%, #9d00ff 100%)',
+                      color: 'white',
+                      border: 'none',
+                      cursor: attackingAlienPlanet === sector.alienPlanet!.id || player.turnsRemaining < 1 ? 'not-allowed' : 'pointer',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      width: '100%',
+                      opacity: attackingAlienPlanet === sector.alienPlanet!.id || player.turnsRemaining < 1 ? 0.5 : 1
+                    }}
+                  >
+                    {attackingAlienPlanet === sector.alienPlanet!.id ? 'ATTACKING PLANET...' : '🔥 ATTACK ALIEN COLONY'}
+                  </button>
+                )}
+                {sector.region === 'TerraSpace' && (
+                  <div style={{
+                    marginTop: '12px',
+                    fontSize: '12px',
+                    color: '#00ffff',
+                    fontStyle: 'italic',
+                    textAlign: 'center'
+                  }}>
+                    🛡️ Protected by TerraSpace security
+                  </div>
+                )}
               </div>
             </div>
           )}
