@@ -10,7 +10,8 @@ import {
   getAlienPlanetInSector,
   getAlienCommunications,
   hasAlienComms,
-  unlockAlienComms
+  unlockAlienComms,
+  attackAlienShip
 } from '../services/alienService';
 
 /**
@@ -145,5 +146,62 @@ export async function unlockComms(req: Request, res: Response): Promise<void> {
   } catch (error) {
     console.error('Error unlocking alien comms:', error);
     res.status(500).json({ error: 'Failed to unlock alien comms' });
+  }
+}
+
+/**
+ * POST /api/aliens/attack
+ * Attack an alien ship
+ */
+export async function attackAlien(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = (req as any).user?.userId;
+    const { alienShipId } = req.body;
+
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    if (!alienShipId || typeof alienShipId !== 'number') {
+      res.status(400).json({ error: 'Valid alien ship ID is required' });
+      return;
+    }
+
+    // Get player's id
+    const playerResult = await pool.query(`
+      SELECT id FROM players WHERE user_id = $1
+    `, [userId]);
+
+    if (playerResult.rows.length === 0) {
+      res.status(404).json({ error: 'Player not found' });
+      return;
+    }
+
+    const playerId = playerResult.rows[0].id;
+
+    // Execute attack
+    const result = await attackAlienShip(playerId, alienShipId);
+
+    res.json({
+      success: result.success,
+      message: result.message,
+      combat: {
+        winner: result.winner,
+        rounds: result.rounds,
+        playerFightersLost: result.playerFightersLost,
+        alienFightersLost: result.alienFightersLost,
+        playerShieldsLost: result.playerShieldsLost,
+        alienShieldsLost: result.alienShieldsLost,
+        alienDestroyed: result.alienDestroyed,
+        playerDestroyed: result.playerDestroyed,
+        creditsLooted: result.creditsLooted,
+        playerEscapeSector: result.playerEscapeSector
+      },
+      combatLog: result.combatLog
+    });
+  } catch (error: any) {
+    console.error('Error attacking alien ship:', error);
+    res.status(400).json({ error: error.message || 'Failed to attack alien ship' });
   }
 }

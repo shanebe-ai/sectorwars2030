@@ -521,6 +521,334 @@ export const startAlienShipMovement = (intervalMs: number = 5 * 60 * 1000): Node
   }, intervalMs);
 };
 
+/**
+ * Combat constants for alien encounters
+ */
+const ALIEN_LOOT_PERCENTAGE = 0.75; // 75% loot from destroyed alien ships
+const ALIEN_DEATH_PENALTY = 0.25; // 25% penalty for player death
+
+interface AlienCombatResult {
+  success: boolean;
+  winner: 'player' | 'alien' | 'draw';
+  rounds: number;
+  playerFightersLost: number;
+  alienFightersLost: number;
+  playerShieldsLost: number;
+  alienShieldsLost: number;
+  alienDestroyed: boolean;
+  playerDestroyed: boolean;
+  creditsLooted: number;
+  playerEscapeSector: number | null;
+  message: string;
+  combatLog: Array<{
+    round: number;
+    playerFighters: number;
+    alienFighters: number;
+    playerShields: number;
+    alienShields: number;
+    playerDamageDealt: number;
+    alienDamageDealt: number;
+    description: string;
+  }>;
+}
+
+/**
+ * Player attacks an alien ship
+ */
+export async function attackAlienShip(
+  playerId: number,
+  alienShipId: number
+): Promise<AlienCombatResult> {
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Get player stats
+    const playerResult = await client.query(`
+      SELECT p.*, u.username, s.region
+      FROM players p
+      JOIN users u ON p.user_id = u.id
+      JOIN sectors s ON s.universe_id = p.universe_id AND s.sector_number = p.current_sector
+      WHERE p.id = $1
+      FOR UPDATE OF p
+    `, [playerId]);
+
+    if (playerResult.rows.length === 0) {
+      throw new Error('Player not found');
+    }
+
+    const player = playerResult.rows[0];
+
+    // Get alien ship stats
+    const alienResult = await client.query(`
+      SELECT a.*, st.fighters_max, st.shields_max, st.holds_max
+      FROM alien_ships a
+      JOIN ship_types st ON a.ship_type_id = st.id
+      WHERE a.id = $1
+      FOR UPDATE OF a
+    `, [alienShipId]);
+
+    if (alienResult.rows.length === 0) {
+      throw new Error('Alien ship not found');
+    }
+
+    const alien = alienResult.rows[0];
+
+    // Validation checks
+    if (!player.is_alive) {
+      throw new Error('You are not alive');
+    }
+
+    if (player.in_escape_pod) {
+      throw new Error('Cannot attack while in an escape pod');
+    }
+
+    if (player.universe_id !== alien.universe_id) {
+      throw new Error('Alien ship is in a different universe');
+    }
+
+    if (player.current_sector !== alien.current_sector) {
+      throw new Error('Alien ship is not in your sector');
+    }
+
+    if (player.region === 'TerraSpace') {
+      throw new Error('Combat is disabled in TerraSpace (safe zone)');
+    }
+
+    if (player.ship_fighters <= 0) {
+      throw new Error('You have no fighters to attack with');
+    }
+
+    if (player.turns_remaining <= 0) {
+      throw new Error('Not enough turns remaining');
+    }
+
+    // Run combat simulation
+    const combatResult = simulateAlienCombat(
+      { fighters: player.ship_fighters, shields: player.ship_shields },
+      { fighters: alien.fighters, shields: alien.shields }
+    );
+
+    // Apply combat results to player
+    const playerFightersRemaining = player.ship_fighters - combatResult.playerFightersLost;
+    const playerShieldsRemaining = player.ship_shields - combatResult.playerShieldsLost;
+
+    // Deduct turn
+    await client.query(
+      'UPDATE players SET turns_remaining = turns_remaining - 1, last_combat_at = NOW() WHERE id = $1',
+      [playerId]
+    );
+
+    // Handle player death
+    if (combatResult.playerDestroyed) {
+      // Find escape sector
+      const escapeSector = await findEscapeSector(client, player.universe_id, player.current_sector);
+
+      // Apply death penalty (25% credits and bank balance)
+      await client.query(`
+        UPDATE players SET
+          credits = GREATEST(0, FLOOR(credits * (1 - $1))),
+          ship_type = 'Escape Pod',
+          ship_holds_max = 5,
+          ship_fighters = 0,
+          ship_shields = 0,
+          cargo_fuel = 0,
+          cargo_organics = 0,
+          cargo_equipment = 0,
+          colonists = 0,
+          current_sector = $2,
+          in_escape_pod = TRUE,
+          deaths = deaths + 1
+        WHERE id = $3
+      `, [ALIEN_DEATH_PENALTY, escapeSector, playerId]);
+
+      // Apply bank penalty
+      await client.query(`
+        UPDATE bank_accounts SET
+          balance = GREATEST(0, FLOOR(balance * (1 - $1)))
+        WHERE player_id = $2
+      `, [ALIEN_DEATH_PENALTY, playerId]);
+
+      combatResult.playerEscapeSector = escapeSector;
+      combatResult.message = `💀 DESTROYED! The ${alien.ship_name} destroyed your ship! You escaped in a pod to Sector ${escapeSector}. Lost 25% of credits and bank balance.`;
+    } else {
+      // Update player fighters/shields
+      await client.query(`
+        UPDATE players SET
+          ship_fighters = $1,
+          ship_shields = $2,
+          kills = kills + $3
+        WHERE id = $4
+      `, [playerFightersRemaining, playerShieldsRemaining, combatResult.alienDestroyed ? 1 : 0, playerId]);
+    }
+
+    // Handle alien destruction
+    if (combatResult.alienDestroyed) {
+      // Calculate loot
+      const creditsLooted = Math.floor(alien.credits * ALIEN_LOOT_PERCENTAGE);
+
+      // Grant credits to player
+      await client.query(
+        'UPDATE players SET credits = credits + $1 WHERE id = $2',
+        [creditsLooted, playerId]
+      );
+
+      // Delete alien ship
+      await client.query('DELETE FROM alien_ships WHERE id = $1', [alienShipId]);
+
+      combatResult.creditsLooted = creditsLooted;
+      combatResult.message = `⚔️ VICTORY! You destroyed the ${alien.alien_race} ship "${alien.ship_name}"! Looted ₡${creditsLooted.toLocaleString()}!`;
+
+      // Broadcast to alien comms
+      await broadcastAlienMessage(alien.universe_id, 'combat',
+        `⚠️ ALERT: ${alien.alien_race} vessel "${alien.ship_name}" destroyed by ${player.username} in Sector ${player.current_sector}!`,
+        {
+          alienRace: alien.alien_race,
+          sectorNumber: player.current_sector,
+          relatedPlayerId: playerId
+        }
+      );
+    } else {
+      // Update alien fighters/shields
+      const alienFightersRemaining = alien.fighters - combatResult.alienFightersLost;
+      const alienShieldsRemaining = alien.shields - combatResult.alienShieldsLost;
+
+      await client.query(`
+        UPDATE alien_ships SET
+          fighters = $1,
+          shields = $2
+        WHERE id = $3
+      `, [alienFightersRemaining, alienShieldsRemaining, alienShipId]);
+
+      if (!combatResult.playerDestroyed) {
+        combatResult.message = `⚔️ Combat ended! ${alien.ship_name} survived with ${alienFightersRemaining} fighters and ${alienShieldsRemaining} shields.`;
+      }
+    }
+
+    await client.query('COMMIT');
+    combatResult.success = true;
+    return combatResult;
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Simulate combat between player and alien
+ */
+function simulateAlienCombat(
+  player: { fighters: number; shields: number },
+  alien: { fighters: number; shields: number }
+): AlienCombatResult {
+  const combatLog: any[] = [];
+  let round = 0;
+  const maxRounds = 100;
+
+  let playerFighters = player.fighters;
+  let playerShields = player.shields;
+  let alienFighters = alien.fighters;
+  let alienShields = alien.shields;
+
+  while (round < maxRounds && playerFighters > 0 && alienFighters > 0) {
+    round++;
+
+    // Calculate damage
+    const playerDamage = playerFighters;
+    const alienDamage = alienFighters;
+
+    // Apply damage (shields first, then fighters)
+    let alienShieldsLost = 0;
+    let alienFightersLost = 0;
+    if (playerDamage > alienShields) {
+      alienShieldsLost = alienShields;
+      alienFightersLost = Math.min(alienFighters, playerDamage - alienShields);
+    } else {
+      alienShieldsLost = playerDamage;
+    }
+
+    let playerShieldsLost = 0;
+    let playerFightersLost = 0;
+    if (alienDamage > playerShields) {
+      playerShieldsLost = playerShields;
+      playerFightersLost = Math.min(playerFighters, alienDamage - playerShields);
+    } else {
+      playerShieldsLost = alienDamage;
+    }
+
+    // Apply losses
+    alienShields -= alienShieldsLost;
+    alienFighters -= alienFightersLost;
+    playerShields -= playerShieldsLost;
+    playerFighters -= playerFightersLost;
+
+    combatLog.push({
+      round,
+      playerFighters,
+      alienFighters,
+      playerShields,
+      alienShields,
+      playerDamageDealt: playerDamage,
+      alienDamageDealt: alienDamage,
+      description: `Round ${round}: Player dealt ${playerDamage} damage, Alien dealt ${alienDamage} damage`
+    });
+
+    // End early if one side is destroyed
+    if (playerFighters <= 0 || alienFighters <= 0) {
+      break;
+    }
+  }
+
+  return {
+    success: false,
+    winner: playerFighters > 0 ? (alienFighters > 0 ? 'draw' : 'player') : 'alien',
+    rounds: round,
+    playerFightersLost: player.fighters - playerFighters,
+    alienFightersLost: alien.fighters - alienFighters,
+    playerShieldsLost: player.shields - playerShields,
+    alienShieldsLost: alien.shields - alienShields,
+    alienDestroyed: alienFighters <= 0,
+    playerDestroyed: playerFighters <= 0,
+    creditsLooted: 0,
+    playerEscapeSector: null,
+    message: '',
+    combatLog
+  };
+}
+
+/**
+ * Find an escape sector for a destroyed ship
+ */
+async function findEscapeSector(client: any, universeId: number, currentSector: number): Promise<number> {
+  // Try to find an adjacent sector
+  const sectorResult = await client.query(
+    `SELECT s.id FROM sectors s WHERE s.universe_id = $1 AND s.sector_number = $2`,
+    [universeId, currentSector]
+  );
+
+  let escapeSector = 1; // Default to Sol
+  if (sectorResult.rows.length > 0) {
+    const sectorId = sectorResult.rows[0].id;
+    const adjacentResult = await client.query(
+      `SELECT DISTINCT destination_sector_number as sector
+       FROM sector_warps
+       WHERE sector_id = $1
+       LIMIT 1`,
+      [sectorId]
+    );
+
+    if (adjacentResult.rows.length > 0) {
+      escapeSector = adjacentResult.rows[0].sector;
+    }
+  }
+
+  return escapeSector;
+}
+
 export default {
   generateAliensForUniverse,
   getAlienShipsInSector,
@@ -531,5 +859,6 @@ export default {
   getAlienCommunications,
   moveAlienShips,
   moveAllAlienShips,
-  startAlienShipMovement
+  startAlienShipMovement,
+  attackAlienShip
 };

@@ -8,7 +8,8 @@ import { authenticateToken } from '../middleware/auth';
 import {
   getAlienComms,
   getAlienPresence,
-  unlockComms
+  unlockComms,
+  attackAlien
 } from '../controllers/alienController';
 
 const router = Router();
@@ -24,5 +25,8 @@ router.get('/sector/:sectorNumber', getAlienPresence);
 
 // POST /api/aliens/unlock - Unlock alien communications
 router.post('/unlock', unlockComms);
+
+// POST /api/aliens/attack - Attack an alien ship
+router.post('/attack', attackAlien);
 
 export default router;

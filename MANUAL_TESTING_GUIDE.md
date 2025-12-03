@@ -392,6 +392,97 @@ This guide covers manual testing of all economy and combat fixes implemented on 
 
 ---
 
+## 9. Alien Combat Tests
+
+### 9.1 Attack Alien Ship
+**Test:** Player can attack alien ships
+
+**Steps:**
+1. Navigate to a sector with an alien ship
+2. Verify alien ship is visible in sector details
+3. Click "Attack" on the alien ship
+4. Verify combat simulation runs
+5. Check combat results displayed
+
+**Expected Results:**
+- ✅ Combat costs 1 turn
+- ✅ Combat simulation shows rounds
+- ✅ Winner determined (player or alien)
+- ✅ Fighters and shields lost tracked accurately
+- ✅ Alien ship destroyed if fighters reach 0
+- ✅ Player loots 75% of alien credits on victory
+- ✅ Alien comms broadcasts combat result
+
+---
+
+### 9.2 Alien Ship Victory
+**Test:** Verify player receives loot when destroying alien
+
+**Steps:**
+1. Have 100 fighters, 50 shields
+2. Attack an alien with 20 fighters, 10 shields
+3. Win the combat
+4. Check loot received
+
+**Expected Results:**
+- ✅ Alien ship removed from sector
+- ✅ Player receives 75% of alien's credits
+- ✅ Kill count incremented
+- ✅ Alien comms shows destruction message
+- ✅ Combat log shows all rounds
+
+---
+
+### 9.3 Player Death to Alien
+**Test:** Verify death penalty when player loses to alien
+
+**Steps:**
+1. Have weak ship (10 fighters, 5 shields)
+2. Attack strong alien (100 fighters, 50 shields)
+3. Get destroyed by alien
+4. Check respawn and penalties
+
+**Expected Results:**
+- ✅ Player respawns in Escape Pod
+- ✅ 25% of on-hand credits lost
+- ✅ 25% of bank balance lost
+- ✅ Respawn in adjacent sector or Sol
+- ✅ Death count incremented
+- ✅ All cargo lost
+
+---
+
+### 9.4 Alien Combat Restrictions
+**Test:** Verify combat restrictions apply
+
+**Steps:**
+1. Try to attack alien in TerraSpace (sectors 1-10)
+2. Try to attack with 0 fighters
+3. Try to attack with 0 turns
+
+**Expected Results:**
+- ✅ Cannot attack in TerraSpace (error message)
+- ✅ Cannot attack without fighters (error message)
+- ✅ Cannot attack without turns (error message)
+
+---
+
+### 9.5 Alien Communications Integration
+**Test:** Verify alien comms integration
+
+**Steps:**
+1. Unlock alien communications
+2. Attack and destroy an alien ship
+3. Check alien comms feed
+
+**Expected Results:**
+- ✅ Combat event appears in alien comms
+- ✅ Shows player username and alien race
+- ✅ Shows sector number
+- ✅ Timestamp is accurate
+
+---
+
 ## Testing Checklist Summary
 
 - [ ] Banking: StarDock requirement enforced
@@ -411,6 +502,11 @@ This guide covers manual testing of all economy and combat fixes implemented on 
 - [ ] Corporate: Member ₡10K limit
 - [ ] Corporate: Officer ₡100K limit
 - [ ] Ships: Costs match documentation
+- [ ] Alien Combat: Can attack alien ships
+- [ ] Alien Combat: Loot on victory (75%)
+- [ ] Alien Combat: Death penalty on loss (25%)
+- [ ] Alien Combat: Restrictions enforced
+- [ ] Alien Combat: Comms integration works
 
 ---
 
