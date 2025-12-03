@@ -395,7 +395,6 @@ export const executeTrade = async (
         cargoOrganics: updatedPlayer.cargo_organics,
         cargoEquipment: updatedPlayer.cargo_equipment,
         turnsRemaining: updatedPlayer.turns_remaining,
-        shipHoldsMax: updatedPlayer.ship_holds_max,
         cargoUsed: newCargoTotal,
         cargoMax: updatedPlayer.ship_holds_max,
       },

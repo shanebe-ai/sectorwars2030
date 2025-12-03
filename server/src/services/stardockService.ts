@@ -278,11 +278,9 @@ export async function purchaseShip(userId: number, shipName: string): Promise<Pu
         shipType: updated.ship_type,
         shipHoldsMax: updated.ship_holds_max,
         fighters: updated.ship_fighters,
+        fightersMax: newShip.fighters_max,
         shields: updated.ship_shields,
-        cargoFuel: updated.cargo_fuel,
-        cargoOrganics: updated.cargo_organics,
-        cargoEquipment: updated.cargo_equipment,
-        colonists: updated.colonists,
+        shieldsMax: newShip.shields_max,
       },
     };
   } catch (error) {

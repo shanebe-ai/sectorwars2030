@@ -1,35 +1,11 @@
 import { query, getClient } from '../db/connection';
 import { recordEncounter } from './messageService';
+import { Player } from '../../../shared/types';
 
 interface CreatePlayerParams {
   userId: number;
   universeId: number;
   corpName: string;
-}
-
-interface Player {
-  id: number;
-  user_id: number;
-  universe_id: number;
-  corp_name: string;
-  current_sector: number;
-  credits: number;
-  turns_remaining: number;
-  experience: number;
-  alignment: number;
-  ship_type: string;
-  ship_holds_max: number;
-  ship_fighters: number;
-  ship_shields: number;
-  ship_torpedoes: number;
-  ship_mines: number;
-  ship_beacons: number;
-  cargo_fuel: number;
-  cargo_organics: number;
-  cargo_equipment: number;
-  is_alive: boolean;
-  last_turn_update: Date;
-  created_at: Date;
 }
 
 /**

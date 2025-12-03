@@ -556,7 +556,28 @@ export const retreatFromSector = async (
     // Check if player dies from retreat damage
     if (remainingFighters <= 0 && remainingShields <= 0) {
       // Player destroyed during retreat - respawn in escape pod
-      const escapeSector = await findEscapeSector(player.universe_id, player.current_sector, client);
+      // Find adjacent sector for escape pod or fallback to Sol (sector 1)
+      const sectorResult = await client.query(
+        `SELECT s.id FROM sectors s
+         WHERE s.universe_id = $1 AND s.sector_number = $2`,
+        [player.universe_id, player.current_sector]
+      );
+
+      let escapeSector = 1; // Default to Sol
+      if (sectorResult.rows.length > 0) {
+        const sectorId = sectorResult.rows[0].id;
+        const adjacentResult = await client.query(
+          `SELECT DISTINCT destination_sector_number as sector
+           FROM sector_warps
+           WHERE sector_id = $1
+           LIMIT 1`,
+          [sectorId]
+        );
+
+        if (adjacentResult.rows.length > 0) {
+          escapeSector = adjacentResult.rows[0].sector;
+        }
+      }
 
       await client.query(
         `UPDATE players SET

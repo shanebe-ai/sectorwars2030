@@ -53,7 +53,7 @@ function generatePortType(): PortType | null {
  * Generate warp connections for TerraSpace sectors
  * Creates a linear/branching path through sectors 1-10
  * Only sectors 5-10 have exits to the wider universe (sectors 11+)
- * Sectors 5-10: 1-3 warps out of TerraSpace + 2-4 warps within TerraSpace (mixed together)
+ * Sectors 5-10: 1-2 warps out of TerraSpace + 1-2 warps within TerraSpace (2-4 total outgoing)
  * Sectors 1-4: Only intra-TerraSpace warps
  */
 function generateTerraSpaceWarps(
@@ -82,15 +82,15 @@ function generateTerraSpaceWarps(
     }
   } else {
     // Sectors 5-10: Mix of intra-TerraSpace and out-of-TerraSpace warps
-    // 1-3 warps out of TerraSpace
-    const outOfTerraSpaceCount = Math.floor(Math.random() * 3) + 1; // 1-3 exits
+    // REDUCED: 1-2 warps out of TerraSpace (was 1-3)
+    const outOfTerraSpaceCount = Math.floor(Math.random() * 2) + 1; // 1-2 exits
     for (let i = 0; i < outOfTerraSpaceCount; i++) {
       const exitSector = Math.floor(Math.random() * (totalSectors - terraSpaceEnd)) + terraSpaceEnd + 1;
       warps.add(exitSector);
     }
 
-    // 2-4 warps within TerraSpace
-    const withinTerraSpaceCount = Math.floor(Math.random() * 3) + 2; // 2-4 intra warps
+    // REDUCED: 1-2 warps within TerraSpace (was 2-4)
+    const withinTerraSpaceCount = Math.floor(Math.random() * 2) + 1; // 1-2 intra warps
     for (let i = 0; i < withinTerraSpaceCount; i++) {
       const terraSector = Math.floor(Math.random() * (terraSpaceEnd - terraSpaceStart + 1)) + terraSpaceStart;
       if (terraSector !== sectorNumber) {

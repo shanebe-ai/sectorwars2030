@@ -15,6 +15,13 @@ import {
 const testPool = getTestPool();
 jest.mock('../db/connection', () => ({
   pool: testPool,
+  query: testPool.query.bind(testPool),
+  getClient: () => testPool.connect(),
+}));
+
+// Mock the server index to avoid circular dependencies
+jest.mock('../index', () => ({
+  emitSectorEvent: jest.fn(),
 }));
 
 // Import controllers after mocking

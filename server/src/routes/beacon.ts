@@ -218,9 +218,10 @@ router.get('/mine', async (req: Request, res: Response) => {
  * POST /api/beacons/attack
  */
 router.post('/attack', async (req: Request, res: Response) => {
+  const { beaconId } = req.body;
+  const userId = (req as any).user?.userId;
+
   try {
-    const { beaconId } = req.body;
-    const userId = (req as any).user?.userId;
 
     if (!beaconId) {
       return res.status(400).json({ error: 'Beacon ID is required' });
