@@ -507,17 +507,117 @@ export async function moveAllAlienShips(): Promise<void> {
 }
 
 /**
+ * Process alien aggression - aggressive aliens attack nearby players
+ * Called periodically after alien movement
+ */
+export async function processAlienAggression(universeId: number): Promise<void> {
+  const client = await pool.connect();
+
+  try {
+    // Get aggressive alien ships
+    const aggressiveShipsResult = await client.query(`
+      SELECT a.*, st.fighters_max, st.shields_max
+      FROM alien_ships a
+      JOIN ship_types st ON a.ship_type_id = st.id
+      WHERE a.universe_id = $1
+        AND a.behavior = 'aggressive'
+        AND a.fighters > 0
+    `, [universeId]);
+
+    console.log(`[Alien Aggression] Found ${aggressiveShipsResult.rows.length} aggressive aliens in universe ${universeId}`);
+
+    for (const alienShip of aggressiveShipsResult.rows) {
+      // Get players in same sector
+      const playersResult = await client.query(`
+        SELECT p.id, p.user_id, p.current_sector, p.ship_fighters, p.ship_shields,
+               p.is_alive, p.in_escape_pod, u.username, p.corp_name, s.region
+        FROM players p
+        JOIN users u ON p.user_id = u.id
+        JOIN sectors s ON s.universe_id = p.universe_id AND s.sector_number = p.current_sector
+        WHERE p.universe_id = $1
+          AND p.current_sector = $2
+          AND p.is_alive = true
+          AND p.in_escape_pod = false
+          AND p.ship_fighters > 0
+      `, [universeId, alienShip.current_sector]);
+
+      if (playersResult.rows.length === 0) continue;
+
+      // Check if sector is TerraSpace (no combat allowed)
+      const player = playersResult.rows[0];
+      if (player.region === 'TerraSpace') {
+        continue; // Skip TerraSpace combat
+      }
+
+      // 50% chance to attack if players present
+      if (Math.random() < 0.5) {
+        // Pick a random player to attack
+        const targetPlayer = playersResult.rows[Math.floor(Math.random() * playersResult.rows.length)];
+
+        console.log(`[Alien Aggression] ${alienShip.ship_name} attacking ${targetPlayer.username} in sector ${alienShip.current_sector}`);
+
+        try {
+          // Execute alien-initiated attack
+          await alienAttacksPlayer(alienShip.id, targetPlayer.id, client);
+        } catch (attackError) {
+          console.error(`[Alien Aggression] Error in attack:`, attackError);
+          // Continue to next alien ship
+        }
+      }
+    }
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Process alien aggression for all active universes
+ */
+export async function processAllAlienAggression(): Promise<void> {
+  try {
+    const universesResult = await pool.query(`
+      SELECT DISTINCT universe_id FROM alien_ships WHERE behavior = 'aggressive'
+    `);
+
+    for (const row of universesResult.rows) {
+      await processAlienAggression(row.universe_id).catch(err => {
+        console.error(`Error processing alien aggression for universe ${row.universe_id}:`, err);
+      });
+    }
+  } catch (error) {
+    console.error('Error in processAllAlienAggression:', error);
+  }
+}
+
+/**
  * Start automatic alien ship movement (runs every 5 minutes)
  */
 export const startAlienShipMovement = (intervalMs: number = 5 * 60 * 1000): NodeJS.Timeout => {
   console.log(`[Alien Movement] Starting automatic alien ship movement every ${intervalMs / 1000} seconds`);
-  
+
   // Run immediately once
   moveAllAlienShips().catch(console.error);
-  
+
   // Then run on interval
   return setInterval(() => {
     moveAllAlienShips().catch(console.error);
+  }, intervalMs);
+};
+
+/**
+ * Start automatic alien aggression processing (runs every 10 minutes)
+ */
+export const startAlienAggression = (intervalMs: number = 10 * 60 * 1000): NodeJS.Timeout => {
+  console.log(`[Alien Aggression] Starting automatic alien aggression every ${intervalMs / 1000} seconds`);
+
+  // Run after 2 minutes (offset from movement)
+  setTimeout(() => {
+    processAllAlienAggression().catch(console.error);
+  }, 2 * 60 * 1000);
+
+  // Then run on interval
+  return setInterval(() => {
+    processAllAlienAggression().catch(console.error);
   }, intervalMs);
 };
 
@@ -821,6 +921,164 @@ function simulateAlienCombat(
 }
 
 /**
+ * Alien ship attacks a player (AI-initiated combat)
+ * This is called by the aggression system, not by player action
+ */
+async function alienAttacksPlayer(
+  alienShipId: number,
+  playerId: number,
+  client: any
+): Promise<void> {
+  try {
+    await client.query('BEGIN');
+
+    // Get alien ship stats
+    const alienResult = await client.query(`
+      SELECT a.*, st.fighters_max, st.shields_max
+      FROM alien_ships a
+      JOIN ship_types st ON a.ship_type_id = st.id
+      WHERE a.id = $1
+      FOR UPDATE OF a
+    `, [alienShipId]);
+
+    if (alienResult.rows.length === 0) {
+      throw new Error('Alien ship not found');
+    }
+
+    const alien = alienResult.rows[0];
+
+    // Get player stats
+    const playerResult = await client.query(`
+      SELECT p.*, u.username
+      FROM players p
+      JOIN users u ON p.user_id = u.id
+      WHERE p.id = $1
+      FOR UPDATE OF p
+    `, [playerId]);
+
+    if (playerResult.rows.length === 0) {
+      throw new Error('Player not found');
+    }
+
+    const player = playerResult.rows[0];
+
+    // Run combat simulation
+    const combatResult = simulateAlienCombat(
+      { fighters: player.ship_fighters, shields: player.ship_shields },
+      { fighters: alien.fighters, shields: alien.shields }
+    );
+
+    // Send inbox message to player about the attack
+    const attackMessage = {
+      subject: `⚠️ ALIEN ATTACK!`,
+      body: `You were attacked by ${alien.alien_race} ship "${alien.ship_name}" in Sector ${player.current_sector}!`
+    };
+
+    // Handle player destruction
+    if (combatResult.playerDestroyed) {
+      const escapeSector = await findEscapeSector(client, player.universe_id, player.current_sector);
+
+      // Apply death penalty
+      await client.query(`
+        UPDATE players SET
+          credits = GREATEST(0, FLOOR(credits * (1 - $1))),
+          ship_type = 'Escape Pod',
+          ship_holds_max = 5,
+          ship_fighters = 0,
+          ship_shields = 0,
+          cargo_fuel = 0,
+          cargo_organics = 0,
+          cargo_equipment = 0,
+          colonists = 0,
+          current_sector = $2,
+          in_escape_pod = TRUE,
+          deaths = deaths + 1
+        WHERE id = $3
+      `, [ALIEN_DEATH_PENALTY, escapeSector, playerId]);
+
+      // Apply bank penalty
+      await client.query(`
+        UPDATE bank_accounts SET
+          balance = GREATEST(0, FLOOR(balance * (1 - $1)))
+        WHERE player_id = $2
+      `, [ALIEN_DEATH_PENALTY, playerId]);
+
+      attackMessage.body += `\n\n💀 YOU WERE DESTROYED!\n\nYou lost 25% of your credits and bank balance.\nYou respawned in an Escape Pod at Sector ${escapeSector}.`;
+
+      // Alien loots credits
+      const creditsLooted = Math.floor(player.credits * ALIEN_LOOT_PERCENTAGE);
+      await client.query(
+        'UPDATE alien_ships SET credits = credits + $1 WHERE id = $2',
+        [creditsLooted, alienShipId]
+      );
+    } else {
+      // Update player fighters/shields
+      const playerFightersRemaining = player.ship_fighters - combatResult.playerFightersLost;
+      const playerShieldsRemaining = player.ship_shields - combatResult.playerShieldsLost;
+
+      await client.query(`
+        UPDATE players SET
+          ship_fighters = $1,
+          ship_shields = $2
+        WHERE id = $3
+      `, [playerFightersRemaining, playerShieldsRemaining, playerId]);
+
+      attackMessage.body += `\n\nYou survived!\nFighters lost: ${combatResult.playerFightersLost}\nShields lost: ${combatResult.playerShieldsLost}`;
+    }
+
+    // Handle alien destruction
+    if (combatResult.alienDestroyed) {
+      await client.query('DELETE FROM alien_ships WHERE id = $1', [alienShipId]);
+
+      attackMessage.body += `\n\n⚔️ You destroyed the alien ship in self-defense!`;
+
+      // Broadcast destruction
+      await broadcastAlienMessage(alien.universe_id, 'combat',
+        `⚠️ ${alien.alien_race} vessel "${alien.ship_name}" destroyed by ${player.username} in self-defense (Sector ${player.current_sector})`,
+        {
+          alienRace: alien.alien_race,
+          sectorNumber: player.current_sector,
+          relatedPlayerId: playerId
+        }
+      );
+    } else {
+      // Update alien fighters/shields
+      const alienFightersRemaining = alien.fighters - combatResult.alienFightersLost;
+      const alienShieldsRemaining = alien.shields - combatResult.alienShieldsLost;
+
+      await client.query(`
+        UPDATE alien_ships SET
+          fighters = $1,
+          shields = $2
+        WHERE id = $3
+      `, [alienFightersRemaining, alienShieldsRemaining, alienShipId]);
+    }
+
+    // Send inbox message to player
+    await client.query(`
+      INSERT INTO messages (player_id, sender_name, subject, body, message_type, is_read)
+      VALUES ($1, $2, $3, $4, 'inbox', false)
+    `, [playerId, 'SYSTEM', attackMessage.subject, attackMessage.body]);
+
+    // Broadcast to alien comms
+    await broadcastAlienMessage(alien.universe_id, 'combat',
+      `⚔️ ${alien.alien_race} vessel "${alien.ship_name}" engaged ${player.username} in combat (Sector ${player.current_sector})`,
+      {
+        alienRace: alien.alien_race,
+        sectorNumber: player.current_sector,
+        relatedPlayerId: playerId,
+        relatedShipId: alienShipId
+      }
+    );
+
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  }
+}
+
+/**
  * Find an escape sector for a destroyed ship
  */
 async function findEscapeSector(client: any, universeId: number, currentSector: number): Promise<number> {
@@ -860,5 +1118,8 @@ export default {
   moveAlienShips,
   moveAllAlienShips,
   startAlienShipMovement,
+  processAlienAggression,
+  processAllAlienAggression,
+  startAlienAggression,
   attackAlienShip
 };

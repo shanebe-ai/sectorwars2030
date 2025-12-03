@@ -23,7 +23,7 @@ import mineRoutes from './routes/mines';
 import alienRoutes from './routes/alien';
 import { startPortRegeneration } from './services/portService';
 import { startFighterMaintenance } from './services/maintenanceService';
-import { startAlienShipMovement } from './services/alienService';
+import { startAlienShipMovement, startAlienAggression } from './services/alienService';
 
 dotenv.config();
 
@@ -209,12 +209,15 @@ httpServer.listen(PORT, () => {
   
   // Start port stock regeneration (every 30 minutes)
   startPortRegeneration(30 * 60 * 1000);
-  
+
   // Start fighter maintenance charging (daily - 24 hours)
   startFighterMaintenance(24 * 60 * 60 * 1000);
-  
+
   // Start alien ship movement (every 5 minutes)
   startAlienShipMovement(5 * 60 * 1000);
+
+  // Start alien aggression (every 10 minutes, offset by 2 minutes)
+  startAlienAggression(10 * 60 * 1000);
 });
 
 // Graceful shutdown
