@@ -130,18 +130,12 @@ export const createPlayer = async ({
       [corpId, newPlayer.id]
     );
 
-    // Record encounters with other players already in the starting sector
+    // Get other players in the starting sector BEFORE committing
     const otherPlayersResult = await client.query(
       `SELECT id FROM players
        WHERE universe_id = $1 AND current_sector = $2 AND id != $3 AND is_alive = true`,
       [universeId, startingSector, newPlayer.id]
     );
-
-    // Record encounters bidirectionally
-    for (const otherPlayer of otherPlayersResult.rows) {
-      await recordEncounter(newPlayer.id, otherPlayer.id, universeId);
-      await recordEncounter(otherPlayer.id, newPlayer.id, universeId);
-    }
 
     await client.query('COMMIT');
 
@@ -150,9 +144,18 @@ export const createPlayer = async ({
     // Update the newPlayer object with corp_id before returning
     newPlayer.corp_id = corpId;
 
+    // Record encounters AFTER commit so new player is visible to other connections
+    for (const otherPlayer of otherPlayersResult.rows) {
+      await recordEncounter(newPlayer.id, otherPlayer.id, universeId);
+      await recordEncounter(otherPlayer.id, newPlayer.id, universeId);
+    }
+
     return newPlayer;
-  } catch (error) {
+  } catch (error: any) {
     await client.query('ROLLBACK');
+    console.error('Player creation error:', error.message);
+    console.error('Error code:', error.code);
+    console.error('Error detail:', error.detail);
     throw error;
   } finally {
     client.release();
