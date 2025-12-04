@@ -1151,7 +1151,22 @@ When implementing new features:
     - **Real-time Updates:** Ship status (fighters) updates immediately on deploy/retrieve
     - **State Management:** Improved parent-child state synchronization for instant UI updates
 
-**Current Session (2025-12-03):**
+**Current Session (2025-12-04):**
+- ✅ **Player Creation Bug Fixes:**
+  - **Issue 1:** Players weren't getting `corp_id` set on creation
+    - Added UPDATE statement to set player's `corp_id` after creating corporation
+    - Updated returned player object to include `corp_id` value
+  - **Issue 2:** Foreign key constraint violation on `player_encounters` table
+    - `recordEncounter()` was called before transaction committed
+    - Moved encounter recording to AFTER COMMIT so new player is visible
+    - Error: "Key (player_id)=(X) is not present in table players"
+  - **Admin Panel Updates:**
+    - Changed "Max Sectors" label to "Sectors" for clarity
+    - Removed max limit on starting credits (kept min 1000)
+    - Admin has full control over starting credits now
+  - All player creation issues resolved and tested
+
+**Previous Session (2025-12-03):**
 - ✅ **Corporation Management System (COMPLETE!):**
   - **Database Migrations:**
     - 018_corporation_player_link.sql - Added `corp_id` column to players table
