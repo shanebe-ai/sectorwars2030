@@ -118,7 +118,7 @@ export default function CreateUniverseModal({ token, onClose, onSuccess }: Creat
 
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Max Sectors</label>
+              <label className="form-label">Sectors</label>
               <input
                 type="number"
                 name="maxSectors"
@@ -220,10 +220,9 @@ export default function CreateUniverseModal({ token, onClose, onSuccess }: Creat
                 value={formData.startingCredits}
                 onChange={handleChange}
                 min={1000}
-                max={100000}
                 required
               />
-              <div className="form-hint">Recommended: 2000</div>
+              <div className="form-hint">Default: 2000</div>
             </div>
 
             <div className="form-group">
