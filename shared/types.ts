@@ -27,6 +27,7 @@ export interface Player {
   id: number;
   user_id: number;
   universe_id: number;
+  corp_id: number | null;
   corp_name: string;
   current_sector: number;
   credits: number;
