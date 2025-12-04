@@ -105,6 +105,7 @@ export const getUserPlayers = async (req: Request, res: Response) => {
     res.json({
       players: players.map((p) => ({
         id: p.id,
+        corpId: p.corp_id,
         corpName: p.corp_name,
         universeId: p.universe_id,
         universeName: (p as any).universe_name,
