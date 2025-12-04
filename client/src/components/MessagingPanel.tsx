@@ -337,6 +337,41 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
     }
   };
 
+  const handleAcceptInvitation = async (message: Message) => {
+    // Extract corp ID from message body
+    const corpIdMatch = message.body.match(/Corp ID: (\d+)/);
+    if (!corpIdMatch) {
+      setError('Could not find corporation ID in invitation');
+      return;
+    }
+
+    const corpId = parseInt(corpIdMatch[1]);
+
+    try {
+      const response = await fetch(`${API_URL}/api/corporations/accept-invite`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ corpId })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccess(`You have joined ${data.corpName}! Refreshing...`);
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      } else {
+        setError(data.error || 'Failed to accept invitation');
+      }
+    } catch (err) {
+      setError('Network error');
+    }
+  };
+
   const handleReply = (message: Message) => {
     setView('compose');
     setMessageType('DIRECT');
@@ -650,6 +685,7 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
               message={selectedMessage}
               onReply={handleReply}
               onDelete={handleDeleteMessage}
+              onAcceptInvitation={handleAcceptInvitation}
               onBack={() => setView(previousView)}
               previousView={previousView}
             />
@@ -1003,7 +1039,7 @@ function ComposeForm({
 }
 
 // Message View Component
-function MessageView({ message, onReply, onDelete, onBack, previousView }: any) {
+function MessageView({ message, onReply, onDelete, onAcceptInvitation, onBack, previousView }: any) {
   const getBackLabel = () => {
     if (previousView === 'broadcasts') return '◄ BACK TO BROADCASTS';
     if (previousView === 'corporate') return '◄ BACK TO CORPORATE';
@@ -1066,6 +1102,45 @@ function MessageView({ message, onReply, onDelete, onBack, previousView }: any) 
           {message.body}
         </div>
       </div>
+
+      {message.message_type === 'corp_invite' && (
+        <div style={{ marginTop: '20px' }}>
+          <button
+            onClick={() => onAcceptInvitation(message)}
+            style={{
+              width: '100%',
+              padding: '12px',
+              background: 'rgba(255, 215, 0, 0.2)',
+              color: 'var(--neon-yellow)',
+              border: '2px solid var(--neon-yellow)',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: '14px',
+              textTransform: 'uppercase',
+              boxShadow: '0 0 10px rgba(255, 215, 0, 0.3)'
+            }}
+          >
+            ✓ ACCEPT INVITATION
+          </button>
+          <button
+            onClick={() => onDelete(message.id)}
+            style={{
+              width: '100%',
+              marginTop: '10px',
+              padding: '10px',
+              background: 'transparent',
+              color: 'var(--neon-pink)',
+              border: '1px solid var(--neon-pink)',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            ✕ DECLINE & DELETE
+          </button>
+        </div>
+      )}
 
       {message.message_type === 'DIRECT' && (
         <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
