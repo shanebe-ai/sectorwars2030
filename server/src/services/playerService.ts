@@ -117,6 +117,12 @@ export const createPlayer = async ({
 
     const corpId = corpResult.rows[0].id;
 
+    // Update player with corp_id
+    await client.query(
+      `UPDATE players SET corp_id = $1 WHERE id = $2`,
+      [corpId, newPlayer.id]
+    );
+
     // Add player as founder of their corporation
     await client.query(
       `INSERT INTO corp_members (corp_id, player_id, rank)
@@ -140,6 +146,9 @@ export const createPlayer = async ({
     await client.query('COMMIT');
 
     console.log(`Player created: ${corpName} in universe ${universeId} with corporation ID ${corpId}`);
+
+    // Update the newPlayer object with corp_id before returning
+    newPlayer.corp_id = corpId;
 
     return newPlayer;
   } catch (error) {
