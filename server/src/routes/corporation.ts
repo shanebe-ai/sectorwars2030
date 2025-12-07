@@ -12,7 +12,8 @@ import {
   acceptInvite,
   kick,
   changeRankEndpoint,
-  transferOwnershipEndpoint
+  transferOwnershipEndpoint,
+  disband
 } from '../controllers/corporationController';
 
 const router = Router();
@@ -40,5 +41,8 @@ router.post('/change-rank', changeRankEndpoint);
 
 // POST /api/corporations/transfer-ownership - Transfer ownership
 router.post('/transfer-ownership', transferOwnershipEndpoint);
+
+// POST /api/corporations/disband - Disband corporation (founder only)
+router.post('/disband', disband);
 
 export default router;

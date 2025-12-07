@@ -104,7 +104,7 @@ export async function sendMessage(params: SendMessageParams): Promise<Message> {
  */
 export async function getInbox(playerId: number): Promise<Message[]> {
   const result = await pool.query(
-    `SELECT m.*, 
+    `SELECT m.*,
        u.username as sender_username,
        p.corp_name as sender_corp_name,
        c.name as sender_corporation_name
@@ -115,7 +115,7 @@ export async function getInbox(playerId: number): Promise<Message[]> {
      LEFT JOIN corporations c ON cm.corp_id = c.id
      WHERE m.recipient_id = $1
        AND m.is_deleted_by_recipient = FALSE
-       AND m.message_type = 'DIRECT'
+       AND (m.message_type = 'DIRECT' OR m.message_type = 'corp_invite')
      ORDER BY m.sent_at DESC`,
     [playerId]
   );

@@ -437,6 +437,7 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
           playerId={player.id}
           corpId={player.corpId || null}
           corpName={player.corpName || ''}
+          universeId={player.universeId}
         />
       )}
 

@@ -12,7 +12,8 @@ import {
   acceptInvitation,
   kickMember,
   changeRank,
-  transferOwnership
+  transferOwnership,
+  disbandCorporation
 } from '../services/corporationService';
 
 /**
@@ -266,5 +267,38 @@ export async function transferOwnershipEndpoint(req: Request, res: Response): Pr
   } catch (error: any) {
     console.error('Error transferring ownership:', error);
     res.status(400).json({ error: error.message || 'Failed to transfer ownership' });
+  }
+}
+
+/**
+ * POST /api/corporations/disband
+ * Disband corporation (founder only)
+ */
+export async function disband(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = (req as any).user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    // Get player ID
+    const playerResult = await pool.query(`
+      SELECT id FROM players WHERE user_id = $1
+    `, [userId]);
+
+    if (playerResult.rows.length === 0) {
+      res.status(404).json({ error: 'Player not found' });
+      return;
+    }
+
+    const playerId = playerResult.rows[0].id;
+    const result = await disbandCorporation(playerId);
+
+    res.json(result);
+  } catch (error: any) {
+    console.error('Error disbanding corporation:', error);
+    res.status(400).json({ error: error.message || 'Failed to disband corporation' });
   }
 }

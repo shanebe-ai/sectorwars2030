@@ -291,8 +291,8 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
     setSelectedMessage(message);
     setView('read');
 
-    // Mark as read if it's unread and a direct message to us
-    if (!message.is_read && message.message_type === 'DIRECT') {
+    // Mark as read if it's unread and a direct message or corp invite to us
+    if (!message.is_read && (message.message_type === 'DIRECT' || message.message_type === 'corp_invite')) {
       try {
         await fetch(`${API_URL}/api/messages/${message.id}/read`, {
           method: 'PUT',
@@ -338,8 +338,12 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
   };
 
   const handleAcceptInvitation = async (message: Message) => {
-    // Extract corp ID from message body
-    const corpIdMatch = message.body.match(/Corp ID: (\d+)/);
+    // Extract corp ID from message body - try new format first, then old format
+    let corpIdMatch = message.body.match(/\[CORP_ID:(\d+)\]/);
+    if (!corpIdMatch) {
+      // Try old format: "Corp ID: 123"
+      corpIdMatch = message.body.match(/Corp ID: (\d+)/);
+    }
     if (!corpIdMatch) {
       setError('Could not find corporation ID in invitation');
       return;
@@ -360,12 +364,30 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
       const data = await response.json();
 
       if (response.ok) {
+        // Delete the invitation message since it's been actioned
+        try {
+          await fetch(`${API_URL}/api/messages/${message.id}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+        } catch (deleteErr) {
+          // Ignore delete errors, still want to show success and refresh
+          console.error('Failed to delete invitation message:', deleteErr);
+        }
+
         setSuccess(`You have joined ${data.corpName}! Refreshing...`);
         setTimeout(() => {
           window.location.reload();
         }, 1500);
       } else {
-        setError(data.error || 'Failed to accept invitation');
+        // Display the error prominently - user needs to leave their current corp first
+        if (data.error === 'You are already in a corporation') {
+          setError('⚠ You must leave your current corporation before accepting this invitation. Open the Corporation panel to leave your current corp, then come back here to accept.');
+        } else {
+          setError(data.error || 'Failed to accept invitation');
+        }
       }
     } catch (err) {
       setError('Network error');
@@ -410,13 +432,7 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
           <span>► SHIP COMMUNICATIONS</span>
           <button
             onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--neon-pink)',
-              fontSize: '20px',
-              cursor: 'pointer'
-            }}
+            className="cyberpunk-close-button"
           >
             ✕
           </button>
@@ -1099,7 +1115,11 @@ function MessageView({ message, onReply, onDelete, onAcceptInvitation, onBack, p
           lineHeight: '1.6',
           fontFamily: 'monospace'
         }}>
-          {message.body}
+          {/* Hide the [CORP_ID:...] part from corp invites */}
+          {message.message_type === 'corp_invite'
+            ? message.body.replace(/\[CORP_ID:\d+\]/, '').trim()
+            : message.body
+          }
         </div>
       </div>
 

@@ -102,7 +102,7 @@ export const getUserPlayers = async (req: Request, res: Response) => {
 
     const players = await getPlayersByUser(req.user.userId);
 
-    res.json({
+    const response = {
       players: players.map((p) => ({
         id: p.id,
         corpId: p.corp_id,
@@ -126,7 +126,10 @@ export const getUserPlayers = async (req: Request, res: Response) => {
         createdAt: p.created_at,
       })),
       count: players.length,
-    });
+    };
+
+    console.log('[PlayerController] getUserPlayers response:', JSON.stringify(response, null, 2));
+    res.json(response);
   } catch (error) {
     console.error('Get user players error:', error);
     res.status(500).json({ error: 'Failed to fetch players' });
@@ -212,6 +215,7 @@ export const getPlayer = async (req: Request, res: Response) => {
     res.json({
       player: {
         id: player.id,
+        corpId: player.corp_id,
         corpName: player.corp_name,
         universeId: player.universe_id,
         currentSector: player.current_sector,
@@ -293,5 +297,54 @@ export const checkPlayerInUniverse = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Check player in universe error:', error);
     res.status(500).json({ error: 'Failed to check player status' });
+  }
+};
+
+/**
+ * GET /api/players/search?q=username&universeId=X
+ * Search for players by username (for autocomplete)
+ */
+export const searchPlayers = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const searchQuery = req.query.q as string;
+    const universeId = parseInt(req.query.universeId as string);
+
+    if (!searchQuery || searchQuery.trim().length < 2) {
+      return res.json({ players: [] });
+    }
+
+    if (isNaN(universeId)) {
+      return res.status(400).json({ error: 'Valid universe ID required' });
+    }
+
+    // Search for players in the same universe
+    const result = await query(
+      `SELECT u.username, p.id as player_id, p.corp_id, c.name as corp_name
+       FROM users u
+       JOIN players p ON u.id = p.user_id
+       LEFT JOIN corporations c ON p.corp_id = c.id
+       WHERE p.universe_id = $1
+         AND LOWER(u.username) LIKE LOWER($2)
+         AND p.is_alive = true
+       ORDER BY u.username
+       LIMIT 10`,
+      [universeId, `%${searchQuery}%`]
+    );
+
+    const players = result.rows.map(row => ({
+      username: row.username,
+      playerId: row.player_id,
+      corpId: row.corp_id,
+      corpName: row.corp_name,
+    }));
+
+    res.json({ players });
+  } catch (error) {
+    console.error('Search players error:', error);
+    res.status(500).json({ error: 'Failed to search players' });
   }
 };

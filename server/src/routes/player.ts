@@ -4,6 +4,7 @@ import {
   getUserPlayers,
   getPlayer,
   checkPlayerInUniverse,
+  searchPlayers,
 } from '../controllers/playerController';
 import { authenticateToken } from '../middleware/auth';
 
@@ -17,6 +18,9 @@ router.post('/', initializePlayer);
 
 // GET /api/players - Get all players for authenticated user
 router.get('/', getUserPlayers);
+
+// GET /api/players/search - Search players by username (must come before /:id)
+router.get('/search', searchPlayers);
 
 // GET /api/players/check/:universeId - Check if user has player in universe
 router.get('/check/:universeId', checkPlayerInUniverse);

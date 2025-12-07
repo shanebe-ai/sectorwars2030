@@ -7,6 +7,7 @@
   --neon-purple: #9D00FF;
   --neon-green: #00FF00;
   --neon-pink: #FF1493;
+  --neon-red: #FF0066;
   --neon-blue: #0080FF;
   --neon-yellow: #FFFF00;
 
@@ -105,45 +106,79 @@ body {
 
 /* Buttons */
 .cyberpunk-button {
-  background: transparent;
+  background: rgba(0, 255, 255, 0.15);
   border: 2px solid var(--neon-cyan);
   color: var(--neon-cyan);
   padding: 10px 20px;
   font-family: 'Courier New', Courier, monospace;
   font-size: 14px;
+  font-weight: bold;
   cursor: pointer;
   transition: all 0.3s;
   text-transform: uppercase;
   letter-spacing: 2px;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
 }
 
 .cyberpunk-button:hover {
-  background: var(--neon-cyan);
-  color: var(--bg-black);
-  box-shadow: var(--glow-intense);
+  background: rgba(0, 255, 255, 0.3);
+  color: var(--neon-cyan);
+  box-shadow: 0 0 25px rgba(0, 255, 255, 0.8);
   transform: translateY(-2px);
+  border-color: var(--neon-cyan);
 }
 
 .cyberpunk-button:active {
   transform: translateY(0);
+  background: rgba(0, 255, 255, 0.2);
 }
 
 .cyberpunk-button-danger {
+  background: rgba(255, 20, 147, 0.15);
   border-color: var(--neon-pink);
   color: var(--neon-pink);
+  box-shadow: 0 0 10px rgba(255, 20, 147, 0.3);
 }
 
 .cyberpunk-button-danger:hover {
-  background: var(--neon-pink);
+  background: rgba(255, 20, 147, 0.3);
+  color: var(--neon-pink);
+  box-shadow: 0 0 25px rgba(255, 20, 147, 0.8);
 }
 
 .cyberpunk-button-success {
+  background: rgba(0, 255, 0, 0.15);
   border-color: var(--neon-green);
   color: var(--neon-green);
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
 }
 
 .cyberpunk-button-success:hover {
-  background: var(--neon-green);
+  background: rgba(0, 255, 0, 0.3);
+  color: var(--neon-green);
+  box-shadow: 0 0 25px rgba(0, 255, 0, 0.8);
+}
+
+/* Standardized Close Button */
+.cyberpunk-close-button {
+  background: transparent;
+  border: 1px solid var(--neon-red);
+  color: var(--neon-red);
+  padding: 8px 15px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.cyberpunk-close-button:hover {
+  background: rgba(255, 20, 147, 0.2);
+  box-shadow: 0 0 15px rgba(255, 20, 147, 0.6);
+  border-color: var(--neon-pink);
+  color: var(--neon-pink);
 }
 
 /* Input Fields */

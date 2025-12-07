@@ -25,15 +25,23 @@ interface CorporationDetails {
   members: CorporationMember[];
 }
 
+interface PlayerSearchResult {
+  username: string;
+  playerId: number;
+  corpId: number | null;
+  corpName: string | null;
+}
+
 interface CorporationPanelProps {
   token: string;
   onClose: () => void;
   playerId: number;
   corpId: number | null;
   corpName: string;
+  universeId: number;
 }
 
-export default function CorporationPanel({ token, onClose, playerId, corpId, corpName }: CorporationPanelProps) {
+export default function CorporationPanel({ token, onClose, playerId, corpId, corpName, universeId }: CorporationPanelProps) {
   const [view, setView] = useState<'details' | 'invite' | 'messages'>('details');
   const [corporation, setCorporation] = useState<CorporationDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -43,6 +51,18 @@ export default function CorporationPanel({ token, onClose, playerId, corpId, cor
   // Invite form
   const [inviteUsername, setInviteUsername] = useState('');
   const [inviting, setInviting] = useState(false);
+
+  // Autocomplete
+  const [searchResults, setSearchResults] = useState<PlayerSearchResult[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+
+  // Confirmation dialogs
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [showDisbandConfirm, setShowDisbandConfirm] = useState(false);
+  const [kickTarget, setKickTarget] = useState<{ playerId: number; username: string } | null>(null);
+  const [rankChangeTarget, setRankChangeTarget] = useState<{ playerId: number; username: string; newRank: 'member' | 'officer' } | null>(null);
+  const [transferTarget, setTransferTarget] = useState<{ playerId: number; username: string } | null>(null);
 
   useEffect(() => {
     if (corpId) {
@@ -75,10 +95,9 @@ export default function CorporationPanel({ token, onClose, playerId, corpId, cor
   };
 
   const handleLeaveCorporation = async () => {
-    if (!confirm('Are you sure you want to leave this corporation?')) return;
-
     try {
       setError('');
+      setShowLeaveConfirm(false);
       const response = await fetch(`${API_URL}/api/corporations/leave`, {
         method: 'POST',
         headers: {
@@ -98,6 +117,75 @@ export default function CorporationPanel({ token, onClose, playerId, corpId, cor
     }
   };
 
+  const handleDisbandCorporation = async () => {
+    try {
+      setError('');
+      setShowDisbandConfirm(false);
+      const response = await fetch(`${API_URL}/api/corporations/disband`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setSuccess('Corporation disbanded. Refreshing...');
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        setError(data.error || 'Failed to disband corporation');
+      }
+    } catch (err) {
+      setError('Network error');
+    }
+  };
+
+  const searchPlayers = async (query: string) => {
+    if (query.trim().length < 2) {
+      setSearchResults([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${API_URL}/api/players/search?q=${encodeURIComponent(query)}&universeId=${universeId}`,
+        {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }
+      );
+      const data = await response.json();
+      if (response.ok) {
+        setSearchResults(data.players || []);
+        setShowSuggestions(true);
+      }
+    } catch (err) {
+      console.error('Search error:', err);
+    }
+  };
+
+  const handleUsernameChange = (value: string) => {
+    setInviteUsername(value);
+
+    // Clear existing timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
+    // Set new timeout for search
+    const timeout = setTimeout(() => {
+      searchPlayers(value);
+    }, 300); // 300ms debounce
+
+    setSearchTimeout(timeout);
+  };
+
+  const handleSelectPlayer = (username: string) => {
+    setInviteUsername(username);
+    setShowSuggestions(false);
+    setSearchResults([]);
+  };
+
   const handleInvitePlayer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteUsername.trim()) return;
@@ -106,6 +194,7 @@ export default function CorporationPanel({ token, onClose, playerId, corpId, cor
       setInviting(true);
       setError('');
       setSuccess('');
+      setShowSuggestions(false);
       const response = await fetch(`${API_URL}/api/corporations/invite`, {
         method: 'POST',
         headers: {
@@ -128,8 +217,8 @@ export default function CorporationPanel({ token, onClose, playerId, corpId, cor
     }
   };
 
-  const handleKickMember = async (targetPlayerId: number, username: string) => {
-    if (!confirm(`Are you sure you want to kick ${username} from the corporation?`)) return;
+  const handleKickMember = async () => {
+    if (!kickTarget) return;
 
     try {
       setError('');
@@ -140,23 +229,25 @@ export default function CorporationPanel({ token, onClose, playerId, corpId, cor
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ targetPlayerId })
+        body: JSON.stringify({ targetPlayerId: kickTarget.playerId })
       });
       const data = await response.json();
       if (response.ok) {
-        setSuccess(`${username} has been removed from the corporation`);
+        setSuccess(`${kickTarget.username} has been removed from the corporation`);
+        setKickTarget(null);
         loadCorporationDetails(); // Reload to update member list
       } else {
         setError(data.error || 'Failed to kick member');
+        setKickTarget(null);
       }
     } catch (err) {
       setError('Network error');
+      setKickTarget(null);
     }
   };
 
-  const handleChangeRank = async (targetPlayerId: number, newRank: 'member' | 'officer', username: string) => {
-    const action = newRank === 'officer' ? 'promote' : 'demote';
-    if (!confirm(`Are you sure you want to ${action} ${username} to ${newRank}?`)) return;
+  const handleChangeRank = async () => {
+    if (!rankChangeTarget) return;
 
     try {
       setError('');
@@ -167,22 +258,25 @@ export default function CorporationPanel({ token, onClose, playerId, corpId, cor
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ targetPlayerId, newRank })
+        body: JSON.stringify({ targetPlayerId: rankChangeTarget.playerId, newRank: rankChangeTarget.newRank })
       });
       const data = await response.json();
       if (response.ok) {
-        setSuccess(`${username} is now a ${newRank}`);
+        setSuccess(`${rankChangeTarget.username} is now a ${rankChangeTarget.newRank}`);
+        setRankChangeTarget(null);
         loadCorporationDetails(); // Reload to update member list
       } else {
         setError(data.error || 'Failed to change rank');
+        setRankChangeTarget(null);
       }
     } catch (err) {
       setError('Network error');
+      setRankChangeTarget(null);
     }
   };
 
-  const handleTransferOwnership = async (newFounderId: number, username: string) => {
-    if (!confirm(`Are you sure you want to transfer ownership to ${username}? You will become an officer.`)) return;
+  const handleTransferOwnership = async () => {
+    if (!transferTarget) return;
 
     try {
       setError('');
@@ -193,17 +287,20 @@ export default function CorporationPanel({ token, onClose, playerId, corpId, cor
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ newFounderId })
+        body: JSON.stringify({ newFounderId: transferTarget.playerId })
       });
       const data = await response.json();
       if (response.ok) {
-        setSuccess(`Ownership transferred to ${username}`);
+        setSuccess(`Ownership transferred to ${transferTarget.username}`);
+        setTransferTarget(null);
         loadCorporationDetails(); // Reload to update ranks
       } else {
         setError(data.error || 'Failed to transfer ownership');
+        setTransferTarget(null);
       }
     } catch (err) {
       setError('Network error');
+      setTransferTarget(null);
     }
   };
 
@@ -238,8 +335,18 @@ export default function CorporationPanel({ token, onClose, playerId, corpId, cor
         justifyContent: 'center'
       }}>
         <div className="cyberpunk-panel" style={{ maxWidth: '600px', width: '90%' }}>
-          <div className="panel-header">
-            ► CORPORATION MANAGEMENT
+          <div className="panel-header" style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <span>► CORPORATION MANAGEMENT</span>
+            <button
+              onClick={onClose}
+              className="cyberpunk-close-button"
+            >
+              ✕
+            </button>
           </div>
           <div style={{ padding: '20px', textAlign: 'center' }}>
             <p style={{ color: 'var(--text-primary)', marginBottom: '20px' }}>
@@ -248,15 +355,6 @@ export default function CorporationPanel({ token, onClose, playerId, corpId, cor
             <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
               Check your messages for corporation invitations.
             </p>
-          </div>
-          <div style={{ padding: '0 20px 20px' }}>
-            <button
-              onClick={onClose}
-              className="cyberpunk-button"
-              style={{ width: '100%' }}
-            >
-              ◄ CLOSE
-            </button>
           </div>
         </div>
       </div>
@@ -277,8 +375,18 @@ export default function CorporationPanel({ token, onClose, playerId, corpId, cor
     }}>
       <div style={{ maxWidth: '900px', margin: '0 auto' }}>
         <div className="cyberpunk-panel">
-          <div className="panel-header">
-            ► CORPORATION: {corpName}
+          <div className="panel-header" style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <span>► CORPORATION: {corpName}</span>
+            <button
+              onClick={onClose}
+              className="cyberpunk-close-button"
+            >
+              ✕
+            </button>
           </div>
 
           {/* Navigation */}
@@ -286,8 +394,7 @@ export default function CorporationPanel({ token, onClose, playerId, corpId, cor
             display: 'flex',
             gap: '10px',
             padding: '15px',
-            borderBottom: '1px solid var(--neon-cyan)',
-            opacity: 0.3
+            borderBottom: '1px solid var(--neon-cyan)'
           }}>
             <button
               className={`cyberpunk-button ${view === 'details' ? 'cyberpunk-button-primary' : ''}`}
@@ -316,6 +423,179 @@ export default function CorporationPanel({ token, onClose, playerId, corpId, cor
           {success && (
             <div className="success-message" style={{ margin: '15px' }}>
               ✓ {success}
+            </div>
+          )}
+
+          {/* Confirmation Dialogs */}
+          {kickTarget && (
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.9)',
+              zIndex: 2000,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <div style={{
+                background: 'var(--bg-dark)',
+                border: '2px solid var(--neon-pink)',
+                padding: '30px',
+                maxWidth: '500px',
+                width: '90%'
+              }}>
+                <div style={{
+                  color: 'var(--neon-pink)',
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  marginBottom: '20px',
+                  textAlign: 'center'
+                }}>
+                  ⚠ KICK MEMBER
+                </div>
+                <div style={{
+                  color: 'var(--text-primary)',
+                  marginBottom: '25px',
+                  textAlign: 'center'
+                }}>
+                  Are you sure you want to kick <span style={{ color: 'var(--neon-cyan)' }}>{kickTarget.username}</span> from the corporation?
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    onClick={handleKickMember}
+                    className="cyberpunk-button cyberpunk-button-danger"
+                    style={{ flex: 1 }}
+                  >
+                    YES, KICK
+                  </button>
+                  <button
+                    onClick={() => setKickTarget(null)}
+                    className="cyberpunk-button"
+                    style={{ flex: 1 }}
+                  >
+                    CANCEL
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {rankChangeTarget && (
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.9)',
+              zIndex: 2000,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <div style={{
+                background: 'var(--bg-dark)',
+                border: '2px solid var(--neon-cyan)',
+                padding: '30px',
+                maxWidth: '500px',
+                width: '90%'
+              }}>
+                <div style={{
+                  color: 'var(--neon-cyan)',
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  marginBottom: '20px',
+                  textAlign: 'center'
+                }}>
+                  {rankChangeTarget.newRank === 'officer' ? '▲ PROMOTE MEMBER' : '▼ DEMOTE OFFICER'}
+                </div>
+                <div style={{
+                  color: 'var(--text-primary)',
+                  marginBottom: '25px',
+                  textAlign: 'center'
+                }}>
+                  Change <span style={{ color: 'var(--neon-cyan)' }}>{rankChangeTarget.username}</span>'s rank to <span style={{ color: 'var(--neon-yellow)' }}>{rankChangeTarget.newRank.toUpperCase()}</span>?
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    onClick={handleChangeRank}
+                    className="cyberpunk-button"
+                    style={{ flex: 1 }}
+                  >
+                    CONFIRM
+                  </button>
+                  <button
+                    onClick={() => setRankChangeTarget(null)}
+                    className="cyberpunk-button"
+                    style={{ flex: 1 }}
+                  >
+                    CANCEL
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {transferTarget && (
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.9)',
+              zIndex: 2000,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <div style={{
+                background: 'var(--bg-dark)',
+                border: '2px solid var(--neon-yellow)',
+                padding: '30px',
+                maxWidth: '500px',
+                width: '90%'
+              }}>
+                <div style={{
+                  color: 'var(--neon-yellow)',
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  marginBottom: '20px',
+                  textAlign: 'center'
+                }}>
+                  ⚠ TRANSFER OWNERSHIP
+                </div>
+                <div style={{
+                  color: 'var(--text-primary)',
+                  marginBottom: '25px',
+                  textAlign: 'center'
+                }}>
+                  Transfer ownership to <span style={{ color: 'var(--neon-cyan)' }}>{transferTarget.username}</span>?
+                  <br/><br/>
+                  <span style={{ color: 'var(--neon-pink)', fontSize: '14px' }}>
+                    You will become an officer and lose founder privileges.
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    onClick={handleTransferOwnership}
+                    className="cyberpunk-button"
+                    style={{ flex: 1, background: 'rgba(255, 255, 0, 0.2)' }}
+                  >
+                    TRANSFER
+                  </button>
+                  <button
+                    onClick={() => setTransferTarget(null)}
+                    className="cyberpunk-button"
+                    style={{ flex: 1 }}
+                  >
+                    CANCEL
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -392,7 +672,7 @@ export default function CorporationPanel({ token, onClose, playerId, corpId, cor
                               {member.rank === 'member' && (
                                 <button
                                   className="cyberpunk-button"
-                                  onClick={() => handleChangeRank(member.playerId, 'officer', member.username)}
+                                  onClick={() => setRankChangeTarget({ playerId: member.playerId, username: member.username, newRank: 'officer' })}
                                   style={{ fontSize: '12px', padding: '5px 10px' }}
                                 >
                                   PROMOTE
@@ -401,7 +681,7 @@ export default function CorporationPanel({ token, onClose, playerId, corpId, cor
                               {member.rank === 'officer' && (
                                 <button
                                   className="cyberpunk-button"
-                                  onClick={() => handleChangeRank(member.playerId, 'member', member.username)}
+                                  onClick={() => setRankChangeTarget({ playerId: member.playerId, username: member.username, newRank: 'member' })}
                                   style={{ fontSize: '12px', padding: '5px 10px' }}
                                 >
                                   DEMOTE
@@ -409,14 +689,14 @@ export default function CorporationPanel({ token, onClose, playerId, corpId, cor
                               )}
                               <button
                                 className="cyberpunk-button"
-                                onClick={() => handleKickMember(member.playerId, member.username)}
+                                onClick={() => setKickTarget({ playerId: member.playerId, username: member.username })}
                                 style={{ fontSize: '12px', padding: '5px 10px', background: 'rgba(255, 0, 0, 0.2)' }}
                               >
                                 KICK
                               </button>
                               <button
                                 className="cyberpunk-button"
-                                onClick={() => handleTransferOwnership(member.playerId, member.username)}
+                                onClick={() => setTransferTarget({ playerId: member.playerId, username: member.username })}
                                 style={{ fontSize: '12px', padding: '5px 10px', background: 'rgba(255, 255, 0, 0.1)' }}
                               >
                                 TRANSFER
@@ -428,7 +708,7 @@ export default function CorporationPanel({ token, onClose, playerId, corpId, cor
                           {myRank === 'officer' && member.rank === 'member' && (
                             <button
                               className="cyberpunk-button"
-                              onClick={() => handleKickMember(member.playerId, member.username)}
+                              onClick={() => setKickTarget({ playerId: member.playerId, username: member.username })}
                               style={{ fontSize: '12px', padding: '5px 10px', background: 'rgba(255, 0, 0, 0.2)' }}
                             >
                               KICK
@@ -444,25 +724,83 @@ export default function CorporationPanel({ token, onClose, playerId, corpId, cor
               <div>
                 <h3 style={{ color: 'var(--neon-green)', marginBottom: '15px' }}>► INVITE PLAYER</h3>
                 <form onSubmit={handleInvitePlayer}>
-                  <div className="form-group">
+                  <div className="form-group" style={{ position: 'relative' }}>
                     <label className="form-label">Player Username</label>
                     <input
                       type="text"
                       className="cyberpunk-input"
-                      placeholder="Enter username_"
+                      placeholder="Type to search_"
                       value={inviteUsername}
-                      onChange={(e) => setInviteUsername(e.target.value)}
+                      onChange={(e) => handleUsernameChange(e.target.value)}
+                      onFocus={() => {
+                        if (inviteUsername.length >= 2) {
+                          setShowSuggestions(true);
+                        }
+                      }}
+                      onBlur={() => {
+                        // Delay to allow click on suggestion
+                        setTimeout(() => setShowSuggestions(false), 200);
+                      }}
                       required
                       autoFocus
                       disabled={inviting}
                     />
+
+                    {/* Autocomplete suggestions */}
+                    {showSuggestions && searchResults.length > 0 && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        background: 'rgba(0, 0, 0, 0.95)',
+                        border: '1px solid var(--neon-cyan)',
+                        borderTop: 'none',
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                        zIndex: 1000,
+                      }}>
+                        {searchResults.map((result) => (
+                          <div
+                            key={result.playerId}
+                            onClick={() => handleSelectPlayer(result.username)}
+                            style={{
+                              padding: '10px',
+                              borderBottom: '1px solid rgba(0, 255, 255, 0.2)',
+                              cursor: 'pointer',
+                              transition: 'background 0.2s',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'rgba(0, 255, 255, 0.2)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'transparent';
+                            }}
+                          >
+                            <div style={{ color: 'var(--neon-cyan)' }}>
+                              {result.username}
+                            </div>
+                            {result.corpName && (
+                              <div style={{
+                                fontSize: '0.85em',
+                                color: 'var(--neon-pink)',
+                                marginTop: '3px'
+                              }}>
+                                Currently in: {result.corpName}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
                     <div className="form-hint">
-                      Player must be in the same universe and not already in a corporation
+                      Player must be in the same universe. If they're already in a corp, they must leave it before accepting your invitation.
                     </div>
                   </div>
                   <button
                     type="submit"
-                    className="cyberpunk-button cyberpunk-button-primary"
+                    className="cyberpunk-button cyberpunk-button-success"
                     disabled={inviting || !inviteUsername.trim()}
                     style={{ width: '100%', marginTop: '20px' }}
                   >
@@ -476,26 +814,120 @@ export default function CorporationPanel({ token, onClose, playerId, corpId, cor
           {/* Footer Actions */}
           <div style={{
             padding: '15px',
-            borderTop: '1px solid var(--neon-cyan)',
-            opacity: 0.3,
-            display: 'flex',
-            gap: '10px'
+            borderTop: '1px solid var(--neon-cyan)'
           }}>
-            <button
-              onClick={onClose}
-              className="cyberpunk-button"
-              style={{ flex: 1 }}
-            >
-              ◄ CLOSE
-            </button>
-            {myRank !== 'founder' && (
-              <button
-                onClick={handleLeaveCorporation}
-                className="cyberpunk-button"
-                style={{ flex: 1, background: 'rgba(255, 0, 0, 0.2)' }}
-              >
-                LEAVE CORPORATION
-              </button>
+            {isFounder ? (
+              // Founder options
+              <>
+                {!showDisbandConfirm ? (
+                  <button
+                    onClick={() => setShowDisbandConfirm(true)}
+                    className="cyberpunk-button cyberpunk-button-danger"
+                    style={{ width: '100%' }}
+                  >
+                    DISBAND CORPORATION
+                  </button>
+                ) : (
+                  <div style={{
+                    border: '2px solid var(--neon-red)',
+                    padding: '15px',
+                    background: 'rgba(255, 0, 102, 0.1)'
+                  }}>
+                    <div style={{
+                      color: 'var(--neon-red)',
+                      marginBottom: '15px',
+                      textAlign: 'center',
+                      fontWeight: 'bold'
+                    }}>
+                      ⚠ DISBAND CORPORATION?
+                    </div>
+                    <div style={{
+                      color: 'var(--text-primary)',
+                      marginBottom: '15px',
+                      textAlign: 'center',
+                      fontSize: '14px'
+                    }}>
+                      This will permanently delete {corpName} and remove all members. This action cannot be undone!
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button
+                        onClick={handleDisbandCorporation}
+                        className="cyberpunk-button cyberpunk-button-danger"
+                        style={{ flex: 1 }}
+                      >
+                        YES, DISBAND
+                      </button>
+                      <button
+                        onClick={() => setShowDisbandConfirm(false)}
+                        className="cyberpunk-button"
+                        style={{ flex: 1 }}
+                      >
+                        CANCEL
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <div style={{
+                  marginTop: '10px',
+                  textAlign: 'center',
+                  fontSize: '12px',
+                  color: 'var(--text-secondary)'
+                }}>
+                  To leave, transfer ownership first
+                </div>
+              </>
+            ) : (
+              // Regular member options
+              <>
+                {!showLeaveConfirm ? (
+                  <button
+                    onClick={() => setShowLeaveConfirm(true)}
+                    className="cyberpunk-button cyberpunk-button-danger"
+                    style={{ width: '100%' }}
+                  >
+                    LEAVE CORPORATION
+                  </button>
+                ) : (
+                  <div style={{
+                    border: '2px solid var(--neon-pink)',
+                    padding: '15px',
+                    background: 'rgba(255, 20, 147, 0.1)'
+                  }}>
+                    <div style={{
+                      color: 'var(--neon-pink)',
+                      marginBottom: '15px',
+                      textAlign: 'center',
+                      fontWeight: 'bold'
+                    }}>
+                      ⚠ ARE YOU SURE?
+                    </div>
+                    <div style={{
+                      color: 'var(--text-primary)',
+                      marginBottom: '15px',
+                      textAlign: 'center',
+                      fontSize: '14px'
+                    }}>
+                      You will be removed from {corpName} and lose all member privileges.
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button
+                        onClick={handleLeaveCorporation}
+                        className="cyberpunk-button cyberpunk-button-danger"
+                        style={{ flex: 1 }}
+                      >
+                        YES, LEAVE
+                      </button>
+                      <button
+                        onClick={() => setShowLeaveConfirm(false)}
+                        className="cyberpunk-button"
+                        style={{ flex: 1 }}
+                      >
+                        CANCEL
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

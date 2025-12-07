@@ -270,16 +270,9 @@ export const ShipLogPanel: React.FC<ShipLogPanelProps> = ({ token, onClose, onUn
           </div>
           <button
             onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--neon-red)',
-              color: 'var(--neon-red)',
-              padding: '5px 15px',
-              cursor: 'pointer',
-              fontFamily: 'var(--font-mono)'
-            }}
+            className="cyberpunk-close-button"
           >
-            ✕ CLOSE
+            ✕
           </button>
         </div>
 

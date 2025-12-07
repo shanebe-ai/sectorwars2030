@@ -177,10 +177,19 @@ export async function invitePlayer(inviterId: number, targetUsername: string) {
 
     const targetPlayer = targetResult.rows[0];
 
-    // Check if target is already in a corp
-    if (targetPlayer.corp_id) {
-      throw new Error(`${targetUsername} is already in a corporation`);
-    }
+    // Note: We allow inviting players already in a corp
+    // They must leave their current corp before accepting the invitation
+
+    // Get founder information
+    const founderResult = await client.query(`
+      SELECT u.username
+      FROM corporations c
+      JOIN players p ON c.founder_id = p.id
+      JOIN users u ON p.user_id = u.id
+      WHERE c.id = $1
+    `, [inviterMembership.corp_id]);
+
+    const founderName = founderResult.rows.length > 0 ? founderResult.rows[0].username : 'Unknown';
 
     // Create invitation (store in messages as a special type)
     await client.query(`
@@ -196,7 +205,7 @@ export async function invitePlayer(inviterId: number, targetUsername: string) {
       targetPlayer.id,
       inviterMembership.corp_name,
       'Corporation Invitation',
-      `You have been invited to join ${inviterMembership.corp_name}. Corp ID: ${inviterMembership.corp_id}`
+      `You have been invited to join ${inviterMembership.corp_name}.\n\nFounder: ${founderName}\n\nAccept this invitation to become a member of this corporation.\n\n[CORP_ID:${inviterMembership.corp_id}]`
     ]);
 
     await client.query('COMMIT');
@@ -545,6 +554,89 @@ export async function transferOwnership(currentFounderId: number, newFounderId: 
       success: true,
       message: `Ownership transferred to ${newFounderMembership.username}`,
       newFounderUsername: newFounderMembership.username
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Disband corporation (founder only)
+ */
+export async function disbandCorporation(founderId: number) {
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Get founder's corp
+    const founderResult = await client.query(`
+      SELECT cm.corp_id, cm.rank, c.name as corp_name, c.founder_id
+      FROM corp_members cm
+      JOIN corporations c ON cm.corp_id = c.id
+      WHERE cm.player_id = $1
+    `, [founderId]);
+
+    if (founderResult.rows.length === 0) {
+      throw new Error('You are not in a corporation');
+    }
+
+    const founderMembership = founderResult.rows[0];
+
+    // Verify is actually the founder
+    if (founderMembership.rank !== 'founder' || founderMembership.founder_id !== founderId) {
+      throw new Error('Only the founder can disband the corporation');
+    }
+
+    const corpId = founderMembership.corp_id;
+    const corpName = founderMembership.corp_name;
+
+    // Get all members to notify them
+    const membersResult = await client.query(`
+      SELECT player_id
+      FROM corp_members
+      WHERE corp_id = $1 AND player_id != $2
+    `, [corpId, founderId]);
+
+    // Send notifications to all members
+    for (const member of membersResult.rows) {
+      await client.query(`
+        INSERT INTO messages (
+          recipient_id,
+          sender_name,
+          subject,
+          body,
+          message_type,
+          is_read
+        ) VALUES ($1, $2, $3, $4, 'inbox', false)
+      `, [
+        member.player_id,
+        'SYSTEM',
+        'Corporation Disbanded',
+        `${corpName} has been disbanded by the founder. You are no longer a member.`
+      ]);
+    }
+
+    // Delete all corp members
+    await client.query(`
+      DELETE FROM corp_members
+      WHERE corp_id = $1
+    `, [corpId]);
+
+    // Delete the corporation
+    await client.query(`
+      DELETE FROM corporations
+      WHERE id = $1
+    `, [corpId]);
+
+    await client.query('COMMIT');
+
+    return {
+      success: true,
+      message: `${corpName} has been disbanded`
     };
   } catch (error) {
     await client.query('ROLLBACK');
