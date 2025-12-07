@@ -645,7 +645,7 @@ This guide covers manual testing of all economy and combat fixes implemented on 
 
 ---
 
-### 11.2 Invite Player to Corporation
+### 11.2 Invite Player to Corporation ✅ COMPLETED
 **Test:** Founder/Officer invites a player
 
 **Setup:** Need 2 players - Player A (founder/officer), Player B (not in corp or in different corp)
@@ -670,9 +670,11 @@ This guide covers manual testing of all economy and combat fixes implemented on 
 - ❌ Inviting player already in corp shows error "already in a corporation"
 - ❌ Inviting non-existent username shows error "Player not found in this universe"
 
+**✅ TESTED & WORKING** (2025-12-07)
+
 ---
 
-### 11.3 Accept Corporation Invitation
+### 11.3 Accept Corporation Invitation ✅ COMPLETED
 **Test:** Player accepts invitation to join corporation
 
 **Setup:** Player has received corp invitation (from test 11.2)
@@ -682,7 +684,7 @@ This guide covers manual testing of all economy and combat fixes implemented on 
 2. Open COMMS panel
 3. Read the corp invitation message
 4. Note the Corp ID from message body
-5. Use API or future UI to accept: `POST /api/corporations/accept-invite` with `{ corpId: X }`
+5. Click ACCEPT button on invitation message
 6. Refresh or check corporation panel
 
 **Expected Results:**
@@ -691,10 +693,13 @@ This guide covers manual testing of all economy and combat fixes implemented on 
 - ✅ Player added to corp_members table with rank 'member'
 - ✅ Corporation panel shows player as member
 - ✅ Player now sees CORPORATE chat tab in messaging
+- ✅ Invitation message auto-deleted after acceptance
 
 **Edge Cases:**
 - ❌ Accepting when already in corp shows error "already in a corporation"
 - ❌ Accepting invalid corp ID shows error "Corporation not found"
+
+**✅ TESTED & WORKING** (2025-12-07) - Invitation auto-delete added
 
 ---
 
@@ -729,7 +734,7 @@ This guide covers manual testing of all economy and combat fixes implemented on 
 
 ---
 
-### 11.5 Promote Member to Officer
+### 11.5 Promote Member to Officer ✅ COMPLETED
 **Test:** Founder promotes member to officer rank
 
 **Setup:** Player A (founder), Player B (member)
@@ -754,9 +759,11 @@ This guide covers manual testing of all economy and combat fixes implemented on 
 - ❌ Officer trying to promote shows error "Only the founder can change member ranks"
 - ❌ Promoting founder shows error "Cannot change founder rank"
 
+**✅ TESTED & WORKING** (2025-12-07)
+
 ---
 
-### 11.6 Demote Officer to Member
+### 11.6 Demote Officer to Member ✅ COMPLETED
 **Test:** Founder demotes officer to member rank
 
 **Setup:** Player A (founder), Player B (officer)
@@ -777,9 +784,11 @@ This guide covers manual testing of all economy and combat fixes implemented on 
 - ✅ Player B receives inbox message "Rank Changed"
 - ✅ Player B loses ability to invite/kick
 
+**✅ TESTED & WORKING** (2025-12-07)
+
 ---
 
-### 11.7 Transfer Corporation Ownership
+### 11.7 Transfer Corporation Ownership ✅ COMPLETED
 **Test:** Founder transfers ownership to another member
 
 **Setup:** Player A (founder), Player B (officer or member)
@@ -805,9 +814,11 @@ This guide covers manual testing of all economy and combat fixes implemented on 
 - ❌ Officer trying to transfer shows error "Only the founder can transfer ownership"
 - ❌ Transferring to player not in corp shows error "not in your corporation"
 
+**✅ TESTED & WORKING** (2025-12-07)
+
 ---
 
-### 11.8 Leave Corporation
+### 11.8 Leave Corporation ✅ COMPLETED
 **Test:** Member/Officer leaves corporation
 
 **Setup:** Player A (member or officer, NOT founder)
@@ -831,6 +842,8 @@ This guide covers manual testing of all economy and combat fixes implemented on 
 **Edge Cases:**
 - ❌ Founder trying to leave shows error "Founder cannot leave. Transfer ownership first"
 - ✅ After leaving, can accept new invitations to other corps
+
+**✅ TESTED & WORKING** (2025-12-07)
 
 ---
 
@@ -882,6 +895,55 @@ This guide covers manual testing of all economy and combat fixes implemented on 
 - Try each action
 - Verify allowed actions succeed
 - Verify forbidden actions show error or hide UI
+
+---
+
+### 11.11 Corporate Communications Broadcasts
+**Test:** Verify corporation events are broadcast to corporate channel (and universe where applicable)
+
+**Setup:** 2-3 players in the same corporation
+
+**Corporation Events to Test:**
+1. **Promote Member to Officer** ✅ (2025-12-07)
+2. **Demote Officer to Member** ✅ (2025-12-07)
+3. **Kick Member** ⏳
+4. **Transfer Ownership** ✅ (2025-12-07)
+5. **Leave Corporation** ✅ (2025-12-07)
+6. **Accept Invitation / Join Corporation** ✅ (2025-12-07)
+7. **Disband Corporation** ⏳
+
+**Steps:**
+1. Player A (founder) and Player B (member) are both in CorpName
+2. Trigger an event (promotion, demotion, kick, transfer, leave, join, disband)
+3. All members check CORPORATE tab in COMMS
+4. Verify broadcast message appears once
+5. For join/leave/kick/transfer/disband also verify universal TNN broadcast appears in BROADCAST tab with COMMS badge increment
+
+**Expected Results (Corporate tab):**
+- ✅ **Promote:** "PlayerB has been promoted to Officer by PlayerA" (single entry)
+- ✅ **Demote:** "PlayerB has been demoted to Member by PlayerA" (single entry)
+- ✅ **Kick:** "PlayerC has been removed from CorpName by PlayerA" (single entry)
+- ✅ **Transfer:** "Ownership transferred from PlayerA to PlayerB" (single entry)
+- ✅ **Leave:** "PlayerB has left the corporation" (single entry)
+- ✅ **Join:** "PlayerB has joined the corporation" (single entry, sent before/when membership established)
+- ✅ Messages appear in green CORPORATE theme with correct corp name (no "[Unknown Corp]")
+- ✅ All corp members see the broadcast
+- ✅ Messages show timestamp
+- ✅ Messages persist for the corp; leavers/kicked members no longer see previous corp messages after removal
+
+**Expected Results (Broadcast tab, TNN):**
+- ✅ **Join:** "PlayerB has joined CorpName" (universe-wide)
+- ✅ **Leave:** "PlayerB has left CorpName" (universe-wide)
+- ✅ **Kick:** (optional per admin policy) not sent currently
+- ✅ **Transfer:** "Ownership of CorpName transferred from PlayerA to PlayerB" (universe-wide)
+- ✅ **Disband:** "CorpName has been disbanded by the founder." (universe-wide)
+- ✅ Messages appear with sender "TerraCorp News Network" and trigger COMMS badge
+
+**Edge Cases:**
+- ✅ Only corp members see corporate broadcasts (not other players)
+- ✅ Broadcasts appear immediately (no need to refresh)
+- ✅ Leaving player's broadcast still visible to remaining members
+- ✅ Leavers/kicked members no longer see prior corporate history after removal
 
 ---
 

@@ -4,6 +4,7 @@
  */
 
 import { pool } from '../db/connection';
+import { emitUniverseEvent } from '../index';
 
 /**
  * Get corporation details including all members
@@ -81,6 +82,93 @@ export async function getCorporationDetails(corpId: number) {
 }
 
 /**
+ * Helper function to send corporate broadcast message (single shared message per corp)
+ */
+async function sendCorporateBroadcast(
+  client: any,
+  corpId: number,
+  message: string,
+  universeId?: number,
+  corpNameOverride?: string
+) {
+  let corpUniverseId = universeId;
+  let corpName = corpNameOverride;
+
+  if (corpUniverseId === undefined || corpName === undefined) {
+    const corpResult = await client.query(
+      `SELECT universe_id, name FROM corporations WHERE id = $1`,
+      [corpId]
+    );
+    const corpRow = corpResult.rows[0] || {};
+    if (corpUniverseId === undefined) {
+      corpUniverseId = corpRow.universe_id ?? null;
+    }
+    if (corpName === undefined) {
+      corpName = corpRow.name ?? 'CORPORATE';
+    }
+  }
+
+  const insertResult = await client.query(
+    `INSERT INTO messages (
+       universe_id,
+       recipient_id,
+       sender_name,
+       subject,
+       body,
+       message_type,
+       corp_id,
+       is_read
+     )
+     VALUES ($1, NULL, $2, 'Corporate Update', $3, 'CORPORATE', $4, FALSE)`,
+    [corpUniverseId, corpName || 'CORPORATE', message, corpId]
+  );
+
+  // Emit websocket event so COMMS badge updates
+  if (corpUniverseId !== null && insertResult.rowCount > 0) {
+    emitUniverseEvent(corpUniverseId, 'new_broadcast', {
+      sender: corpName || 'CORPORATE',
+      subject: 'Corporate Update',
+      body: message,
+      timestamp: new Date().toISOString(),
+      corpId
+    });
+  }
+}
+
+/**
+ * Helper to create a universe-wide broadcast from TNN
+ */
+async function sendUniverseBroadcast(
+  client: any,
+  universeId: number,
+  subject: string,
+  body: string
+) {
+  const insertResult = await client.query(
+    `INSERT INTO messages (
+       universe_id,
+       sender_id,
+       recipient_id,
+       sender_name,
+       subject,
+       body,
+       message_type
+     )
+     VALUES ($1, NULL, NULL, 'TerraCorp News Network', $2, $3, 'BROADCAST')`,
+    [universeId, subject, body]
+  );
+
+  if (insertResult.rowCount > 0) {
+    emitUniverseEvent(universeId, 'new_broadcast', {
+      sender: 'TerraCorp News Network',
+      subject,
+      body,
+      timestamp: new Date().toISOString()
+    });
+  }
+}
+
+/**
  * Leave corporation (player leaves their corp)
  */
 export async function leaveCorporation(playerId: number) {
@@ -89,11 +177,15 @@ export async function leaveCorporation(playerId: number) {
   try {
     await client.query('BEGIN');
 
-    // Get player's corp membership
+    let pendingBroadcast: { universeId: number; subject: string; body: string } | null = null;
+
+    // Get player's corp membership and username
     const memberResult = await client.query(`
-      SELECT cm.*, c.founder_id, c.name as corp_name
+      SELECT cm.*, c.founder_id, c.name as corp_name, c.universe_id, u.username
       FROM corp_members cm
       JOIN corporations c ON cm.corp_id = c.id
+      JOIN players p ON cm.player_id = p.id
+      JOIN users u ON p.user_id = u.id
       WHERE cm.player_id = $1
     `, [playerId]);
 
@@ -108,10 +200,44 @@ export async function leaveCorporation(playerId: number) {
       throw new Error('Founder cannot leave. Transfer ownership first or disband the corporation.');
     }
 
+    const corpId = membership.corp_id;
+    const username = membership.username;
+    const universeId = membership.universe_id;
+    const corpName = membership.corp_name;
+
+    // Broadcast to corporate channel
+    await sendCorporateBroadcast(
+      client,
+      corpId,
+      `${username} has left the corporation`,
+      universeId,
+      corpName
+    );
+
+    // Universe-wide broadcast
+    const leaveBroadcastBody = `${username} has left ${membership.corp_name}`;
+    await sendUniverseBroadcast(
+      client,
+      universeId,
+      'Corporate Update',
+      leaveBroadcastBody
+    );
+    pendingBroadcast = { universeId, subject: 'Corporate Update', body: leaveBroadcastBody };
+
     // Remove from corp_members
     await client.query(`
       DELETE FROM corp_members WHERE player_id = $1
     `, [playerId]);
+
+    // Remove visibility of prior corporate messages for this player
+    await client.query(
+      `INSERT INTO message_deletions (message_id, player_id)
+       SELECT m.id, $2
+       FROM messages m
+       WHERE m.corp_id = $1
+       ON CONFLICT (message_id, player_id) DO NOTHING`,
+      [corpId, playerId]
+    );
 
     // Update player record
     await client.query(`
@@ -121,6 +247,15 @@ export async function leaveCorporation(playerId: number) {
     `, [playerId]);
 
     await client.query('COMMIT');
+
+    if (pendingBroadcast) {
+      emitUniverseEvent(pendingBroadcast.universeId, 'new_broadcast', {
+        sender: 'TerraCorp News Network',
+        subject: pendingBroadcast.subject,
+        body: pendingBroadcast.body,
+        timestamp: new Date().toISOString()
+      });
+    }
 
     return {
       success: true,
@@ -176,6 +311,11 @@ export async function invitePlayer(inviterId: number, targetUsername: string) {
     }
 
     const targetPlayer = targetResult.rows[0];
+
+    // Prevent inviting yourself
+    if (targetPlayer.id === inviterId) {
+      throw new Error('You cannot invite yourself to your own corporation');
+    }
 
     // Note: We allow inviting players already in a corp
     // They must leave their current corp before accepting the invitation
@@ -233,18 +373,26 @@ export async function acceptInvitation(playerId: number, corpId: number) {
   try {
     await client.query('BEGIN');
 
-    // Verify player is not already in a corp
+    let pendingBroadcast: { universeId: number; subject: string; body: string } | null = null;
+
+    // Verify player is not already in a corp and get username
     const playerResult = await client.query(`
-      SELECT corp_id FROM players WHERE id = $1
+      SELECT p.corp_id, u.username, p.universe_id
+      FROM players p
+      JOIN users u ON p.user_id = u.id
+      WHERE p.id = $1
     `, [playerId]);
 
     if (playerResult.rows[0].corp_id) {
       throw new Error('You are already in a corporation');
     }
 
+    const username = playerResult.rows[0].username;
+    const universeId = playerResult.rows[0].universe_id;
+
     // Get corporation details
     const corpResult = await client.query(`
-      SELECT name FROM corporations WHERE id = $1
+      SELECT name, universe_id FROM corporations WHERE id = $1
     `, [corpId]);
 
     if (corpResult.rows.length === 0) {
@@ -252,6 +400,7 @@ export async function acceptInvitation(playerId: number, corpId: number) {
     }
 
     const corpName = corpResult.rows[0].name;
+    const corpUniverseId = corpResult.rows[0].universe_id;
 
     // Add to corp_members
     await client.query(`
@@ -266,7 +415,39 @@ export async function acceptInvitation(playerId: number, corpId: number) {
       WHERE id = $3
     `, [corpId, corpName, playerId]);
 
+    // Broadcast to corporate channel (send to all members INCLUDING the new joiner)
+    await sendCorporateBroadcast(
+      client,
+      corpId,
+      `${username} has joined the corporation`,
+      corpUniverseId,
+      corpName
+    );
+
+    // Broadcast to universe (all players in same universe)
+    const joinBroadcastBody = `${username} has joined ${corpName}`;
+    await sendUniverseBroadcast(
+      client,
+      corpUniverseId ?? universeId,
+      'Corporate Update',
+      joinBroadcastBody
+    );
+    pendingBroadcast = {
+      universeId: corpUniverseId ?? universeId,
+      subject: 'Corporate Update',
+      body: joinBroadcastBody
+    };
+
     await client.query('COMMIT');
+
+    if (pendingBroadcast) {
+      emitUniverseEvent(pendingBroadcast.universeId, 'new_broadcast', {
+        sender: 'TerraCorp News Network',
+        subject: pendingBroadcast.subject,
+        body: pendingBroadcast.body,
+        timestamp: new Date().toISOString()
+      });
+    }
 
     return {
       success: true,
@@ -291,11 +472,13 @@ export async function kickMember(kickerId: number, targetPlayerId: number) {
   try {
     await client.query('BEGIN');
 
-    // Get kicker's corp membership and rank
+    // Get kicker's corp membership and rank with username
     const kickerResult = await client.query(`
-      SELECT cm.corp_id, cm.rank, c.name as corp_name, c.founder_id
+      SELECT cm.corp_id, cm.rank, c.name as corp_name, c.founder_id, c.universe_id, u.username as kicker_username
       FROM corp_members cm
       JOIN corporations c ON cm.corp_id = c.id
+      JOIN players p ON cm.player_id = p.id
+      JOIN users u ON p.user_id = u.id
       WHERE cm.player_id = $1
     `, [kickerId]);
 
@@ -335,10 +518,29 @@ export async function kickMember(kickerId: number, targetPlayerId: number) {
       throw new Error('Officers cannot kick other officers');
     }
 
+    // Broadcast to corporate channel BEFORE removing them
+    await sendCorporateBroadcast(
+      client,
+      kickerMembership.corp_id,
+      `${targetMembership.username} has been removed from ${kickerMembership.corp_name} by ${kickerMembership.kicker_username}`,
+      kickerMembership.universe_id,
+      kickerMembership.corp_name
+    );
+
     // Remove from corp
     await client.query(`
       DELETE FROM corp_members WHERE player_id = $1
     `, [targetPlayerId]);
+
+    // Remove visibility of prior corporate messages for this player
+    await client.query(
+      `INSERT INTO message_deletions (message_id, player_id)
+       SELECT m.id, $2
+       FROM messages m
+       WHERE m.corp_id = $1
+       ON CONFLICT (message_id, player_id) DO NOTHING`,
+      [kickerMembership.corp_id, targetPlayerId]
+    );
 
     // Update player record
     await client.query(`
@@ -388,11 +590,13 @@ export async function changeRank(changerId: number, targetPlayerId: number, newR
   try {
     await client.query('BEGIN');
 
-    // Get changer's corp membership
+    // Get changer's corp membership with username
     const changerResult = await client.query(`
-      SELECT cm.corp_id, cm.rank, c.name as corp_name, c.founder_id
+      SELECT cm.corp_id, cm.rank, c.name as corp_name, c.founder_id, c.universe_id, u.username as changer_username
       FROM corp_members cm
       JOIN corporations c ON cm.corp_id = c.id
+      JOIN players p ON cm.player_id = p.id
+      JOIN users u ON p.user_id = u.id
       WHERE cm.player_id = $1
     `, [changerId]);
 
@@ -421,6 +625,7 @@ export async function changeRank(changerId: number, targetPlayerId: number, newR
     }
 
     const targetMembership = targetResult.rows[0];
+    const oldRank = targetMembership.rank;
 
     // Cannot change founder's rank
     if (targetPlayerId === changerMembership.founder_id) {
@@ -433,6 +638,16 @@ export async function changeRank(changerId: number, targetPlayerId: number, newR
       SET rank = $1
       WHERE player_id = $2
     `, [newRank, targetPlayerId]);
+
+    // Broadcast to corporate channel
+    const action = newRank === 'officer' ? 'promoted to Officer' : 'demoted to Member';
+    await sendCorporateBroadcast(
+      client,
+      changerMembership.corp_id,
+      `${targetMembership.username} has been ${action} by ${changerMembership.changer_username}`,
+      changerMembership.universe_id,
+      changerMembership.corp_name
+    );
 
     // Send notification
     await client.query(`
@@ -476,11 +691,15 @@ export async function transferOwnership(currentFounderId: number, newFounderId: 
   try {
     await client.query('BEGIN');
 
-    // Get current founder's corp
+    let pendingBroadcast: { universeId: number; subject: string; body: string } | null = null;
+
+    // Get current founder's corp with username
     const founderResult = await client.query(`
-      SELECT cm.corp_id, cm.rank, c.name as corp_name, c.founder_id
+      SELECT cm.corp_id, cm.rank, c.name as corp_name, c.founder_id, c.universe_id, u.username as old_founder_username
       FROM corp_members cm
       JOIN corporations c ON cm.corp_id = c.id
+      JOIN players p ON cm.player_id = p.id
+      JOIN users u ON p.user_id = u.id
       WHERE cm.player_id = $1
     `, [currentFounderId]);
 
@@ -509,6 +728,7 @@ export async function transferOwnership(currentFounderId: number, newFounderId: 
     }
 
     const newFounderMembership = newFounderResult.rows[0];
+    const universeId = founderMembership.universe_id;
 
     // Update corporation founder_id
     await client.query(`
@@ -531,6 +751,29 @@ export async function transferOwnership(currentFounderId: number, newFounderId: 
       WHERE player_id = $1
     `, [newFounderId]);
 
+    // Broadcast to corporate channel
+    await sendCorporateBroadcast(
+      client,
+      founderMembership.corp_id,
+      `Ownership transferred from ${founderMembership.old_founder_username} to ${newFounderMembership.username}`,
+      universeId,
+      founderMembership.corp_name
+    );
+
+    // Universe-wide broadcast
+    const transferBroadcastBody = `Ownership of ${founderMembership.corp_name} transferred from ${founderMembership.old_founder_username} to ${newFounderMembership.username}`;
+    await sendUniverseBroadcast(
+      client,
+      universeId,
+      'Corporate Update',
+      transferBroadcastBody
+    );
+    pendingBroadcast = {
+      universeId,
+      subject: 'Corporate Update',
+      body: transferBroadcastBody
+    };
+
     // Send notification to new founder
     await client.query(`
       INSERT INTO messages (
@@ -549,6 +792,15 @@ export async function transferOwnership(currentFounderId: number, newFounderId: 
     ]);
 
     await client.query('COMMIT');
+
+    if (pendingBroadcast) {
+      emitUniverseEvent(pendingBroadcast.universeId, 'new_broadcast', {
+        sender: 'TerraCorp News Network',
+        subject: pendingBroadcast.subject,
+        body: pendingBroadcast.body,
+        timestamp: new Date().toISOString()
+      });
+    }
 
     return {
       success: true,
@@ -574,7 +826,7 @@ export async function disbandCorporation(founderId: number) {
 
     // Get founder's corp
     const founderResult = await client.query(`
-      SELECT cm.corp_id, cm.rank, c.name as corp_name, c.founder_id
+      SELECT cm.corp_id, cm.rank, c.name as corp_name, c.founder_id, c.universe_id
       FROM corp_members cm
       JOIN corporations c ON cm.corp_id = c.id
       WHERE cm.player_id = $1
@@ -593,6 +845,7 @@ export async function disbandCorporation(founderId: number) {
 
     const corpId = founderMembership.corp_id;
     const corpName = founderMembership.corp_name;
+    const universeId = founderMembership.universe_id;
 
     // Get all members to notify them
     const membersResult = await client.query(`
@@ -632,7 +885,23 @@ export async function disbandCorporation(founderId: number) {
       WHERE id = $1
     `, [corpId]);
 
+    // Universe-wide broadcast (no corp channel exists after disband)
+    const disbandBody = `${corpName} has been disbanded by the founder.`;
+    await sendUniverseBroadcast(
+      client,
+      universeId,
+      'Corporate Update',
+      disbandBody
+    );
+
     await client.query('COMMIT');
+
+    emitUniverseEvent(universeId, 'new_broadcast', {
+      sender: 'TerraCorp News Network',
+      subject: 'Corporate Update',
+      body: disbandBody,
+      timestamp: new Date().toISOString()
+    });
 
     return {
       success: true,

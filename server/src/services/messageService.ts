@@ -425,7 +425,10 @@ export async function getUnreadCounts(playerId: number): Promise<{ inbox: number
   // Count unread inbox messages
   const inboxResult = await pool.query(
     `SELECT COUNT(*) as count FROM messages
-     WHERE recipient_id = $1 AND is_read = FALSE AND is_deleted_by_recipient = FALSE AND message_type = 'DIRECT'`,
+     WHERE recipient_id = $1
+       AND is_read = FALSE
+       AND is_deleted_by_recipient = FALSE
+       AND (message_type = 'DIRECT' OR message_type = 'corp_invite')`,
     [playerId]
   );
 
@@ -568,10 +571,14 @@ export async function getCorporateMessages(playerId: number): Promise<Message[]>
   const { corp_id } = corpResult.rows[0];
 
   const result = await pool.query(
-    `SELECT m.*, p.corp_name as sender_corp_name, u.username as sender_username
+    `SELECT m.*,
+            p.corp_name as sender_corp_name,
+            u.username as sender_username,
+            c.name as corp_name_for_message
      FROM messages m
      LEFT JOIN players p ON m.sender_id = p.id
      LEFT JOIN users u ON p.user_id = u.id
+     LEFT JOIN corporations c ON m.corp_id = c.id
      LEFT JOIN message_deletions md ON m.id = md.message_id AND md.player_id = $2
      WHERE m.corp_id = $1
        AND m.message_type = 'CORPORATE'
@@ -587,8 +594,8 @@ export async function getCorporateMessages(playerId: number): Promise<Message[]>
     universe_id: msg.universe_id,
     sender_id: msg.sender_id,
     recipient_id: msg.recipient_id,
-    sender_name: msg.sender_name || msg.sender_username || '[Unknown]',
-    sender_corp: msg.sender_corp_name || '[Unknown Corp]',
+    sender_name: msg.sender_name || msg.sender_username || msg.corp_name_for_message || '[Unknown]',
+    sender_corp: msg.sender_corp_name || msg.corp_name_for_message || '[Unknown Corp]',
     subject: msg.subject,
     body: msg.body,
     message_type: msg.message_type,
