@@ -584,13 +584,13 @@ This guide covers manual testing of all economy and combat fixes implemented on 
 
 ## Testing Checklist Summary
 
-- [ ] Banking: StarDock requirement enforced
-- [ ] Banking: 5% withdrawal fee charged correctly
-- [ ] Banking: 25% bank balance lost on death
-- [ ] Combat: 1 turn cost per attack
-- [ ] Combat: 75% loot percentage
-- [ ] Combat: 25% death penalty (credits + bank)
-- [ ] Combat: Profitable with new balance
+- [x] Banking: StarDock requirement enforced ✅ TESTED 2025-12-07
+- [x] Banking: 5% withdrawal fee charged correctly ✅ TESTED 2025-12-07
+- [x] Banking: 25% bank balance lost on death ✅ TESTED 2025-12-07
+- [x] Combat: 1 turn cost per attack ✅ TESTED 2025-12-07
+- [x] Combat: 75% loot percentage ✅ TESTED 2025-12-07
+- [x] Combat: 25% death penalty (credits + bank) ✅ TESTED 2025-12-07
+- [x] Combat: Profitable with new balance ✅ TESTED 2025-12-07
 - [ ] Fighters: Deployment works
 - [ ] Fighters: Maintenance warning displayed
 - [ ] Fighters: Daily maintenance charged
@@ -620,6 +620,13 @@ This guide covers manual testing of all economy and combat fixes implemented on 
 - **Combat Testing:** Requires 2 players. Use 2 browser windows or coordinate with another tester.
 - **Planet Production:** Wait 1 hour for production to accumulate, or check production calculation logic.
 - **Banking:** All operations require StarDock location - verify UI hides banking when not at StarDock.
+
+---
+
+## Known Issues (Minor UX)
+
+1. **Inbox Notifications:** Real-time inbox badge does not update when receiving transfers. Badge updates when COMMS panel is opened or page is refreshed. (Low priority - functional, just not real-time)
+2. **Escape Pod Messaging:** Message shows destination sector number (e.g., "Sector 64") which may be confused with jump distance. The actual jump distance is 1-3 sectors as designed. (Clarification needed in UI)
 
 ---
 

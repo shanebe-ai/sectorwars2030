@@ -288,7 +288,7 @@ export default function CombatPanel({
                 fontSize: '13px',
                 textAlign: 'center'
               }}>
-                ⚠ WARNING: Combat costs 3 turns. If you lose, you may be destroyed!
+                ⚠ WARNING: Combat costs 1 turn. If you lose, you may be destroyed!
               </div>
 
               {error && (
