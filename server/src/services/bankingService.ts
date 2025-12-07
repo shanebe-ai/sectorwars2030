@@ -345,10 +345,11 @@ export async function transferCredits(
   try {
     await client.query('BEGIN');
 
-    // Get sender's personal account and location
+    // Get sender's personal account, location, and username
     const senderPlayerResult = await client.query(
-      `SELECT p.universe_id, p.corp_name, p.current_sector, s.port_type
+      `SELECT p.universe_id, p.corp_name, p.current_sector, s.port_type, u.username
        FROM players p
+       JOIN users u ON p.user_id = u.id
        JOIN sectors s ON s.universe_id = p.universe_id AND s.sector_number = p.current_sector
        WHERE p.id = $1`,
       [senderPlayerId]
@@ -361,7 +362,7 @@ export async function transferCredits(
 
     const senderPlayer = senderPlayerResult.rows[0];
     const universeId = senderPlayer.universe_id;
-    const senderName = senderPlayer.corp_name;
+    const senderName = senderPlayer.corp_name || senderPlayer.username || 'Unknown';
 
     // Check if sender is at a StarDock
     if (senderPlayer.port_type !== 'STARDOCK') {
@@ -380,7 +381,10 @@ export async function transferCredits(
 
     // Get recipient's personal account
     const recipientPlayerResult = await client.query(
-      'SELECT universe_id, corp_name FROM players WHERE id = $1',
+      `SELECT p.universe_id, p.corp_name, u.username
+       FROM players p
+       JOIN users u ON p.user_id = u.id
+       WHERE p.id = $1`,
       [recipientPlayerId]
     );
 
@@ -390,7 +394,9 @@ export async function transferCredits(
     }
 
     const recipientPlayer = recipientPlayerResult.rows[0];
-    const recipientName = recipientPlayer.corp_name;
+    const recipientName = recipientPlayer.corp_name || recipientPlayer.username || 'Unknown';
+    const recipientUsername = recipientPlayer.username || 'Unknown';
+    const senderUsername = senderPlayer.username || 'Unknown';
 
     // Ensure they're in the same universe
     if (senderPlayer.universe_id !== recipientPlayer.universe_id) {
@@ -437,6 +443,39 @@ export async function transferCredits(
         senderAccount.id, senderName, memo]
     );
 
+    // Send inbox receipts
+    await client.query(
+      `INSERT INTO messages (
+         recipient_id,
+         sender_name,
+         subject,
+         body,
+         message_type,
+         is_read
+       ) VALUES ($1, 'SYSTEM', $2, $3, 'DIRECT', FALSE)`,
+      [
+        recipientPlayerId,
+        'Funds Received',
+        `You received ₡${amount.toLocaleString()} from ${senderUsername}.${memo ? ` Memo: ${memo}` : ''}`
+      ]
+    );
+
+    await client.query(
+      `INSERT INTO messages (
+         recipient_id,
+         sender_name,
+         subject,
+         body,
+         message_type,
+         is_read
+       ) VALUES ($1, 'SYSTEM', $2, $3, 'DIRECT', FALSE)`,
+      [
+        senderPlayerId,
+        'Transfer Sent',
+        `You sent ₡${amount.toLocaleString()} to ${recipientUsername}.${memo ? ` Memo: ${memo}` : ''}`
+      ]
+    );
+
     await client.query('COMMIT');
 
     return { success: true };
@@ -473,10 +512,12 @@ export async function getTransactionHistory(
  */
 export async function searchPlayers(universeId: number, searchTerm: string): Promise<any[]> {
   const result = await query(
-    `SELECT p.id, p.corp_name as name
+    `SELECT p.id, u.username as name
      FROM players p
-     WHERE p.universe_id = $1 AND p.corp_name ILIKE $2
-     ORDER BY p.corp_name
+     JOIN users u ON p.user_id = u.id
+     WHERE p.universe_id = $1
+       AND u.username ILIKE $2
+     ORDER BY u.username
      LIMIT 20`,
     [universeId, `%${searchTerm}%`]
   );

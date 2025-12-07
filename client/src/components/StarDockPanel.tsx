@@ -80,6 +80,7 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
   const [withdrawAmount, setWithdrawAmount] = useState(0);
   const [transferAmount, setTransferAmount] = useState(0);
   const [transferRecipient, setTransferRecipient] = useState('');
+  const [selectedRecipientId, setSelectedRecipientId] = useState<number | null>(null);
   const [transferMemo, setTransferMemo] = useState('');
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -320,8 +321,9 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
   };
 
   const searchPlayers = async (searchTerm: string) => {
-    if (searchTerm.length < 2) {
+    if (searchTerm.length < 1) {
       setSearchResults([]);
+      setSelectedRecipientId(null);
       return;
     }
     try {
@@ -1298,6 +1300,7 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
                   value={transferRecipient}
                   onChange={e => {
                     setTransferRecipient(e.target.value);
+                    setSelectedRecipientId(null);
                     searchPlayers(e.target.value);
                   }}
                   placeholder="Search for player..."
@@ -1321,6 +1324,7 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
                         key={player.id}
                         onClick={() => {
                           setTransferRecipient(player.name);
+                          setSelectedRecipientId(player.id);
                           setSearchResults([]);
                         }}
                         style={{
@@ -1368,16 +1372,18 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
                 </div>
                 <button
                   onClick={() => {
-                    const player = searchResults.find(p => p.name === transferRecipient);
-                    if (player) handleTransfer(player.id);
+                    const targetId =
+                      selectedRecipientId ||
+                      (searchResults.length ? searchResults[0].id : null);
+                    if (targetId) handleTransfer(targetId);
                   }}
-                  disabled={purchasing || transferAmount <= 0 || !transferRecipient}
+                  disabled={purchasing || transferAmount <= 0 || (!selectedRecipientId && !searchResults.length)}
                   style={{
                     padding: '10px 20px',
-                    background: transferAmount > 0 && transferRecipient ? 'rgba(255, 20, 147, 0.2)' : 'rgba(100, 100, 100, 0.2)',
-                    border: `1px solid ${transferAmount > 0 && transferRecipient ? 'var(--neon-pink)' : '#666'}`,
-                    color: transferAmount > 0 && transferRecipient ? 'var(--neon-pink)' : '#666',
-                    cursor: transferAmount > 0 && transferRecipient ? 'pointer' : 'not-allowed',
+                    background: transferAmount > 0 && (selectedRecipientId || searchResults.length) ? 'rgba(255, 20, 147, 0.2)' : 'rgba(100, 100, 100, 0.2)',
+                    border: `1px solid ${transferAmount > 0 && (selectedRecipientId || searchResults.length) ? 'var(--neon-pink)' : '#666'}`,
+                    color: transferAmount > 0 && (selectedRecipientId || searchResults.length) ? 'var(--neon-pink)' : '#666',
+                    cursor: transferAmount > 0 && (selectedRecipientId || searchResults.length) ? 'pointer' : 'not-allowed',
                     fontFamily: 'monospace',
                     fontWeight: 'bold'
                   }}

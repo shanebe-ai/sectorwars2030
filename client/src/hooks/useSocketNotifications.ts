@@ -55,10 +55,11 @@ export function useSocketNotifications({
     setNotifications(prev => prev.filter(n => n.id !== id));
   }, []);
 
-  useEffect(() => {
-    if (!enabled || !universeId || !sectorNumber || !playerId) {
-      return;
-    }
+useEffect(() => {
+  // Allow connection with universe + player; sectorNumber can be missing (fallback to 1)
+  if (!enabled || !universeId || !playerId) {
+    return;
+  }
 
     // Connect to WebSocket server
     const socket = io(API_URL.replace('/api', ''), {
@@ -74,7 +75,7 @@ export function useSocketNotifications({
       // Join the current sector room
       socket.emit('join_sector', {
         universeId,
-        sectorNumber,
+        sectorNumber: sectorNumber || 1,
         playerId
       });
     });
@@ -159,7 +160,7 @@ export function useSocketNotifications({
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [enabled, universeId, playerId, onNewBroadcast]); // Note: NOT including sectorNumber to avoid reconnecting on every move
+  }, [enabled, universeId, playerId, onNewBroadcast, sectorNumber]); // include sectorNumber so we join universe even when sector unknown
 
   // Update sector room when sector changes
   useEffect(() => {

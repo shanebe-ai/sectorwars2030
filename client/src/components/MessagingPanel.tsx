@@ -515,23 +515,53 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
           )}
 
           {view === 'broadcasts' && (
-            <MessageList
-              messages={messages}
-              loading={loading}
-              onOpenMessage={handleOpenMessage}
-              type="broadcasts"
-              formatDateTime={formatDateTime}
-            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <MessageList
+                messages={messages}
+                loading={loading}
+                onOpenMessage={handleOpenMessage}
+                type="broadcasts"
+                formatDateTime={formatDateTime}
+              />
+              {!loading && (
+                <button
+                  className="cyberpunk-button"
+                  style={{ alignSelf: 'flex-end', marginTop: '8px' }}
+                  onClick={() => {
+                    // Mark all as read by reloading (endpoint clears unread)
+                    loadBroadcasts();
+                    setMessages([]);
+                  }}
+                >
+                  CLEAR ALL
+                </button>
+              )}
+            </div>
           )}
 
           {view === 'corporate' && (
-            <MessageList
-              messages={messages}
-              loading={loading}
-              onOpenMessage={handleOpenMessage}
-              type="corporate"
-              formatDateTime={formatDateTime}
-            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <MessageList
+                messages={messages}
+                loading={loading}
+                onOpenMessage={handleOpenMessage}
+                type="corporate"
+                formatDateTime={formatDateTime}
+              />
+              {!loading && (
+                <button
+                  className="cyberpunk-button"
+                  style={{ alignSelf: 'flex-end', marginTop: '8px' }}
+                  onClick={() => {
+                    // Mark all as read by reloading (endpoint clears unread)
+                    loadCorporateMessages();
+                    setMessages([]);
+                  }}
+                >
+                  CLEAR ALL
+                </button>
+              )}
+            </div>
           )}
 
           {view === 'alien' && (
@@ -662,6 +692,15 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
                           </div>
                         );
                       })}
+                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <button
+                          className="cyberpunk-button"
+                          style={{ marginTop: '4px' }}
+                          onClick={() => setAlienComms([])}
+                        >
+                          CLEAR ALL
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
