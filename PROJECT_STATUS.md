@@ -1210,6 +1210,25 @@ When implementing new features:
 - ✅ **Corporate Flagship Shield Buff:**
   - Shields: 300 → 1000 (3.3x increase!)
   - Now has extreme survivability matching its ₡500K price tag
+- ✅ **Alien Combat Result Flash Fix:**
+  - **Issue:** Victory/defeat messages flashing once and immediately disappearing
+  - **Root Cause:** `loadSectorDetails()` called immediately after setting combat result, clearing it
+  - **Fixed:** Moved sector reload to AFTER user closes combat panel
+  - Applied to both alien ship and alien planet attacks
+  - Combat results now stay visible until user dismisses them
+
+**Mine Mechanics (Current Behavior):**
+- ✅ **Corp Safety:** Corporation members are SAFE from each other's mines
+  - Code: [mineService.ts:232](server/src/services/mineService.ts#L232) - `p.corp_name != $3`
+  - Only non-corp members trigger explosions
+- ✅ **Player Triggering:** Enemy players WILL trigger mines when entering sector
+  - 20-90% chance per mine to explode
+  - 150 base damage per mine (50-150% variance = 75-225 damage)
+  - Shields absorb damage first, then fighters take damage
+  - Mines are destroyed when they explode
+- ❌ **Alien Limitation:** Aliens currently DO NOT trigger mines
+  - `moveAlienShips()` has no mine checking logic
+  - Future enhancement: Add mine checks for alien movement
 
 **Previous Session (2025-12-04):**
 - ✅ **Player Creation Bug Fixes:**
