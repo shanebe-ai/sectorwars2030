@@ -1244,6 +1244,10 @@ When implementing new features:
   - **Notifications:** Owner is alerted whether alien retreats OR attacks
   - **Multiple Deployments:** Alien fights each deployment one by one
   - Aliens can be destroyed by deployed fighters
+  - **Implementation:** [alienService.ts:454-573](server/src/services/alienService.ts#L454-L573)
+    - Mine checking via `checkMinesOnAlienEntry()` in [mineService.ts:393-517](server/src/services/mineService.ts#L393-L517)
+    - Fighter checking via `getHostileFightersForAlien()` in [sectorFighterService.ts:733-749](server/src/services/sectorFighterService.ts#L733-L749)
+    - Combat via `alienAttackDeployedFighters()` in [sectorFighterService.ts:755-854](server/src/services/sectorFighterService.ts#L755-L854)
 
 **Previous Session (2025-12-04):**
 - ✅ **Player Creation Bug Fixes:**
