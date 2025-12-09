@@ -781,7 +781,7 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 | Trader | 60 | 20 | 20 | 10 | 15 | ₡50,000 | ₡35,000 |
 | Freighter | 125 | 75 | 75 | 35 | 25 | ₡125,000 | ₡87,500 |
 | Merchant Cruiser | 250 | 150 | 150 | 75 | 35 | ₡250,000 | ₡175,000 |
-| Corporate Flagship | 500 | 300 | 300 | 150 | 50 | ₡500,000 | ₡350,000 |
+| Corporate Flagship | 500 | 300 | 1000 | 150 | 50 | ₡500,000 | ₡350,000 |
 
 ### Economy Balance (Tuned 2025-12-02)
 
@@ -1202,6 +1202,14 @@ When implementing new features:
     - Mines: 20 → 35 (better zone control)
     - Beacons: 20 → 25
   - **Design Goal:** Corporate Flagship now feels like a powerful warship worth ₡500K
+- ✅ **Mine System Bug Fix:**
+  - **Issue:** StarDock showing 0/0 mines for Corporate Flagship
+  - **Root Cause:** Mine routes using `req.user.id` (user ID) instead of player ID
+  - **Fixed:** [server/src/routes/mines.ts](server/src/routes/mines.ts) - All three routes now properly convert userId to playerId
+  - Routes fixed: GET /info, POST /purchase, POST /deploy
+- ✅ **Corporate Flagship Shield Buff:**
+  - Shields: 300 → 1000 (3.3x increase!)
+  - Now has extreme survivability matching its ₡500K price tag
 
 **Previous Session (2025-12-04):**
 - ✅ **Player Creation Bug Fixes:**

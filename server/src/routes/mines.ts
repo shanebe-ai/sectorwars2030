@@ -10,7 +10,19 @@ const router = express.Router();
  */
 router.get('/info', authenticateToken, async (req, res) => {
   try {
-    const playerId = (req as any).user.id;
+    const userId = (req as any).user.userId;
+
+    // Get player ID from user ID
+    const playerResult = await require('../db/connection').query(
+      `SELECT id FROM players WHERE user_id = $1`,
+      [userId]
+    );
+
+    if (playerResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    const playerId = playerResult.rows[0].id;
     const info = await mineService.getMineInfo(playerId);
     res.json(info);
   } catch (error: any) {
@@ -25,8 +37,20 @@ router.get('/info', authenticateToken, async (req, res) => {
  */
 router.post('/purchase', authenticateToken, async (req, res) => {
   try {
-    const playerId = (req as any).user.id;
+    const userId = (req as any).user.userId;
     const { quantity } = req.body;
+
+    // Get player ID from user ID
+    const playerLookup = await require('../db/connection').query(
+      `SELECT id FROM players WHERE user_id = $1`,
+      [userId]
+    );
+
+    if (playerLookup.rows.length === 0) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    const playerId = playerLookup.rows[0].id;
 
     if (!quantity || quantity <= 0) {
       return res.status(400).json({ error: 'Invalid quantity' });
@@ -111,8 +135,20 @@ router.post('/purchase', authenticateToken, async (req, res) => {
  */
 router.post('/deploy', authenticateToken, async (req, res) => {
   try {
-    const playerId = (req as any).user.id;
+    const userId = (req as any).user.userId;
     const { count } = req.body;
+
+    // Get player ID from user ID
+    const playerLookup = await require('../db/connection').query(
+      `SELECT id FROM players WHERE user_id = $1`,
+      [userId]
+    );
+
+    if (playerLookup.rows.length === 0) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    const playerId = playerLookup.rows[0].id;
 
     if (!count || count <= 0) {
       return res.status(400).json({ error: 'Invalid count' });
