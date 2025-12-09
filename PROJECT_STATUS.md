@@ -773,15 +773,21 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - **SSS** - Sells all (rare, lucrative for traders)
 - **BBB** - Buys all (rare, good for dumping cargo)
 
-### Ship Progression
-| Ship | Holds | Fighters | Shields | Mines | Beacons | Cost | Trade-in (70%) |
-|------|-------|----------|---------|-------|---------|------|----------------|
-| Escape Pod | 5 | 0 | 0 | 0 | 0 | ₡0 | ₡0 |
-| Scout | 20 | 10 | 10 | 5 | 10 | ₡10,000 | ₡7,000 |
-| Trader | 60 | 20 | 20 | 10 | 15 | ₡50,000 | ₡35,000 |
-| Freighter | 125 | 75 | 75 | 35 | 25 | ₡125,000 | ₡87,500 |
-| Merchant Cruiser | 250 | 150 | 150 | 75 | 35 | ₡250,000 | ₡175,000 |
-| Corporate Flagship | 500 | 300 | 1000 | 150 | 50 | ₡500,000 | ₡350,000 |
+### Ship Progression (All ships include Torpedoes and Genesis Torpedoes)
+| Ship | Holds | Fighters | Shields | Torps | Mines | Beacons | Genesis | Cost | Trade-in (70%) |
+|------|-------|----------|---------|-------|-------|---------|---------|------|----------------|
+| Escape Pod | 5 | 0 | 0 | 0 | 0 | 0 | 0 | ₡0 | ₡0 |
+| Scout | 20 | 10 | 10 | 5 | 5 | 10 | 5 | ₡10,000 | ₡7,000 |
+| Trader | 60 | 20 | 20 | 10 | 10 | 15 | 10 | ₡50,000 | ₡35,000 |
+| Freighter | 125 | 75 | 75 | 20 | 35 | 25 | 15 | ₡125,000 | ₡87,500 |
+| Merchant Cruiser | 250 | 150 | 150 | 40 | 75 | 35 | 20 | ₡250,000 | ₡175,000 |
+| Corporate Flagship | 500 | 300 | 1000 | 80 | 150 | 50 | 25 | ₡500,000 | ₡350,000 |
+
+**Notes:**
+- All ships carry torpedoes for offensive capabilities (not yet implemented)
+- Genesis torpedoes create new planets (not yet implemented)
+- Mine capacity increased for better sector defense
+- Corporate Flagship has extreme shields (1000) for endgame survivability
 
 ### Economy Balance (Tuned 2025-12-02)
 
@@ -1230,6 +1236,35 @@ When implementing new features:
   - Same mechanics as players (20-90% explosion chance, 75-225 damage)
   - Aliens can be destroyed by mines
   - Mine owner gets notification via alien communications channel
+
+**Game Balance (2025-12-09):**
+- ✅ **Turn Economy:**
+  - **Turns per day:** 300 (reduced from 1000)
+  - **Regeneration:** ~12.5 turns/hour = 1 turn every 4.8 minutes
+  - **Daily Usage Estimate:**
+    - Exploration (20 sectors): 20 turns
+    - Trading (5 routes @ 8 jumps): 40 turns
+    - Combat (10 attacks): 10 turns
+    - Reserve: 230 turns for repositioning/emergencies
+  - **Design Goal:** Players must be strategic about movement, can't explore entire universe in one day
+- ✅ **Mine Pricing:**
+  - **Cost:** ₡10,000 per mine (reduced from ₡50,000)
+  - **10 mines:** ₡100,000 (reasonable sector defense)
+  - **50 mines:** ₡500,000 (heavy fortification = 1 Corporate Flagship)
+  - **Damage:** 75-225 per explosion (20-90% trigger chance)
+  - **Expected damage:** 10 mines = ~825 damage (can destroy Merchant Cruiser alien)
+  - **Design Goal:** Mines are viable defense option, not prohibitively expensive
+- ✅ **Alien Ship Strength:**
+  - **Stats:** 65-90% of ship type max (increased from 50-75%)
+  - **Example Merchant Cruiser:** 98-135 fighters, 98-135 shields (total: 196-270)
+  - **Player Merchant Cruiser:** 150 fighters, 150 shields (total: 300)
+  - **Player Advantage:** ~1.5-2x stronger than aliens in same ship class
+  - **Design Goal:** Aliens are threatening but beatable, require actual strategy
+- ✅ **Combat Balance:**
+  - Simple damage model: fighters deal damage equal to count
+  - Shields absorb first, then fighters take damage
+  - Deployed fighters provide free sector defense
+  - Mines complement fighters for layered defense
 
 **Alien vs Deployed Fighters (NEW!):**
 - ✅ **Aliens Encounter Deployed Fighters:**

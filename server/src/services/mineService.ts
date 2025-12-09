@@ -377,7 +377,7 @@ export const getMineInfo = async (playerId: number): Promise<{
   }
 
   const row = result.rows[0];
-  const price = 50000; // Base price per mine
+  const price = 10000; // Base price per mine (reduced from 50000 for better balance)
 
   return {
     price,

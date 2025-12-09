@@ -90,7 +90,7 @@ router.post('/purchase', authenticateToken, async (req, res) => {
         return res.status(400).json({ error: `Your ship can only hold ${spaceAvailable} more mines` });
       }
 
-      const price = 50000; // Base price per mine
+      const price = 10000; // Base price per mine (reduced from 50000 for better balance)
       const totalCost = price * quantity;
 
       if (player.credits < totalCost) {

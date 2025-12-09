@@ -176,9 +176,9 @@ export async function generateAliensForUniverse(config: AlienGenerationConfig): 
       ];
       const behavior = behaviors[Math.floor(Math.random() * behaviors.length)];
 
-      // Alien ships are moderately equipped
-      const fighters = Math.floor(shipType.fighters_max * (0.5 + Math.random() * 0.5));
-      const shields = Math.floor(shipType.shields_max * (0.5 + Math.random() * 0.5));
+      // Alien ships are well-equipped (65-90% of max for better challenge)
+      const fighters = Math.floor(shipType.fighters_max * (0.65 + Math.random() * 0.25));
+      const shields = Math.floor(shipType.shields_max * (0.65 + Math.random() * 0.25));
       const credits = Math.floor(Math.random() * 50000) + 25000; // 25K-75K
 
       // Home sector for patrol (if near alien planet)
