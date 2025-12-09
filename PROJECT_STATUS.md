@@ -1151,7 +1151,31 @@ When implementing new features:
     - **Real-time Updates:** Ship status (fighters) updates immediately on deploy/retrieve
     - **State Management:** Improved parent-child state synchronization for instant UI updates
 
-**Current Session (2025-12-04):**
+**Current Session (2025-12-09):**
+- ✅ **Alien Planet Attack Hang Fix (CRITICAL!):**
+  - **Root Cause #1:** API_URL in client config had `/api` suffix, causing double `/api/api/...` paths
+    - Fixed: [client/src/config/api.ts](client/src/config/api.ts#L11) - Removed `/api` suffix from derived URL
+    - Fetch calls already include `/api/...` in their paths
+  - **Root Cause #2:** Database row-level locks causing hangs when multiple attacks/views occurred
+    - Fixed: Added `SKIP LOCKED` to alien ship/planet queries in [server/src/services/alienService.ts](server/src/services/alienService.ts)
+    - Alien ship attack (line 692): `FOR UPDATE OF a SKIP LOCKED`
+    - Alien planet attack (line 1153): `FOR UPDATE OF ap SKIP LOCKED`
+    - Now fails fast with "currently engaged" error instead of hanging
+  - **Performance Optimization:** Removed alien encounter broadcasting during sector reads
+    - [server/src/controllers/sectorController.ts](server/src/controllers/sectorController.ts#L240): Removed write operations from read endpoint
+    - Prevents potential deadlocks from concurrent reads/writes
+  - **Early Validation:** Added pre-flight checks in alien attack controller
+    - [server/src/controllers/alienController.ts](server/src/controllers/alienController.ts): Validates escape pod, fighters, turns, TerraSpace BEFORE database locks
+    - Prevents unnecessary transaction starts and lock acquisition
+  - **Client Timeout Protection:** Added AbortController with 10-second timeout
+    - [client/src/components/SectorView.tsx](client/src/components/SectorView.tsx#L1027): Timeout guard for alien planet attacks
+    - Shows clear error message on timeout instead of hanging forever
+  - **Auto-Navigation Enhancement:** Plot Course now pauses at alien encounters
+    - [server/src/services/pathfindingService.ts](server/src/services/pathfindingService.ts): Added alien planet/ship detection to path sectors
+    - [client/src/components/SectorView.tsx](client/src/components/SectorView.tsx#L1092): Auto-pause at alien points of interest
+  - **Result:** Alien attacks now work reliably without server hangs or sector locks!
+
+**Previous Session (2025-12-04):**
 - ✅ **Player Creation Bug Fixes:**
   - **Issue 1:** Players weren't getting `corp_id` set on creation
     - Added UPDATE statement to set player's `corp_id` after creating corporation

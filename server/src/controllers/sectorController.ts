@@ -237,33 +237,9 @@ export const getSectorDetails = async (req: Request, res: Response) => {
       }
     }
 
-    // Broadcast alien encounter if aliens are present and player is entering
-    if (alienShips.length > 0 && parseInt(sectorNumber as string) === currentSector) {
-      const playerInfo = await pool.query(
-        `SELECT u.username, p.corp_name
-         FROM players p
-         JOIN users u ON p.user_id = u.id
-         WHERE p.id = $1`,
-        [playerId]
-      );
-
-      if (playerInfo.rows.length > 0) {
-        const player = playerInfo.rows[0];
-        for (const alienShip of alienShips) {
-          await broadcastAlienMessage(
-            universeId,
-            'encounter',
-            `Encounter detected: ${player.username} (${player.corp_name || 'Independent'}) and ${alienShip.shipName} in Sector ${sectorNumber}`,
-            {
-              alienRace: alienShip.alienRace,
-              sectorNumber: parseInt(sectorNumber as string),
-              relatedPlayerId: playerId,
-              relatedShipId: alienShip.id
-            }
-          );
-        }
-      }
-    }
+    // NOTE: We deliberately avoid broadcasting alien encounters during a read
+    // to prevent potential deadlocks from concurrent writes while clients
+    // load a sector.
 
     // Auto-log sector when viewing current sector (for initial spawn and returning visits)
     if (parseInt(sectorNumber as string) === currentSector) {
@@ -622,6 +598,8 @@ export const moveToSector = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid destination sector' });
     }
 
+    console.log(`[Move] user=${userId} requested move to sector ${destinationSector}`);
+
     const client = await pool.connect();
 
     try {
@@ -871,6 +849,8 @@ export const moveToSector = async (req: Request, res: Response) => {
         toSector: actualDestination,
         timestamp: new Date().toISOString()
       });
+
+      console.log(`[Move] user=${userId} moved from ${player.current_sector} to ${actualDestination} (intended ${destinationSector}) misfired=${misfired} turnCost=${turnCost}`);
 
       res.json({
         success: true,

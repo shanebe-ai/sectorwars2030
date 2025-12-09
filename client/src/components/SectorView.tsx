@@ -123,6 +123,9 @@ interface PathSector {
   hasPlanet: boolean;
   hasStardock: boolean;
   hasShips: boolean;
+  hasAlienPlanet?: boolean;
+  hasAlienShips?: boolean;
+  alienShipCount?: number;
   visited: boolean;
 }
 
@@ -1014,7 +1017,17 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
   };
 
   const handleAttackAlienPlanet = async (planetId: number) => {
+    if (!token) {
+      setError('Authentication token missing. Please re-login.');
+      return;
+    }
+
     setAttackingAlienPlanet(planetId);
+
+    // Guard against hangs: abort if no response within 10s
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
     try {
       const response = await fetch(`${API_URL}/api/aliens/attack-planet`, {
         method: 'POST',
@@ -1022,10 +1035,14 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ planetId }),
+        body: JSON.stringify({ planetId: Number(planetId) }),
+        signal: controller.signal,
       });
 
-      const data = await response.json();
+      clearTimeout(timeoutId);
+
+      const text = await response.text();
+      const data = text ? JSON.parse(text) : {};
 
       if (response.ok) {
         setAlienCombatResult(data);
@@ -1042,9 +1059,14 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
       } else {
         setError(data.error || 'Failed to attack alien planet');
       }
-    } catch (err) {
-      setError('Network error');
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        setError('Attack request timed out. Please try again.');
+      } else {
+        setError('Network error');
+      }
     } finally {
+      clearTimeout(timeoutId);
       setAttackingAlienPlanet(null);
     }
   };
@@ -1067,14 +1089,22 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
   useEffect(() => {
     if (autoNavigating && !moving && plottedPath && currentPathIndex > 0) {
       const currentPathSector = plottedPath.sectors[currentPathIndex - 1];
+      const alienShipsInSector = sector?.alienShips?.length || 0;
+      const hasAlienPointOfInterest =
+        (currentPathSector?.hasAlienPlanet ?? false) ||
+        (currentPathSector?.hasAlienShips ?? false) ||
+        !!sector?.alienPlanet ||
+        alienShipsInSector > 0;
 
       if (currentPathSector && (
         currentPathSector.hasPort ||
         currentPathSector.hasPlanet ||
         currentPathSector.hasStardock ||
-        currentPathSector.hasShips
-      )) {
-        // Pause for points of interest
+        currentPathSector.hasShips ||
+        currentPathSector.hasAlienPlanet ||
+        currentPathSector.hasAlienShips
+      ) || hasAlienPointOfInterest) {
+        // Pause for points of interest (including alien activity)
         setIsPaused(true);
       } else if (currentPathIndex < plottedPath.path.length) {
         // Continue to next sector after a brief pause
@@ -1089,7 +1119,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
         setIsPaused(false);
       }
     }
-  }, [currentSector, autoNavigating, moving]);
+  }, [currentSector, autoNavigating, moving, plottedPath, currentPathIndex, sector?.alienPlanet?.id, sector?.alienShips?.length]);
 
   if (loading) {
     return (

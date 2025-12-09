@@ -31,7 +31,8 @@ dotenv.config();
 const app = express();
 const httpServer = createServer(app);
 
-// CORS allowed origins - support both localhost and network access
+// CORS allowed origins - support localhost and network access
+// Keep in sync with any externally exposed host/port used by clients
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
@@ -41,6 +42,8 @@ const allowedOrigins = [
   'http://37.27.80.77:5174',
   'http://37.27.80.77:5175',
   'http://37.27.80.77:5176',
+  // add bare-IP without port to allow socket probing from default origins
+  'http://37.27.80.77',
 ];
 
 const io = new Server(httpServer, {

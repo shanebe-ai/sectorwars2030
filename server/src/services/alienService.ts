@@ -667,10 +667,11 @@ export async function attackAlienShip(
 
     // Get player stats
     const playerResult = await client.query(`
-      SELECT p.*, u.username, s.region
+      SELECT p.*, u.username, s.region, COALESCE(ba.balance, 0) as bank_balance
       FROM players p
       JOIN users u ON p.user_id = u.id
       JOIN sectors s ON s.universe_id = p.universe_id AND s.sector_number = p.current_sector
+      LEFT JOIN bank_accounts ba ON ba.player_id = p.id
       WHERE p.id = $1
       FOR UPDATE OF p
     `, [playerId]);
@@ -682,16 +683,17 @@ export async function attackAlienShip(
     const player = playerResult.rows[0];
 
     // Get alien ship stats
+    // Use SKIP LOCKED to avoid waiting on contested rows - if another attack is in progress, fail fast
     const alienResult = await client.query(`
-      SELECT a.*, st.fighters_max, st.shields_max, st.holds_max
+      SELECT a.*, st.fighters_max, st.shields_max, st.holds as holds_max
       FROM alien_ships a
       JOIN ship_types st ON a.ship_type_id = st.id
       WHERE a.id = $1
-      FOR UPDATE OF a
+      FOR UPDATE OF a SKIP LOCKED
     `, [alienShipId]);
 
     if (alienResult.rows.length === 0) {
-      throw new Error('Alien ship not found');
+      throw new Error('Alien ship is currently engaged in combat or not found. Please try again in a moment.');
     }
 
     const alien = alienResult.rows[0];
@@ -1107,6 +1109,7 @@ export async function attackAlienPlanet(
 
   try {
     await client.query('BEGIN');
+    console.log(`[AlienPlanet] start player=${playerId} planet=${planetId}`);
 
     // Get player stats
     const playerResult = await client.query(`
@@ -1117,6 +1120,7 @@ export async function attackAlienPlanet(
       WHERE p.id = $1
       FOR UPDATE OF p
     `, [playerId]);
+    console.log(`[AlienPlanet] player fetched player=${playerId}`);
 
     if (playerResult.rows.length === 0) {
       throw new Error('Player not found');
@@ -1125,17 +1129,32 @@ export async function attackAlienPlanet(
     const player = playerResult.rows[0];
 
     // Get alien planet stats
+    // Use SKIP LOCKED to avoid waiting on contested rows - if another attack is in progress, fail fast
     const planetResult = await client.query(`
-      SELECT p.*, s.sector_number
-      FROM planets p
-      JOIN sectors s ON p.sector_id = s.id
-      WHERE p.id = $1 AND p.is_alien = true
-      FOR UPDATE OF p
+      SELECT
+        ap.id,
+        ap.universe_id,
+        ap.sector_number,
+        ap.name,
+        ap.alien_race,
+        ap.citadel_level,
+        ap.colonists,
+        ap.fighters,
+        ap.fuel AS cargo_fuel,
+        ap.organics AS cargo_organics,
+        ap.equipment AS cargo_equipment,
+        0::bigint AS credits,
+        s.region
+      FROM alien_planets ap
+      JOIN sectors s ON s.universe_id = ap.universe_id AND s.sector_number = ap.sector_number
+      WHERE ap.id = $1
+      FOR UPDATE OF ap SKIP LOCKED
     `, [planetId]);
-
     if (planetResult.rows.length === 0) {
-      throw new Error('Alien planet not found');
+      console.log(`[AlienPlanet] planet fetch empty (locked or not found) planet=${planetId}`);
+      throw new Error('Alien planet is currently under attack or not found. Please try again in a moment.');
     }
+    console.log(`[AlienPlanet] planet fetched planet=${planetId}`);
 
     const planet = planetResult.rows[0];
 
@@ -1174,6 +1193,7 @@ export async function attackAlienPlanet(
       citadelLevel: planet.citadel_level,
       alienRace: planet.alien_race
     });
+    console.log(`[AlienPlanet] combat sim done winner=${combatSim.winner} rounds=${combatSim.rounds}`);
 
     combatResult.rounds = combatSim.rounds;
     combatResult.playerFightersLost = combatSim.playerFightersLost;
@@ -1191,13 +1211,14 @@ export async function attackAlienPlanet(
     await client.query(`
       UPDATE players SET turns_remaining = turns_remaining - 1 WHERE id = $1
     `, [playerId]);
+    console.log(`[AlienPlanet] turn deducted player=${playerId}`);
 
     if (combatSim.winner === 'player') {
       // Player victory - loot 75% of planet resources
       const fuelLooted = Math.floor(planet.cargo_fuel * 0.75);
       const organicsLooted = Math.floor(planet.cargo_organics * 0.75);
       const equipmentLooted = Math.floor(planet.cargo_equipment * 0.75);
-      const creditsLooted = Math.floor(planet.credits * 0.75);
+      const creditsLooted = Math.floor((planet.credits || 0) * 0.75);
 
       combatResult.creditsLooted = creditsLooted;
       combatResult.alienDestroyed = true;
@@ -1215,9 +1236,11 @@ export async function attackAlienPlanet(
         WHERE id = $7
       `, [playerFightersRemaining, playerShieldsRemaining, creditsLooted,
           fuelLooted, organicsLooted, equipmentLooted, playerId]);
+      console.log(`[AlienPlanet] victory player updated player=${playerId}`);
 
       // Destroy the alien planet
-      await client.query(`DELETE FROM planets WHERE id = $1`, [planetId]);
+      await client.query(`DELETE FROM alien_planets WHERE id = $1`, [planetId]);
+      console.log(`[AlienPlanet] planet destroyed planet=${planetId}`);
 
       combatResult.message = `Victory! You destroyed the ${planet.alien_race} colony and looted ₡${creditsLooted.toLocaleString()}, ${fuelLooted} fuel, ${organicsLooted} organics, and ${equipmentLooted} equipment!`;
 
@@ -1231,11 +1254,12 @@ export async function attackAlienPlanet(
           relatedPlanetId: planetId
         }
       );
+      console.log(`[AlienPlanet] broadcast victory planet=${planetId}`);
 
     } else if (combatSim.winner === 'alien') {
       // Player destroyed - apply death penalty
       const onHandCredits = parseInt(player.credits);
-      const bankBalance = parseInt(player.bank_balance);
+      const bankBalance = Number(player.bank_balance) || 0;
 
       const onHandLoss = Math.floor(onHandCredits * 0.25);
       const bankLoss = Math.floor(bankBalance * 0.25);
@@ -1258,17 +1282,29 @@ export async function attackAlienPlanet(
           cargo_organics = 0,
           cargo_equipment = 0,
           credits = credits - $1,
-          bank_balance = bank_balance - $2,
           deaths = deaths + 1,
-          current_sector = $3
-        WHERE id = $4
-      `, [onHandLoss, bankLoss, escapeSector, playerId]);
+          current_sector = $2
+        WHERE id = $3
+      `, [onHandLoss, escapeSector, playerId]);
+      console.log(`[AlienPlanet] player destroyed updated player=${playerId} escape=${escapeSector}`);
+
+      // Apply bank loss if an account exists
+      if (bankLoss > 0) {
+        await client.query(
+          `UPDATE bank_accounts
+           SET balance = GREATEST(0, balance - $1)
+           WHERE player_id = $2`,
+          [bankLoss, playerId]
+        );
+        console.log(`[AlienPlanet] bank loss applied player=${playerId}`);
+      }
 
       // Update planet fighters (they took losses too)
       const actualPlanetFighters = Math.floor(planetFightersRemaining / citadelBonus);
       await client.query(`
-        UPDATE planets SET fighters = $1 WHERE id = $2
+        UPDATE alien_planets SET fighters = $1 WHERE id = $2
       `, [actualPlanetFighters, planetId]);
+      console.log(`[AlienPlanet] planet fighters updated planet=${planetId}`);
 
       combatResult.message = `Defeated! The ${planet.alien_race} planetary defenses destroyed your ship. You lost ₡${(onHandLoss + bankLoss).toLocaleString()} and respawned in an escape pod.`;
 
@@ -1282,6 +1318,7 @@ export async function attackAlienPlanet(
           relatedPlanetId: planetId
         }
       );
+      console.log(`[AlienPlanet] broadcast player defeated planet=${planetId}`);
 
     } else {
       // Draw - both sides took damage
@@ -1291,22 +1328,31 @@ export async function attackAlienPlanet(
           ship_shields = $2
         WHERE id = $3
       `, [playerFightersRemaining, playerShieldsRemaining, playerId]);
+      console.log(`[AlienPlanet] draw player updated player=${playerId}`);
 
       // Update planet fighters
       const actualPlanetFighters = Math.floor(planetFightersRemaining / citadelBonus);
       await client.query(`
-        UPDATE planets SET fighters = $1 WHERE id = $2
+        UPDATE alien_planets SET fighters = $1 WHERE id = $2
       `, [actualPlanetFighters, planetId]);
+      console.log(`[AlienPlanet] draw planet fighters updated planet=${planetId}`);
 
       combatResult.message = `Stalemate! Both forces withdrew after sustaining heavy losses.`;
     }
 
     await client.query('COMMIT');
+    console.log(`[AlienPlanet] commit player=${playerId} planet=${planetId} winner=${combatResult.winner}`);
     combatResult.success = true;
     return combatResult;
 
   } catch (error) {
     await client.query('ROLLBACK');
+    console.error(`[AlienPlanet] error player=${playerId} planet=${planetId}:`, error);
+    // Handle lock/timeouts gracefully
+    const msg = (error as any)?.message || '';
+    if (msg.includes('lock timeout') || msg.includes('SKIP LOCKED') || msg.includes('canceling statement due to statement timeout')) {
+      throw new Error('Alien planet is busy. Please try again in a moment.');
+    }
     throw error;
   } finally {
     client.release();

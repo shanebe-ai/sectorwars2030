@@ -112,7 +112,12 @@ export async function getPathDetails(
       s.port_type,
       s.has_planet,
       p.name as planet_name,
-      (SELECT COUNT(*) FROM players WHERE current_sector = s.sector_number AND universe_id = $1 AND id != $3) as other_players
+      (SELECT COUNT(*) FROM players WHERE current_sector = s.sector_number AND universe_id = $1 AND id != $3) as other_players,
+      EXISTS (
+        SELECT 1 FROM alien_planets ap
+        WHERE ap.universe_id = s.universe_id AND ap.sector_number = s.sector_number
+      ) AS has_alien_planet,
+      (SELECT COUNT(*) FROM alien_ships als WHERE als.universe_id = s.universe_id AND als.current_sector = s.sector_number) AS alien_ships
     FROM sectors s
     LEFT JOIN planets p ON p.sector_id = s.id
     WHERE s.universe_id = $1 AND s.sector_number = ANY($2)
@@ -140,7 +145,16 @@ export async function getPathDetails(
     planetName: row.planet_name,
     hasShips: parseInt(row.other_players) > 0,
     otherPlayers: parseInt(row.other_players) || 0,
+    hasAlienPlanet: !!row.has_alien_planet,
+    hasAlienShips: parseInt(row.alien_ships) > 0,
+    alienShipCount: parseInt(row.alien_ships) || 0,
     visited: visitedSectors.has(row.sector_number),
-    hasPointOfInterest: !!(row.port_type || row.has_planet || parseInt(row.other_players) > 0)
+    hasPointOfInterest: !!(
+      row.port_type ||
+      row.has_planet ||
+      parseInt(row.other_players) > 0 ||
+      row.has_alien_planet ||
+      parseInt(row.alien_ships) > 0
+    )
   }));
 }
