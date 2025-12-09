@@ -1152,7 +1152,7 @@ When implementing new features:
     - **State Management:** Improved parent-child state synchronization for instant UI updates
 
 **Current Session (2025-12-09):**
-- ✅ **Alien Planet Attack Hang Fix (CRITICAL!):**
+- ✅ **Alien Attack Hang Fix (CRITICAL - FULLY RESOLVED!):**
   - **Root Cause #1:** API_URL in client config had `/api` suffix, causing double `/api/api/...` paths
     - Fixed: [client/src/config/api.ts](client/src/config/api.ts#L11) - Removed `/api` suffix from derived URL
     - Fetch calls already include `/api/...` in their paths
@@ -1161,6 +1161,16 @@ When implementing new features:
     - Alien ship attack (line 692): `FOR UPDATE OF a SKIP LOCKED`
     - Alien planet attack (line 1153): `FOR UPDATE OF ap SKIP LOCKED`
     - Now fails fast with "currently engaged" error instead of hanging
+  - **Root Cause #3 (THE BIG ONE!):** `broadcastAlienMessage()` called INSIDE transactions causing deadlocks
+    - **Problem:** `broadcastAlienMessage()` uses `pool.query()` to get NEW connection while transaction holds locks
+    - **Deadlock Scenario:** Transaction A locks planet → tries to INSERT alien_comms → waits for connection → Transaction B waits for planet lock → **INFINITE WAIT**
+    - **Symptom:** Queries stuck as "idle in transaction" with ungranted ShareLocks
+    - **Fixed:** Moved ALL `broadcastAlienMessage()` calls to AFTER `COMMIT` (outside transaction)
+    - **Locations Fixed:**
+      - `attackAlienShip()` - Planet/ship destruction broadcasts (line 825)
+      - `alienAttackPlayer()` - Combat engagement broadcasts (line 1065)
+      - `attackAlienPlanet()` - Victory/defeat broadcasts (line 1323)
+    - Now broadcasts can't block transaction commits!
   - **Performance Optimization:** Removed alien encounter broadcasting during sector reads
     - [server/src/controllers/sectorController.ts](server/src/controllers/sectorController.ts#L240): Removed write operations from read endpoint
     - Prevents potential deadlocks from concurrent reads/writes
@@ -1173,7 +1183,7 @@ When implementing new features:
   - **Auto-Navigation Enhancement:** Plot Course now pauses at alien encounters
     - [server/src/services/pathfindingService.ts](server/src/services/pathfindingService.ts): Added alien planet/ship detection to path sectors
     - [client/src/components/SectorView.tsx](client/src/components/SectorView.tsx#L1092): Auto-pause at alien points of interest
-  - **Result:** Alien attacks now work reliably without server hangs or sector locks!
+  - **Result:** Alien attacks now work perfectly! No more hangs, no more sector locks, all transactions complete cleanly!
 
 **Previous Session (2025-12-04):**
 - ✅ **Player Creation Bug Fixes:**

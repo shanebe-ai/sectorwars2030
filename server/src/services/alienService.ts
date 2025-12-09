@@ -802,16 +802,6 @@ export async function attackAlienShip(
 
       combatResult.creditsLooted = creditsLooted;
       combatResult.message = `⚔️ VICTORY! You destroyed the ${alien.alien_race} ship "${alien.ship_name}"! Looted ₡${creditsLooted.toLocaleString()}!`;
-
-      // Broadcast to alien comms
-      await broadcastAlienMessage(alien.universe_id, 'combat',
-        `⚠️ ALERT: ${alien.alien_race} vessel "${alien.ship_name}" destroyed by ${player.username} in Sector ${player.current_sector}!`,
-        {
-          alienRace: alien.alien_race,
-          sectorNumber: player.current_sector,
-          relatedPlayerId: playerId
-        }
-      );
     } else {
       // Update alien fighters/shields
       const alienFightersRemaining = alien.fighters - combatResult.alienFightersLost;
@@ -831,6 +821,23 @@ export async function attackAlienShip(
 
     await client.query('COMMIT');
     combatResult.success = true;
+
+    // Broadcast alien comms AFTER commit to avoid transaction deadlocks
+    if (combatResult.alienDestroyed) {
+      try {
+        await broadcastAlienMessage(alien.universe_id, 'combat',
+          `⚠️ ALERT: ${alien.alien_race} vessel "${alien.ship_name}" destroyed by ${player.username} in Sector ${player.current_sector}!`,
+          {
+            alienRace: alien.alien_race,
+            sectorNumber: player.current_sector,
+            relatedPlayerId: playerId
+          }
+        );
+      } catch (broadcastError) {
+        console.error('[AlienShip] broadcast failed:', broadcastError);
+      }
+    }
+
     return combatResult;
 
   } catch (error) {
@@ -1034,16 +1041,6 @@ async function alienAttacksPlayer(
       await client.query('DELETE FROM alien_ships WHERE id = $1', [alienShipId]);
 
       attackMessage.body += `\n\n⚔️ You destroyed the alien ship in self-defense!`;
-
-      // Broadcast destruction
-      await broadcastAlienMessage(alien.universe_id, 'combat',
-        `⚠️ ${alien.alien_race} vessel "${alien.ship_name}" destroyed by ${player.username} in self-defense (Sector ${player.current_sector})`,
-        {
-          alienRace: alien.alien_race,
-          sectorNumber: player.current_sector,
-          relatedPlayerId: playerId
-        }
-      );
     } else {
       // Update alien fighters/shields
       const alienFightersRemaining = alien.fighters - combatResult.alienFightersLost;
@@ -1063,18 +1060,33 @@ async function alienAttacksPlayer(
       VALUES ($1, $2, $3, $4, 'inbox', false)
     `, [playerId, 'SYSTEM', attackMessage.subject, attackMessage.body]);
 
-    // Broadcast to alien comms
-    await broadcastAlienMessage(alien.universe_id, 'combat',
-      `⚔️ ${alien.alien_race} vessel "${alien.ship_name}" engaged ${player.username} in combat (Sector ${player.current_sector})`,
-      {
-        alienRace: alien.alien_race,
-        sectorNumber: player.current_sector,
-        relatedPlayerId: playerId,
-        relatedShipId: alienShipId
-      }
-    );
-
     await client.query('COMMIT');
+
+    // Broadcast alien comms AFTER commit to avoid transaction deadlocks
+    try {
+      if (combatResult.alienDestroyed) {
+        await broadcastAlienMessage(alien.universe_id, 'combat',
+          `⚠️ ${alien.alien_race} vessel "${alien.ship_name}" destroyed by ${player.username} in self-defense (Sector ${player.current_sector})`,
+          {
+            alienRace: alien.alien_race,
+            sectorNumber: player.current_sector,
+            relatedPlayerId: playerId
+          }
+        );
+      } else {
+        await broadcastAlienMessage(alien.universe_id, 'combat',
+          `⚔️ ${alien.alien_race} vessel "${alien.ship_name}" engaged ${player.username} in combat (Sector ${player.current_sector})`,
+          {
+            alienRace: alien.alien_race,
+            sectorNumber: player.current_sector,
+            relatedPlayerId: playerId,
+            relatedShipId: alienShipId
+          }
+        );
+      }
+    } catch (broadcastError) {
+      console.error('[AlienAttackPlayer] broadcast failed:', broadcastError);
+    }
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
@@ -1244,18 +1256,6 @@ export async function attackAlienPlanet(
 
       combatResult.message = `Victory! You destroyed the ${planet.alien_race} colony and looted ₡${creditsLooted.toLocaleString()}, ${fuelLooted} fuel, ${organicsLooted} organics, and ${equipmentLooted} equipment!`;
 
-      // Broadcast to alien comms
-      await broadcastAlienMessage(player.universe_id, 'combat',
-        `🔥 ${planet.alien_race} colony in Sector ${planet.sector_number} destroyed by ${player.username}!`,
-        {
-          alienRace: planet.alien_race,
-          sectorNumber: planet.sector_number,
-          relatedPlayerId: playerId,
-          relatedPlanetId: planetId
-        }
-      );
-      console.log(`[AlienPlanet] broadcast victory planet=${planetId}`);
-
     } else if (combatSim.winner === 'alien') {
       // Player destroyed - apply death penalty
       const onHandCredits = parseInt(player.credits);
@@ -1308,18 +1308,6 @@ export async function attackAlienPlanet(
 
       combatResult.message = `Defeated! The ${planet.alien_race} planetary defenses destroyed your ship. You lost ₡${(onHandLoss + bankLoss).toLocaleString()} and respawned in an escape pod.`;
 
-      // Broadcast to alien comms
-      await broadcastAlienMessage(player.universe_id, 'combat',
-        `⚔️ ${planet.alien_race} colony in Sector ${planet.sector_number} repelled attack by ${player.username}`,
-        {
-          alienRace: planet.alien_race,
-          sectorNumber: planet.sector_number,
-          relatedPlayerId: playerId,
-          relatedPlanetId: planetId
-        }
-      );
-      console.log(`[AlienPlanet] broadcast player defeated planet=${planetId}`);
-
     } else {
       // Draw - both sides took damage
       await client.query(`
@@ -1343,6 +1331,35 @@ export async function attackAlienPlanet(
     await client.query('COMMIT');
     console.log(`[AlienPlanet] commit player=${playerId} planet=${planetId} winner=${combatResult.winner}`);
     combatResult.success = true;
+
+    // Broadcast alien comms AFTER commit to avoid transaction deadlocks
+    try {
+      if (combatSim.winner === 'player') {
+        await broadcastAlienMessage(player.universe_id, 'combat',
+          `🔥 ${planet.alien_race} colony in Sector ${planet.sector_number} destroyed by ${player.username}!`,
+          {
+            alienRace: planet.alien_race,
+            sectorNumber: planet.sector_number,
+            relatedPlayerId: playerId,
+            relatedPlanetId: planetId
+          }
+        );
+      } else if (combatSim.winner === 'alien') {
+        await broadcastAlienMessage(player.universe_id, 'combat',
+          `⚔️ ${planet.alien_race} colony in Sector ${planet.sector_number} repelled attack by ${player.username}`,
+          {
+            alienRace: planet.alien_race,
+            sectorNumber: planet.sector_number,
+            relatedPlayerId: playerId,
+            relatedPlanetId: planetId
+          }
+        );
+      }
+    } catch (broadcastError) {
+      // Don't fail the whole attack if broadcast fails
+      console.error('[AlienPlanet] broadcast failed:', broadcastError);
+    }
+
     return combatResult;
 
   } catch (error) {
