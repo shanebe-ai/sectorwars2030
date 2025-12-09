@@ -4,7 +4,7 @@ import { recordEncounter } from '../services/messageService';
 import { autoLogSector } from '../services/shipLogService';
 import { emitSectorEvent } from '../index';
 import { checkMinesOnEntry } from '../services/mineService';
-import { getAlienShipsInSector, getAlienPlanetInSector, unlockAlienComms, broadcastAlienMessage } from '../services/alienService';
+import { getAlienShipsInSector, getAlienPlanetInSector, unlockAlienComms } from '../services/alienService';
 
 /**
  * Get sector details including warps

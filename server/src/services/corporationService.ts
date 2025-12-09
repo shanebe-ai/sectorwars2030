@@ -124,7 +124,7 @@ async function sendCorporateBroadcast(
   );
 
   // Emit websocket event so COMMS badge updates
-  if (corpUniverseId !== null && insertResult.rowCount > 0) {
+  if (corpUniverseId !== null && corpUniverseId !== undefined && insertResult.rowCount > 0) {
     emitUniverseEvent(corpUniverseId, 'new_broadcast', {
       sender: corpName || 'CORPORATE',
       subject: 'Corporate Update',

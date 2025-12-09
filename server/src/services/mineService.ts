@@ -302,6 +302,9 @@ export const checkMinesOnEntry = async (
     fightersLost = Math.min(currentFighters, remainingDamage);
     currentFighters = Math.max(0, currentFighters - fightersLost);
 
+    // Check if player was destroyed
+    const playerDestroyed = currentFighters <= 0;
+
     // Update player
     await client.query(
       `UPDATE players SET ship_shields = $1, ship_fighters = $2 WHERE id = $3`,
@@ -326,13 +329,25 @@ export const checkMinesOnEntry = async (
 
     await client.query('COMMIT');
 
+    // Broadcast TNN if player was destroyed by mines
+    if (playerDestroyed) {
+      const { broadcastTNN } = require('./broadcastService');
+      const mineOwnersList = [...new Set(triggeredMines.map(m => m.ownerName))].join(', ');
+      await broadcastTNN(
+        universeId,
+        '💥 Ship Destroyed by Mines',
+        `${player.username} (${player.corp_name}) was destroyed by a minefield in Sector ${sectorNumber}! Mines deployed by: ${mineOwnersList}`
+      );
+    }
+
     // Emit event
     emitSectorEvent(universeId, sectorNumber, 'mines_exploded', {
       playerName: player.corp_name,
       totalDamage,
       shieldsLost,
       fightersLost,
-      minesDestroyed
+      minesDestroyed,
+      playerDestroyed
     });
 
     const mineOwners = triggeredMines.map(m => `${m.ownerName} (${m.count})`).join(', ');

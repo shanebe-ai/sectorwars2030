@@ -310,34 +310,6 @@ export async function hasAlienComms(playerId: number): Promise<boolean> {
 /**
  * Broadcast alien communication message
  */
-export async function broadcastAlienMessage(
-  universeId: number,
-  messageType: string,
-  message: string,
-  options: {
-    alienRace?: string;
-    sectorNumber?: number;
-    relatedPlayerId?: number;
-    relatedShipId?: number;
-    relatedPlanetId?: number;
-  } = {}
-): Promise<void> {
-  await pool.query(`
-    INSERT INTO alien_communications (
-      universe_id, alien_race, message_type, message,
-      sector_number, related_player_id, related_ship_id
-    )
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
-  `, [
-    universeId,
-    options.alienRace || null,
-    messageType,
-    message,
-    options.sectorNumber || null,
-    options.relatedPlayerId || null,
-    options.relatedShipId || options.relatedPlanetId || null
-  ]);
-}
 
 /**
  * Get alien communications for a player (if unlocked)
@@ -465,7 +437,8 @@ export async function moveAlienShips(universeId: number): Promise<void> {
         `, [newFighters, newShields, ship.id]);
 
         // Broadcast mine explosion
-        await broadcastAlienMessage(universeId, 'combat',
+        const { broadcastAlienComms } = require('./broadcastService');
+        await broadcastAlienComms(universeId, 'combat',
           `💥 ${ship.alien_race} vessel "${ship.ship_name}" triggered ${mineResult.minesDestroyed} mines in Sector ${nextSector}! Damage: ${mineResult.totalDamage}`,
           {
             alienRace: ship.alien_race,
@@ -477,7 +450,8 @@ export async function moveAlienShips(universeId: number): Promise<void> {
         // If alien was destroyed by mines, delete it
         if (newFighters <= 0) {
           await client.query(`DELETE FROM alien_ships WHERE id = $1`, [ship.id]);
-          await broadcastAlienMessage(universeId, 'combat',
+          const { broadcastAlienComms } = require('./broadcastService');
+          await broadcastAlienComms(universeId, 'combat',
             `💀 ${ship.alien_race} vessel "${ship.ship_name}" DESTROYED by mines in Sector ${nextSector}!`,
             {
               alienRace: ship.alien_race,
@@ -494,7 +468,7 @@ export async function moveAlienShips(universeId: number): Promise<void> {
 
       if (hostileFighters.length > 0) {
         // Alien encounters deployed fighters - decide to fight or flee
-        const totalHostileFighters = hostileFighters.reduce((sum, f) => sum + f.fighterCount, 0);
+        const totalHostileFighters = hostileFighters.reduce((sum: number, f: any) => sum + f.fighterCount, 0);
         const alienStrength = ship.fighters + ship.shields;
         const fighterStrength = totalHostileFighters;
 
@@ -517,7 +491,8 @@ export async function moveAlienShips(universeId: number): Promise<void> {
             ]);
           }
 
-          await broadcastAlienMessage(universeId, 'combat',
+          const { broadcastAlienComms } = require('./broadcastService');
+          await broadcastAlienComms(universeId, 'combat',
             `🛡️ ${ship.alien_race} vessel "${ship.ship_name}" RETREATED from deployed fighters in Sector ${nextSector}`,
             {
               alienRace: ship.alien_race,
@@ -555,7 +530,8 @@ export async function moveAlienShips(universeId: number): Promise<void> {
             // If alien was destroyed, stop processing
             if (ship.fighters <= 0) {
               await client.query(`DELETE FROM alien_ships WHERE id = $1`, [ship.id]);
-              await broadcastAlienMessage(universeId, 'combat',
+              const { broadcastAlienComms } = require('./broadcastService');
+              await broadcastAlienComms(universeId, 'combat',
                 `⚔️ ${ship.alien_race} vessel "${ship.ship_name}" DESTROYED by deployed fighters in Sector ${nextSector}!`,
                 {
                   alienRace: ship.alien_race,
@@ -574,7 +550,8 @@ export async function moveAlienShips(universeId: number): Promise<void> {
 
       // Broadcast movement to alien comms (only sometimes to avoid spam)
       if (Math.random() < 0.3) { // 30% chance to broadcast movement
-        await broadcastAlienMessage(universeId, 'sector_entry',
+        const { broadcastAlienComms } = require('./broadcastService');
+        await broadcastAlienComms(universeId, 'sector_entry',
           `${ship.alien_race} vessel "${ship.ship_name}" detected entering Sector ${nextSector}`,
           {
             alienRace: ship.alien_race,
@@ -593,7 +570,8 @@ export async function moveAlienShips(universeId: number): Promise<void> {
       `, [universeId, nextSector]);
 
       for (const player of playersInSector.rows) {
-        await broadcastAlienMessage(universeId, 'encounter',
+        const { broadcastAlienComms } = require('./broadcastService');
+        await broadcastAlienComms(universeId, 'encounter',
           `Encounter detected: ${player.username} (${player.corp_name || 'Independent'}) and ${ship.ship_name} in Sector ${nextSector}`,
           {
             alienRace: ship.alien_race,
@@ -944,19 +922,54 @@ export async function attackAlienShip(
     combatResult.success = true;
 
     // Broadcast alien comms AFTER commit to avoid transaction deadlocks
-    if (combatResult.alienDestroyed) {
-      try {
-        await broadcastAlienMessage(alien.universe_id, 'combat',
+    // Always broadcast alien interactions for realistic alien chatter
+    try {
+      const { broadcastAlienComms } = require('./broadcastService');
+
+      if (combatResult.alienDestroyed) {
+        await broadcastAlienComms(alien.universe_id, 'combat',
           `⚠️ ALERT: ${alien.alien_race} vessel "${alien.ship_name}" destroyed by ${player.username} in Sector ${player.current_sector}!`,
           {
             alienRace: alien.alien_race,
             sectorNumber: player.current_sector,
-            relatedPlayerId: playerId
+            relatedPlayerId: playerId,
+            relatedShipId: alienShipId
           }
         );
-      } catch (broadcastError) {
-        console.error('[AlienShip] broadcast failed:', broadcastError);
+      } else if (combatResult.playerDestroyed) {
+        await broadcastAlienComms(alien.universe_id, 'combat',
+          `🎯 ${alien.alien_race} vessel "${alien.ship_name}" repelled attack by ${player.username} in Sector ${player.current_sector}`,
+          {
+            alienRace: alien.alien_race,
+            sectorNumber: player.current_sector,
+            relatedPlayerId: playerId,
+            relatedShipId: alienShipId
+          }
+        );
+      } else {
+        // Draw - both survived
+        await broadcastAlienComms(alien.universe_id, 'combat',
+          `⚔️ ${alien.alien_race} vessel "${alien.ship_name}" engaged in combat with ${player.username} in Sector ${player.current_sector} - both survived`,
+          {
+            alienRace: alien.alien_race,
+            sectorNumber: player.current_sector,
+            relatedPlayerId: playerId,
+            relatedShipId: alienShipId
+          }
+        );
       }
+
+      // TNN broadcast if player was destroyed
+      if (combatResult.playerDestroyed) {
+        const { broadcastTNN } = require('./broadcastService');
+        await broadcastTNN(
+          alien.universe_id,
+          '💀 Ship Destroyed',
+          `${player.username} (${player.corp_name}) was destroyed by ${alien.alien_race} vessel "${alien.ship_name}" in Sector ${player.current_sector}`
+        );
+      }
+    } catch (broadcastError) {
+      console.error('[AlienShip] broadcast failed:', broadcastError);
     }
 
     return combatResult;
@@ -1185,8 +1198,9 @@ async function alienAttacksPlayer(
 
     // Broadcast alien comms AFTER commit to avoid transaction deadlocks
     try {
+      const { broadcastAlienComms } = require('./broadcastService');
       if (combatResult.alienDestroyed) {
-        await broadcastAlienMessage(alien.universe_id, 'combat',
+        await broadcastAlienComms(alien.universe_id, 'combat',
           `⚠️ ${alien.alien_race} vessel "${alien.ship_name}" destroyed by ${player.username} in self-defense (Sector ${player.current_sector})`,
           {
             alienRace: alien.alien_race,
@@ -1195,7 +1209,7 @@ async function alienAttacksPlayer(
           }
         );
       } else {
-        await broadcastAlienMessage(alien.universe_id, 'combat',
+        await broadcastAlienComms(alien.universe_id, 'combat',
           `⚔️ ${alien.alien_race} vessel "${alien.ship_name}" engaged ${player.username} in combat (Sector ${player.current_sector})`,
           {
             alienRace: alien.alien_race,
@@ -1454,9 +1468,12 @@ export async function attackAlienPlanet(
     combatResult.success = true;
 
     // Broadcast alien comms AFTER commit to avoid transaction deadlocks
+    // Always broadcast alien interactions for realistic alien chatter
     try {
+      const { broadcastAlienComms, broadcastTNN } = require('./broadcastService');
+
       if (combatSim.winner === 'player') {
-        await broadcastAlienMessage(player.universe_id, 'combat',
+        await broadcastAlienComms(player.universe_id, 'combat',
           `🔥 ${planet.alien_race} colony in Sector ${planet.sector_number} destroyed by ${player.username}!`,
           {
             alienRace: planet.alien_race,
@@ -1466,8 +1483,26 @@ export async function attackAlienPlanet(
           }
         );
       } else if (combatSim.winner === 'alien') {
-        await broadcastAlienMessage(player.universe_id, 'combat',
+        await broadcastAlienComms(player.universe_id, 'combat',
           `⚔️ ${planet.alien_race} colony in Sector ${planet.sector_number} repelled attack by ${player.username}`,
+          {
+            alienRace: planet.alien_race,
+            sectorNumber: planet.sector_number,
+            relatedPlayerId: playerId,
+            relatedPlanetId: planetId
+          }
+        );
+
+        // TNN broadcast if player was destroyed
+        await broadcastTNN(
+          player.universe_id,
+          '💀 Ship Destroyed',
+          `${player.username} (${player.corp_name}) was destroyed attacking ${planet.alien_race} colony in Sector ${planet.sector_number}`
+        );
+      } else {
+        // Draw
+        await broadcastAlienComms(player.universe_id, 'combat',
+          `⚔️ ${planet.alien_race} colony in Sector ${planet.sector_number} engaged in battle with ${player.username} - both forces withdrew`,
           {
             alienRace: planet.alien_race,
             sectorNumber: planet.sector_number,
@@ -1656,7 +1691,6 @@ export default {
   getAlienPlanetInSector,
   unlockAlienComms,
   hasAlienComms,
-  broadcastAlienMessage,
   getAlienCommunications,
   moveAlienShips,
   moveAllAlienShips,

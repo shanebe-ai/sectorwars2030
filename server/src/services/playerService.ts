@@ -150,6 +150,21 @@ export const createPlayer = async ({
       await recordEncounter(otherPlayer.id, newPlayer.id, universeId);
     }
 
+    // Broadcast TNN welcome message for new player
+    try {
+      const { broadcastTNN } = require('./broadcastService');
+      const userResult = await query('SELECT username FROM users WHERE id = $1', [userId]);
+      const username = userResult.rows[0]?.username || 'Unknown';
+
+      await broadcastTNN(
+        universeId,
+        '🌟 New Commander Arrives',
+        `Welcome ${username} to the universe! Commander of ${corpName}, piloting a ${universe.starting_ship_type} in Sector ${startingSector}.`
+      );
+    } catch (broadcastError) {
+      console.error('[PlayerCreation] TNN broadcast failed:', broadcastError);
+    }
+
     return newPlayer;
   } catch (error: any) {
     await client.query('ROLLBACK');
