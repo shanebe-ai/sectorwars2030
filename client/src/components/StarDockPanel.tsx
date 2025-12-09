@@ -72,6 +72,8 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
   const [beaconInfo, setBeaconInfo] = useState<{ price: number; currentCount: number; maxCapacity: number } | null>(null);
   const [mineQty, setMineQty] = useState(0);
   const [mineInfo, setMineInfo] = useState<{ price: number; currentCount: number; maxCapacity: number } | null>(null);
+  const [genesisQty, setGenesisQty] = useState(0);
+  const [genesisInfo, setGenesisInfo] = useState<{ price: number; currentGenesis: number; maxGenesis: number } | null>(null);
 
   // Banking state
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
@@ -89,6 +91,7 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
     loadStardockInfo();
     loadBeaconInfo();
     loadMineInfo();
+    loadGenesisInfo();
   }, [sectorNumber]);
 
   const loadStardockInfo = async () => {
@@ -203,11 +206,11 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
 
   const purchaseMines = async () => {
     if (mineQty <= 0) return;
-    
+
     setPurchasing(true);
     setMessage('');
     setError('');
-    
+
     try {
       const response = await fetch(`${API_URL}/api/mines/purchase`, {
         method: 'POST',
@@ -217,9 +220,9 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
         },
         body: JSON.stringify({ quantity: mineQty })
       });
-      
+
       const data = await response.json();
-      
+
       if (response.ok) {
         setMessage(data.message);
         setMineQty(0);
@@ -228,6 +231,59 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
         onPurchase(data.player);
       } else {
         setError(data.error || 'Failed to purchase mines');
+      }
+    } catch (err) {
+      setError('Network error');
+    } finally {
+      setPurchasing(false);
+    }
+  };
+
+  const loadGenesisInfo = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/genesis/info`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setGenesisInfo(data);
+      } else {
+        console.error('Failed to load genesis info:', data.error);
+        setGenesisInfo({ price: 50000, currentGenesis: 0, maxGenesis: 0 });
+      }
+    } catch (err) {
+      console.error('Failed to load genesis info:', err);
+      setGenesisInfo({ price: 50000, currentGenesis: 0, maxGenesis: 0 });
+    }
+  };
+
+  const purchaseGenesis = async () => {
+    if (genesisQty <= 0) return;
+
+    setPurchasing(true);
+    setMessage('');
+    setError('');
+
+    try {
+      const response = await fetch(`${API_URL}/api/genesis/purchase`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ quantity: genesisQty })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setMessage(data.message);
+        setGenesisQty(0);
+        loadStardockInfo();
+        loadGenesisInfo();
+        onPurchase(data.player);
+      } else {
+        setError(data.error || 'Failed to purchase genesis torpedoes');
       }
     } catch (err) {
       setError('Network error');
@@ -1098,9 +1154,9 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
                         BUY (₡{(mineQty * mineInfo.price).toLocaleString()})
                       </button>
                     </div>
-                    <div style={{ 
-                      marginTop: '10px', 
-                      fontSize: '11px', 
+                    <div style={{
+                      marginTop: '10px',
+                      fontSize: '11px',
                       color: 'rgba(255,255,255,0.5)',
                       fontStyle: 'italic'
                     }}>
@@ -1117,6 +1173,112 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
                     textAlign: 'center'
                   }}>
                     Your current ship cannot carry mines. Upgrade to a Trader or larger ship.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Genesis Torpedoes */}
+            {genesisInfo && (
+              <div style={{
+                padding: '20px',
+                background: 'rgba(0, 0, 0, 0.3)',
+                border: '1px solid rgba(138, 43, 226, 0.3)'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '15px'
+                }}>
+                  <div>
+                    <div style={{ color: 'var(--neon-purple)', fontWeight: 'bold', fontSize: '16px' }}>
+                      🌍 GENESIS TORPEDOES
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
+                      Create new planets anywhere in the universe
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ color: 'var(--neon-yellow)', fontWeight: 'bold' }}>
+                      ₡{genesisInfo.price.toLocaleString()}/each
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>
+                      Current: {genesisInfo.currentGenesis}/{genesisInfo.maxGenesis}
+                    </div>
+                  </div>
+                </div>
+                {genesisInfo.maxGenesis > 0 ? (
+                  <>
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      <input
+                        type="number"
+                        value={genesisQty || ''}
+                        onChange={e => setGenesisQty(Math.max(0, Math.min(genesisInfo.maxGenesis - genesisInfo.currentGenesis, parseInt(e.target.value) || 0)))}
+                        placeholder="Quantity..."
+                        min="0"
+                        max={genesisInfo.maxGenesis - genesisInfo.currentGenesis}
+                        style={{
+                          flex: 1,
+                          padding: '10px',
+                          background: 'rgba(0, 0, 0, 0.5)',
+                          border: '1px solid var(--neon-purple)',
+                          color: 'var(--neon-purple)',
+                          fontFamily: 'monospace'
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          const maxCanBuy = genesisInfo.maxGenesis - genesisInfo.currentGenesis;
+                          const maxAffordable = Math.floor((stardock?.player.credits || 0) / genesisInfo.price);
+                          setGenesisQty(Math.min(maxCanBuy, maxAffordable));
+                        }}
+                        style={{
+                          padding: '10px 15px',
+                          background: 'rgba(138, 43, 226, 0.2)',
+                          border: '1px solid var(--neon-purple)',
+                          color: 'var(--neon-purple)',
+                          cursor: 'pointer',
+                          fontFamily: 'monospace'
+                        }}
+                      >
+                        MAX
+                      </button>
+                      <button
+                        onClick={purchaseGenesis}
+                        disabled={purchasing || genesisQty <= 0}
+                        style={{
+                          padding: '10px 20px',
+                          background: genesisQty > 0 ? 'rgba(138, 43, 226, 0.2)' : 'rgba(100, 100, 100, 0.2)',
+                          border: `1px solid ${genesisQty > 0 ? 'var(--neon-purple)' : '#666'}`,
+                          color: genesisQty > 0 ? 'var(--neon-purple)' : '#666',
+                          cursor: genesisQty > 0 ? 'pointer' : 'not-allowed',
+                          fontFamily: 'monospace',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        BUY (₡{(genesisQty * genesisInfo.price).toLocaleString()})
+                      </button>
+                    </div>
+                    <div style={{
+                      marginTop: '10px',
+                      fontSize: '11px',
+                      color: 'rgba(255,255,255,0.5)',
+                      fontStyle: 'italic'
+                    }}>
+                      Capacity: Scout (5) • Medium ships (10-15) • Corporate Flagship (25)
+                    </div>
+                  </>
+                ) : (
+                  <div style={{
+                    padding: '15px',
+                    background: 'rgba(100, 100, 100, 0.2)',
+                    border: '1px solid #666',
+                    color: '#999',
+                    fontSize: '13px',
+                    textAlign: 'center'
+                  }}>
+                    Your current ship cannot carry genesis torpedoes. Upgrade to a Scout or larger ship.
                   </div>
                 )}
               </div>

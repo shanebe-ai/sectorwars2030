@@ -22,6 +22,7 @@ import sectorFighterRoutes from './routes/sectorFighters';
 import mineRoutes from './routes/mines';
 import alienRoutes from './routes/alien';
 import corporationRoutes from './routes/corporation';
+import genesisRoutes from './routes/genesis';
 import { startPortRegeneration } from './services/portService';
 import { startFighterMaintenance } from './services/maintenanceService';
 import { startAlienShipMovement, startAlienAggression } from './services/alienService';
@@ -137,6 +138,9 @@ app.use('/api/aliens', alienRoutes);
 
 // Corporation routes (corp management)
 app.use('/api/corporations', corporationRoutes);
+
+// Genesis routes (genesis torpedoes)
+app.use('/api/genesis', genesisRoutes);
 
 // WebSocket connection handling
 io.on('connection', (socket) => {
