@@ -996,7 +996,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
 
       if (response.ok) {
         setAlienCombatResult(data);
-        loadSectorDetails();
+        // Don't reload sector immediately - wait for user to close combat panel
 
         // Refresh player data
         const playerResponse = await fetch(`${API_URL}/api/players/${player.id}`, {
@@ -1046,9 +1046,8 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
 
       if (response.ok) {
         setAlienCombatResult(data);
-        loadSectorDetails();
 
-        // Refresh player data
+        // Refresh player data (without reloading sector to avoid clearing combat result)
         const playerResponse = await fetch(`${API_URL}/api/players/${player.id}`, {
           headers: { 'Authorization': `Bearer ${token}` },
         });
@@ -1056,6 +1055,8 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
           const playerData = await playerResponse.json();
           onSectorChange(playerData.player);
         }
+
+        // Sector will be reloaded when user closes the combat panel
       } else {
         setError(data.error || 'Failed to attack alien planet');
       }
@@ -1507,7 +1508,10 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
             )}
 
             <button
-              onClick={() => setAlienCombatResult(null)}
+              onClick={() => {
+                setAlienCombatResult(null);
+                loadSectorDetails(); // Reload sector after closing combat result
+              }}
               style={{
                 width: '100%',
                 padding: '12px',
