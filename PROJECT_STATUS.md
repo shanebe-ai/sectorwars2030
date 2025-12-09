@@ -1157,6 +1157,28 @@ When implementing new features:
     - **Real-time Updates:** Ship status (fighters) updates immediately on deploy/retrieve
     - **State Management:** Improved parent-child state synchronization for instant UI updates
 
+**Notification & Broadcasting System (NEW!):**
+- ✅ **Centralized Broadcast Service** ([server/src/services/broadcastService.ts](server/src/services/broadcastService.ts)):
+  - `broadcastTNN()` - TerraCorp News Network broadcasts for public events
+  - `broadcastAlienComms()` - Alien Communications for alien-related events
+  - Both functions handle database insertion and WebSocket real-time events
+  - Replaces old scattered broadcasting code with consistent API
+- ✅ **TNN Broadcasts (TerraCorp News Network):**
+  - Player ship destruction by mines (with mine owner names)
+  - Player ship destruction by alien ships
+  - Player ship destruction by alien planets
+  - New player welcome messages when joining universe
+- ✅ **Alien Communications Broadcasts:**
+  - Alien ship combat (destroyed, player destroyed, draw)
+  - Alien planet combat (destroyed, player destroyed, draw)
+  - Alien ships triggering mines (with damage details)
+  - Alien ships destroyed by mines
+  - Alien ships retreating from deployed fighters
+  - Alien ships attacking deployed fighters
+  - Alien ship destroyed by deployed fighters
+  - Alien ship movement (30% chance to avoid spam)
+  - Player/alien encounter detection
+
 **Current Session (2025-12-09):**
 - ✅ **Alien Attack Hang Fix (CRITICAL - FULLY RESOLVED!):**
   - **Root Cause #1:** API_URL in client config had `/api` suffix, causing double `/api/api/...` paths
@@ -1222,6 +1244,34 @@ When implementing new features:
   - **Fixed:** Moved sector reload to AFTER user closes combat panel
   - Applied to both alien ship and alien planet attacks
   - Combat results now stay visible until user dismisses them
+- ✅ **Comprehensive Notification System (2025-12-09):**
+  - **Created [broadcastService.ts](server/src/services/broadcastService.ts)** with centralized helpers:
+    - `broadcastTNN()` - Public news broadcasts (ship destructions, new players)
+    - `broadcastAlienComms()` - Alien activity monitoring (combat, movement, encounters)
+  - **Replaced all legacy broadcasting:**
+    - Removed old `broadcastAlienMessage()` function from alienService
+    - Updated all 8+ broadcast callsites to use new centralized service
+    - Cleaned up unused imports from sectorController
+  - **TNN Broadcasts Added:**
+    - Player ship destroyed by mines → TNN with mine owner names
+    - Player ship destroyed by alien ships → TNN with alien race/name
+    - Player ship destroyed by alien planets → TNN with planet location
+    - New player joins universe → TNN welcome announcement
+  - **Alien Comms Broadcasts Added:**
+    - All alien ship combat (destroyed, player destroyed, draw)
+    - All alien planet combat (victory, defeat, draw)
+    - Alien ship hits mines (with damage report)
+    - Alien ship destroyed by mines
+    - Alien ship retreats from deployed fighters
+    - Alien ship attacks deployed fighters
+    - Alien ship destroyed by deployed fighters
+    - Alien movement into sectors (30% chance)
+    - Player/alien encounters in sectors
+  - **Code Quality:**
+    - Fixed TypeScript errors in alienService and corporationService
+    - Removed code duplication across services
+    - Consistent broadcast patterns throughout codebase
+  - **Result:** Players are now fully informed of all universe activity through appropriate channels!
 
 **Mine Mechanics (Current Behavior):**
 - ✅ **Corp Safety:** Corporation members are SAFE from each other's mines
