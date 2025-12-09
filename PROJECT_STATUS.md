@@ -774,14 +774,14 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - **BBB** - Buys all (rare, good for dumping cargo)
 
 ### Ship Progression
-| Ship | Holds | Fighters | Shields | Cost | Trade-in (70%) |
-|------|-------|----------|---------|------|----------------|
-| Escape Pod | 5 | 0 | 0 | ₡0 | ₡0 |
-| Scout | 20 | 10 | 10 | ₡10,000 | ₡7,000 |
-| Trader | 60 | 20 | 20 | ₡50,000 | ₡35,000 |
-| Freighter | 125 | 40 | 40 | ₡125,000 | ₡87,500 |
-| Merchant Cruiser | 250 | 80 | 80 | ₡250,000 | ₡175,000 |
-| Corporate Flagship | 500 | 150 | 150 | ₡500,000 | ₡350,000 |
+| Ship | Holds | Fighters | Shields | Mines | Beacons | Cost | Trade-in (70%) |
+|------|-------|----------|---------|-------|---------|------|----------------|
+| Escape Pod | 5 | 0 | 0 | 0 | 0 | ₡0 | ₡0 |
+| Scout | 20 | 10 | 10 | 5 | 10 | ₡10,000 | ₡7,000 |
+| Trader | 60 | 20 | 20 | 10 | 15 | ₡50,000 | ₡35,000 |
+| Freighter | 125 | 75 | 75 | 35 | 25 | ₡125,000 | ₡87,500 |
+| Merchant Cruiser | 250 | 150 | 150 | 75 | 35 | ₡250,000 | ₡175,000 |
+| Corporate Flagship | 500 | 300 | 300 | 150 | 50 | ₡500,000 | ₡350,000 |
 
 ### Economy Balance (Tuned 2025-12-02)
 
@@ -1184,6 +1184,24 @@ When implementing new features:
     - [server/src/services/pathfindingService.ts](server/src/services/pathfindingService.ts): Added alien planet/ship detection to path sectors
     - [client/src/components/SectorView.tsx](client/src/components/SectorView.tsx#L1092): Auto-pause at alien points of interest
   - **Result:** Alien attacks now work perfectly! No more hangs, no more sector locks, all transactions complete cleanly!
+- ✅ **Ship Balance Adjustments:**
+  - **Removed duplicate "scout"** - Deleted lowercase scout with no mines/beacons
+  - **Corporate Flagship buff** - Now a true endgame ship:
+    - Fighters: 150 → 300 (2x increase)
+    - Shields: 150 → 300 (2x increase)
+    - Mines: 80 → 150 (nearly 2x)
+    - Beacons: 30 → 50 (significant increase)
+  - **Merchant Cruiser buff** - Better progression:
+    - Fighters: 80 → 150 (nearly 2x)
+    - Shields: 80 → 150 (nearly 2x)
+    - Mines: 40 → 75 (nearly 2x)
+    - Beacons: 25 → 35
+  - **Freighter buff** - More viable for combat:
+    - Fighters: 40 → 75 (nearly 2x)
+    - Shields: 40 → 75 (nearly 2x)
+    - Mines: 20 → 35 (better zone control)
+    - Beacons: 20 → 25
+  - **Design Goal:** Corporate Flagship now feels like a powerful warship worth ₡500K
 
 **Previous Session (2025-12-04):**
 - ✅ **Player Creation Bug Fixes:**
