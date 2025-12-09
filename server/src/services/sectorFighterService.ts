@@ -726,3 +726,130 @@ export const chargeFighterMaintenance = async (): Promise<{
   }
 };
 
+/**
+ * Get hostile deployed fighters for an alien ship entering a sector
+ * Returns all fighter deployments in the sector (aliens are hostile to all players)
+ */
+export const getHostileFightersForAlien = async (
+  alienShipId: number,
+  universeId: number,
+  sectorNumber: number
+): Promise<Array<{ id: number; ownerId: number; ownerName: string; fighterCount: number }>> => {
+  const result = await query(
+    `SELECT sf.id, sf.owner_id as "ownerId", p.corp_name || ' (' || u.username || ')' as "ownerName", sf.fighter_count as "fighterCount"
+     FROM sector_fighters sf
+     JOIN players p ON sf.owner_id = p.id
+     JOIN users u ON p.user_id = u.id
+     WHERE sf.universe_id = $1 AND sf.sector_number = $2 AND sf.fighter_count > 0
+     ORDER BY sf.fighter_count DESC`,
+    [universeId, sectorNumber]
+  );
+
+  return result.rows;
+};
+
+/**
+ * Alien ship attacks deployed fighters
+ * Simple combat - alien loses shields/fighters, deployment loses fighters
+ */
+export const alienAttackDeployedFighters = async (
+  alienShipId: number,
+  deploymentId: number,
+  universeId: number,
+  sectorNumber: number
+): Promise<{
+  fightersDestroyed: number;
+  fightersRemaining: number;
+  alienFightersLost: number;
+  alienShieldsLost: number;
+  alienFightersRemaining: number;
+  alienShieldsRemaining: number;
+}> => {
+  const client = await getClient();
+
+  try {
+    await client.query('BEGIN');
+
+    // Get alien ship stats
+    const alienResult = await client.query(
+      `SELECT fighters, shields FROM alien_ships WHERE id = $1 FOR UPDATE`,
+      [alienShipId]
+    );
+
+    if (alienResult.rows.length === 0) {
+      throw new Error('Alien ship not found');
+    }
+
+    const alien = alienResult.rows[0];
+
+    // Get fighter deployment
+    const deploymentResult = await client.query(
+      `SELECT fighter_count, owner_id FROM sector_fighters WHERE id = $1 FOR UPDATE`,
+      [deploymentId]
+    );
+
+    if (deploymentResult.rows.length === 0) {
+      throw new Error('Fighter deployment not found');
+    }
+
+    const deployment = deploymentResult.rows[0];
+
+    // Simple combat: each side deals damage equal to their fighter count
+    const alienDamage = alien.fighters;
+    const fighterDamage = deployment.fighter_count;
+
+    // Fighters take damage first (no shields)
+    const fightersDestroyed = Math.min(deployment.fighter_count, alienDamage);
+    const fightersRemaining = deployment.fighter_count - fightersDestroyed;
+
+    // Alien takes damage - shields first, then fighters
+    let alienShieldsLost = 0;
+    let alienFightersLost = 0;
+    let remainingDamage = fighterDamage;
+
+    if (alien.shields > 0) {
+      alienShieldsLost = Math.min(alien.shields, remainingDamage);
+      remainingDamage -= alienShieldsLost;
+    }
+
+    if (remainingDamage > 0) {
+      alienFightersLost = Math.min(alien.fighters, remainingDamage);
+    }
+
+    const alienFightersRemaining = alien.fighters - alienFightersLost;
+    const alienShieldsRemaining = alien.shields - alienShieldsLost;
+
+    // Update fighter deployment
+    if (fightersRemaining > 0) {
+      await client.query(
+        `UPDATE sector_fighters SET fighter_count = $1 WHERE id = $2`,
+        [fightersRemaining, deploymentId]
+      );
+    } else {
+      await client.query(`DELETE FROM sector_fighters WHERE id = $1`, [deploymentId]);
+    }
+
+    // Update alien ship
+    await client.query(
+      `UPDATE alien_ships SET fighters = $1, shields = $2 WHERE id = $3`,
+      [alienFightersRemaining, alienShieldsRemaining, alienShipId]
+    );
+
+    await client.query('COMMIT');
+
+    return {
+      fightersDestroyed,
+      fightersRemaining,
+      alienFightersLost,
+      alienShieldsLost,
+      alienFightersRemaining,
+      alienShieldsRemaining
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+

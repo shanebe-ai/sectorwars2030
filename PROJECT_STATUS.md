@@ -1226,9 +1226,24 @@ When implementing new features:
   - 150 base damage per mine (50-150% variance = 75-225 damage)
   - Shields absorb damage first, then fighters take damage
   - Mines are destroyed when they explode
-- ❌ **Alien Limitation:** Aliens currently DO NOT trigger mines
-  - `moveAlienShips()` has no mine checking logic
-  - Future enhancement: Add mine checks for alien movement
+- ✅ **Alien Triggering:** Aliens NOW trigger mines when moving!
+  - Same mechanics as players (20-90% explosion chance, 75-225 damage)
+  - Aliens can be destroyed by mines
+  - Mine owner gets notification via alien communications channel
+
+**Alien vs Deployed Fighters (NEW!):**
+- ✅ **Aliens Encounter Deployed Fighters:**
+  - When alien moves into sector with deployed fighters, they evaluate the threat
+  - **Flee Decision:** If alien strength < 50% of fighter strength, alien RETREATS
+    - Alien returns to previous sector
+    - Fighter owner gets notification: "Alien Retreat - Sector X"
+  - **Fight Decision:** If alien is strong enough, they ATTACK
+    - Simple combat: Each side deals damage equal to their fighter count
+    - Fighters destroyed, alien loses shields/fighters
+    - Fighter owner gets detailed combat report via inbox
+  - **Notifications:** Owner is alerted whether alien retreats OR attacks
+  - **Multiple Deployments:** Alien fights each deployment one by one
+  - Aliens can be destroyed by deployed fighters
 
 **Previous Session (2025-12-04):**
 - ✅ **Player Creation Bug Fixes:**

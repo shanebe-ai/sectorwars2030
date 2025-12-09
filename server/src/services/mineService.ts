@@ -386,3 +386,133 @@ export const getMineInfo = async (playerId: number): Promise<{
   };
 };
 
+/**
+ * Check for mines when an alien ship enters a sector and trigger explosions
+ * Returns damage dealt to the alien ship
+ */
+export const checkMinesOnAlienEntry = async (
+  alienShipId: number,
+  universeId: number,
+  sectorNumber: number
+): Promise<{
+  triggered: boolean;
+  totalDamage: number;
+  shieldsLost: number;
+  fightersLost: number;
+  minesDestroyed: number;
+  message: string;
+}> => {
+  const client = await getClient();
+
+  try {
+    await client.query('BEGIN');
+
+    // Get alien ship data
+    const alienResult = await client.query(
+      `SELECT id, ship_name, alien_race, fighters, shields
+       FROM alien_ships WHERE id = $1 FOR UPDATE`,
+      [alienShipId]
+    );
+
+    if (alienResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return { triggered: false, totalDamage: 0, shieldsLost: 0, fightersLost: 0, minesDestroyed: 0, message: '' };
+    }
+
+    const alien = alienResult.rows[0];
+
+    // Get all mines in sector (aliens trigger ALL mines, regardless of owner)
+    const minesResult = await client.query(
+      `SELECT sm.id, sm.owner_id, sm.owner_name, sm.mine_count
+       FROM sector_mines sm
+       WHERE sm.universe_id = $1 AND sm.sector_number = $2 AND sm.mine_count > 0`,
+      [universeId, sectorNumber]
+    );
+
+    if (minesResult.rows.length === 0) {
+      await client.query('COMMIT');
+      return { triggered: false, totalDamage: 0, shieldsLost: 0, fightersLost: 0, minesDestroyed: 0, message: '' };
+    }
+
+    let totalDamage = 0;
+    let totalMinesDestroyed = 0;
+
+    // Process each mine deployment
+    for (const mine of minesResult.rows) {
+      const mineCount = mine.mine_count;
+      let minesDestroyedForThisDeployment = 0;
+
+      // Each mine has 20-90% chance to explode
+      for (let i = 0; i < mineCount; i++) {
+        const explosionChance = MINE_EXPLOSION_CHANCE_MIN +
+          Math.random() * (MINE_EXPLOSION_CHANCE_MAX - MINE_EXPLOSION_CHANCE_MIN);
+
+        if (Math.random() < explosionChance) {
+          // Mine explodes - calculate damage
+          const damageMultiplier = 0.5 + Math.random(); // 50-150% variance
+          const damage = Math.floor(MINE_DAMAGE_BASE * damageMultiplier);
+          totalDamage += damage;
+          minesDestroyedForThisDeployment++;
+          totalMinesDestroyed++;
+        }
+      }
+
+      // Update mine count for this deployment
+      if (minesDestroyedForThisDeployment > 0) {
+        const newMineCount = mineCount - minesDestroyedForThisDeployment;
+
+        if (newMineCount > 0) {
+          await client.query(
+            `UPDATE sector_mines SET mine_count = $1 WHERE id = $2`,
+            [newMineCount, mine.id]
+          );
+        } else {
+          await client.query(`DELETE FROM sector_mines WHERE id = $1`, [mine.id]);
+        }
+      }
+    }
+
+    if (totalDamage === 0) {
+      await client.query('COMMIT');
+      return {
+        triggered: true,
+        totalDamage: 0,
+        shieldsLost: 0,
+        fightersLost: 0,
+        minesDestroyed: 0,
+        message: 'Mines detected but none exploded'
+      };
+    }
+
+    // Apply damage to alien ship (shields first, then fighters)
+    let shieldsLost = 0;
+    let fightersLost = 0;
+    let remainingDamage = totalDamage;
+
+    if (alien.shields > 0) {
+      shieldsLost = Math.min(alien.shields, remainingDamage);
+      remainingDamage -= shieldsLost;
+    }
+
+    if (remainingDamage > 0 && alien.fighters > 0) {
+      fightersLost = Math.min(alien.fighters, remainingDamage);
+    }
+
+    await client.query('COMMIT');
+
+    return {
+      triggered: true,
+      totalDamage,
+      shieldsLost,
+      fightersLost,
+      minesDestroyed: totalMinesDestroyed,
+      message: `${totalMinesDestroyed} mines exploded for ${totalDamage} damage!`
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+

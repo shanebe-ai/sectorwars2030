@@ -451,6 +451,127 @@ export async function moveAlienShips(universeId: number): Promise<void> {
         WHERE id = $2
       `, [nextSector, ship.id]);
 
+      // Check for mines in the new sector
+      const mineService = require('./mineService');
+      const mineResult = await mineService.checkMinesOnAlienEntry(ship.id, universeId, nextSector);
+
+      if (mineResult.triggered && mineResult.totalDamage > 0) {
+        // Apply mine damage to alien ship
+        const newFighters = Math.max(0, ship.fighters - mineResult.fightersLost);
+        const newShields = Math.max(0, ship.shields - mineResult.shieldsLost);
+
+        await client.query(`
+          UPDATE alien_ships SET fighters = $1, shields = $2 WHERE id = $3
+        `, [newFighters, newShields, ship.id]);
+
+        // Broadcast mine explosion
+        await broadcastAlienMessage(universeId, 'combat',
+          `💥 ${ship.alien_race} vessel "${ship.ship_name}" triggered ${mineResult.minesDestroyed} mines in Sector ${nextSector}! Damage: ${mineResult.totalDamage}`,
+          {
+            alienRace: ship.alien_race,
+            sectorNumber: nextSector,
+            relatedShipId: ship.id
+          }
+        );
+
+        // If alien was destroyed by mines, delete it
+        if (newFighters <= 0) {
+          await client.query(`DELETE FROM alien_ships WHERE id = $1`, [ship.id]);
+          await broadcastAlienMessage(universeId, 'combat',
+            `💀 ${ship.alien_race} vessel "${ship.ship_name}" DESTROYED by mines in Sector ${nextSector}!`,
+            {
+              alienRace: ship.alien_race,
+              sectorNumber: nextSector
+            }
+          );
+          continue; // Skip to next ship
+        }
+      }
+
+      // Check for deployed fighters in the new sector
+      const fighterService = require('./sectorFighterService');
+      const hostileFighters = await fighterService.getHostileFightersForAlien(ship.id, universeId, nextSector);
+
+      if (hostileFighters.length > 0) {
+        // Alien encounters deployed fighters - decide to fight or flee
+        const totalHostileFighters = hostileFighters.reduce((sum, f) => sum + f.fighterCount, 0);
+        const alienStrength = ship.fighters + ship.shields;
+        const fighterStrength = totalHostileFighters;
+
+        // Aliens flee if significantly outmatched (less than 50% strength)
+        if (alienStrength < fighterStrength * 0.5) {
+          // Flee back to previous sector
+          await client.query(`
+            UPDATE alien_ships SET current_sector = $1 WHERE id = $2
+          `, [ship.current_sector, ship.id]); // Revert to old sector
+
+          // Notify fighter owners of retreat
+          for (const deployment of hostileFighters) {
+            await client.query(`
+              INSERT INTO messages (player_id, sender_name, subject, body, message_type, is_read)
+              VALUES ($1, 'SYSTEM', $2, $3, 'inbox', false)
+            `, [
+              deployment.ownerId,
+              `Alien Retreat - Sector ${nextSector}`,
+              `${ship.alien_race} vessel "${ship.ship_name}" retreated from your deployed fighters in Sector ${nextSector}!\n\nYour Fighters: ${deployment.fighterCount}\nAlien Strength: ${ship.fighters} fighters, ${ship.shields} shields`
+            ]);
+          }
+
+          await broadcastAlienMessage(universeId, 'combat',
+            `🛡️ ${ship.alien_race} vessel "${ship.ship_name}" RETREATED from deployed fighters in Sector ${nextSector}`,
+            {
+              alienRace: ship.alien_race,
+              sectorNumber: nextSector,
+              relatedShipId: ship.id
+            }
+          );
+          continue; // Skip to next ship
+        } else {
+          // Alien attacks the fighters
+          const combatService = require('./sectorFighterService');
+          for (const deployment of hostileFighters) {
+            const attackResult = await combatService.alienAttackDeployedFighters(
+              ship.id, deployment.id, universeId, nextSector
+            );
+
+            // Update alien ship with losses
+            ship.fighters = attackResult.alienFightersRemaining;
+            ship.shields = attackResult.alienShieldsRemaining;
+
+            // Notify fighter owner
+            await client.query(`
+              INSERT INTO messages (player_id, sender_name, subject, body, message_type, is_read)
+              VALUES ($1, 'SYSTEM', $2, $3, 'inbox', false)
+            `, [
+              deployment.ownerId,
+              `Fighters Under Attack - Sector ${nextSector}`,
+              `${ship.alien_race} vessel "${ship.ship_name}" attacked your deployed fighters in Sector ${nextSector}!\n\n` +
+              `Combat Result:\n` +
+              `Your Losses: ${attackResult.fightersDestroyed} fighters\n` +
+              `Alien Losses: ${attackResult.alienFightersLost} fighters, ${attackResult.alienShieldsLost} shields\n` +
+              `Surviving Fighters: ${attackResult.fightersRemaining}`
+            ]);
+
+            // If alien was destroyed, stop processing
+            if (ship.fighters <= 0) {
+              await client.query(`DELETE FROM alien_ships WHERE id = $1`, [ship.id]);
+              await broadcastAlienMessage(universeId, 'combat',
+                `⚔️ ${ship.alien_race} vessel "${ship.ship_name}" DESTROYED by deployed fighters in Sector ${nextSector}!`,
+                {
+                  alienRace: ship.alien_race,
+                  sectorNumber: nextSector
+                }
+              );
+              break; // Exit fighter loop
+            }
+          }
+
+          if (ship.fighters <= 0) {
+            continue; // Skip to next alien ship
+          }
+        }
+      }
+
       // Broadcast movement to alien comms (only sometimes to avoid spam)
       if (Math.random() < 0.3) { // 30% chance to broadcast movement
         await broadcastAlienMessage(universeId, 'sector_entry',
