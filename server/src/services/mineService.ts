@@ -360,14 +360,17 @@ export const checkMinesOnEntry = async (
       );
     }
 
-    // Emit event
+    // Emit event to sector (visible to all players in sector)
+    const uniqueMineOwners = triggeredMines.map(m => m.ownerName).filter((v, i, a) => a.indexOf(v) === i).join(', ');
     emitSectorEvent(universeId, sectorNumber, 'mines_exploded', {
       playerName: player.corp_name,
+      mineOwners: uniqueMineOwners,
       totalDamage,
       shieldsLost,
       fightersLost,
       minesDestroyed,
-      playerDestroyed
+      playerDestroyed,
+      message: `💥 ${player.corp_name} triggered ${minesDestroyed} mines! Lost ${shieldsLost} shields, ${fightersLost} fighters${playerDestroyed ? ' - SHIP DESTROYED!' : ''}`
     });
 
     const mineOwners = triggeredMines.map(m => `${m.ownerName} (${m.count})`).join(', ');
