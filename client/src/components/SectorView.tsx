@@ -1859,8 +1859,101 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                 )}
               </>
             )}
+            {/* Deploy Mines Button */}
+            {sector.region !== 'TerraSpace' && (player as any).shipMines > 0 && (
+              <>
+                {!showDeployMines ? (
+                  <button
+                    onClick={() => setShowDeployMines(true)}
+                    className="cyberpunk-button"
+                    style={{
+                      padding: '8px 12px',
+                      fontSize: '12px',
+                      background: 'rgba(255, 80, 0, 0.2)',
+                      borderColor: '#ff6b00',
+                      color: '#ff6b00',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    💣 DEPLOY MINES ({(player as any).shipMines} on ship)
+                  </button>
+                ) : (
+                  <div style={{
+                    padding: '10px',
+                    background: 'rgba(255, 80, 0, 0.1)',
+                    border: '1px solid #ff6b00',
+                    fontSize: '11px'
+                  }}>
+                    <div style={{ color: '#ff6b00', marginBottom: '8px', fontWeight: 'bold' }}>
+                      💣 DEPLOY MINES
+                    </div>
+                    <div style={{ marginBottom: '8px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                      Deploy mines that explode when non-corp members enter. Max {maxMines} per sector total{hasPlanetOwnership ? ' (planet bonus)' : ''}.
+                    </div>
+                    <input
+                      type="number"
+                      value={deployMineCount === 0 ? '' : deployMineCount}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const maxMinesAllowed = Math.min((player as any).shipMines, maxMines - (sector.minesCount || 0));
+                        setDeployMineCount(val === '' ? 0 : Math.max(0, Math.min(parseInt(val) || 0, maxMinesAllowed)));
+                      }}
+                      onFocus={(e) => e.target.select()}
+                      placeholder="0"
+                      min="1"
+                      max={Math.min((player as any).shipMines, maxMines - (sector.minesCount || 0))}
+                      style={{
+                        width: '100%',
+                        padding: '6px',
+                        background: 'rgba(0, 0, 0, 0.5)',
+                        border: '1px solid #ff6b00',
+                        color: 'var(--text-primary)',
+                        fontSize: '11px',
+                        marginBottom: '6px'
+                      }}
+                    />
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        onClick={handleDeployMines}
+                        disabled={deployingMines || deployMineCount <= 0}
+                        className="cyberpunk-button"
+                        style={{
+                          flex: 1,
+                          padding: '6px',
+                          fontSize: '10px',
+                          background: deployMineCount > 0 ? 'rgba(0, 255, 0, 0.2)' : 'rgba(100, 100, 100, 0.2)',
+                          borderColor: deployMineCount > 0 ? 'var(--neon-green)' : '#666',
+                          color: deployMineCount > 0 ? 'var(--neon-green)' : '#666',
+                          cursor: deployMineCount > 0 ? 'pointer' : 'not-allowed'
+                        }}
+                      >
+                        {deployingMines ? '⟳...' : 'DEPLOY'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowDeployMines(false);
+                          setDeployMineCount(0);
+                        }}
+                        className="cyberpunk-button"
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '10px',
+                          background: 'rgba(255, 0, 0, 0.1)',
+                          borderColor: 'var(--neon-pink)',
+                          color: 'var(--neon-pink)'
+                        }}
+                      >
+                        CANCEL
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
           </div>
         </div>
+
 
         {/* Sector Details */}
         <div style={{ marginBottom: '20px' }}>
@@ -2363,95 +2456,6 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                 </div>
               ))}
             </div>
-          )}
-
-          {/* Deploy Mines Button */}
-          {sector.region !== 'TerraSpace' && (player as any).shipMines > 0 && (
-            <>
-              {!showDeployMines ? (
-                <button
-                  onClick={() => setShowDeployMines(true)}
-                  className="cyberpunk-button"
-                  style={{
-                    padding: '8px 12px',
-                    fontSize: '12px',
-                    background: 'rgba(255, 100, 0, 0.2)',
-                    borderColor: '#ff6b00',
-                    color: '#ff6b00',
-                    cursor: 'pointer'
-                  }}
-                >
-                  💣 DEPLOY MINES ({(player as any).shipMines} on ship)
-                </button>
-              ) : (
-                <div style={{
-                  padding: '15px',
-                  background: 'rgba(255, 100, 0, 0.05)',
-                  border: '1px solid #ff6b00'
-                }}>
-                  <div style={{ color: '#ff6b00', marginBottom: '10px', fontWeight: 'bold' }}>
-                    💣 DEPLOY MINES
-                  </div>
-                  <div style={{ marginBottom: '10px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    Deploy mines that explode when non-corp members enter. Max {maxMines} per sector total{hasPlanetOwnership ? ' (planet bonus)' : ''}.
-                  </div>
-                  <input
-                    type="number"
-                    value={deployMineCount === 0 ? '' : deployMineCount}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      const maxMinesAllowed = Math.min((player as any).shipMines, maxMines - (sector.minesCount || 0));
-                      setDeployMineCount(val === '' ? 0 : Math.max(0, Math.min(parseInt(val) || 0, maxMinesAllowed)));
-                    }}
-                    onFocus={(e) => e.target.select()}
-                    placeholder="0"
-                    min="1"
-                    max={Math.min((player as any).shipMines, maxMines - (sector.minesCount || 0))}
-                    style={{
-                      width: '100%',
-                      padding: '10px',
-                      background: 'rgba(0, 0, 0, 0.5)',
-                      border: '1px solid #ff6b00',
-                      color: 'var(--text-primary)',
-                      fontSize: '14px',
-                      marginBottom: '10px'
-                    }}
-                  />
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <button
-                      onClick={handleDeployMines}
-                      disabled={deployingMines || deployMineCount <= 0}
-                      className="cyberpunk-button"
-                      style={{
-                        flex: 1,
-                        padding: '10px',
-                        background: deployMineCount > 0 ? 'rgba(0, 255, 0, 0.2)' : 'rgba(100, 100, 100, 0.2)',
-                        borderColor: deployMineCount > 0 ? 'var(--neon-green)' : '#666',
-                        color: deployMineCount > 0 ? 'var(--neon-green)' : '#666',
-                        cursor: deployMineCount > 0 ? 'pointer' : 'not-allowed'
-                      }}
-                    >
-                      DEPLOY
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowDeployMines(false);
-                        setDeployMineCount(0);
-                      }}
-                      className="cyberpunk-button"
-                      style={{
-                        padding: '10px 15px',
-                        background: 'rgba(255, 0, 0, 0.2)',
-                        borderColor: 'var(--neon-pink)',
-                        color: 'var(--neon-pink)'
-                      }}
-                    >
-                      CANCEL
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
           )}
 
           {/* Launch Genesis Button */}
