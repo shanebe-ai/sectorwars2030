@@ -26,19 +26,27 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
     setLoading(true);
 
     try {
+      console.log('Attempting login to:', `${API_URL}/api/auth/login`);
+
       const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
       // Check content type to ensure we got JSON
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Server error: Invalid response format. Is the server running?');
+        const text = await response.text();
+        console.error('Non-JSON response:', text.substring(0, 200));
+        throw new Error(`Server returned ${response.status}: ${contentType || 'unknown content type'}. Check browser console for details.`);
       }
 
       const data = await response.json();
+      console.log('Login response data:', data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Login failed');
@@ -51,6 +59,7 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
 
       onLogin(data.token, data.user);
     } catch (err: any) {
+      console.error('Login error:', err);
       setError(err.message || 'Network error - is the server running?');
     } finally {
       setLoading(false);
