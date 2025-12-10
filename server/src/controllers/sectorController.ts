@@ -208,6 +208,24 @@ export const getSectorDetails = async (req: Request, res: Response) => {
     // Check for hostile fighters (not owned by player)
     const hostileFighters = deployedFighters.filter(f => !f.isOwn);
 
+    // Get deployed mines in sector
+    const deployedMinesResult = await pool.query(
+      `SELECT id, owner_id, owner_name, mine_count, deployed_at
+       FROM sector_mines
+       WHERE universe_id = $1 AND sector_number = $2 AND mine_count > 0
+       ORDER BY mine_count DESC`,
+      [universeId, sectorNumber]
+    );
+
+    const deployedMines = deployedMinesResult.rows.map(m => ({
+      id: m.id,
+      ownerId: m.owner_id,
+      ownerName: m.owner_name,
+      mineCount: m.mine_count,
+      deployedAt: m.deployed_at,
+      isOwn: m.owner_id === playerId
+    }));
+
     // Get alien presence in sector (with error handling)
     let alienShips: any[] = [];
     let alienPlanet: any = null;
@@ -288,6 +306,7 @@ export const getSectorDetails = async (req: Request, res: Response) => {
         floatingCargo,
         beacons,
         deployedFighters,
+        deployedMines,
         hasHostileFighters: hostileFighters.length > 0,
         hostileFighterCount: hostileFighters.reduce((sum, f) => sum + f.fighterCount, 0),
         alienShips: (alienShips || []).map(a => ({

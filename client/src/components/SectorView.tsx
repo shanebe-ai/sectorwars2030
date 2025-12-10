@@ -54,6 +54,15 @@ interface DeployedFighter {
   isOwn: boolean;
 }
 
+interface DeployedMine {
+  id: number;
+  ownerId: number;
+  ownerName: string;
+  mineCount: number;
+  deployedAt: string;
+  isOwn: boolean;
+}
+
 interface AlienShip {
   id: number;
   alienRace: string;
@@ -89,6 +98,7 @@ interface Sector {
   floatingCargo?: FloatingCargo[];
   beacons?: Beacon[];
   deployedFighters?: DeployedFighter[];
+  deployedMines?: DeployedMine[];
   hasHostileFighters?: boolean;
   hostileFighterCount?: number;
   alienShips?: AlienShip[];
@@ -2004,16 +2014,32 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
             </div>
           )}
 
-          {sector.minesCount > 0 && (
+          {sector.deployedMines && sector.deployedMines.length > 0 && (
             <div style={{
-              padding: '10px',
+              padding: '15px',
               background: 'rgba(255, 20, 147, 0.05)',
               border: '1px solid var(--neon-pink)',
-              marginBottom: '15px',
-              color: 'var(--neon-pink)',
-              fontSize: '13px'
+              marginBottom: '15px'
             }}>
-              ⚠ {sector.minesCount} Space Mines
+              <div style={{ color: 'var(--neon-pink)', fontWeight: 'bold', marginBottom: '10px', fontSize: '13px' }}>
+                ⚠ SPACE MINES ({sector.minesCount} total)
+              </div>
+              <div style={{ display: 'grid', gap: '8px' }}>
+                {sector.deployedMines.map(mine => (
+                  <div
+                    key={mine.id}
+                    style={{
+                      padding: '8px',
+                      background: mine.isOwn ? 'rgba(0, 255, 0, 0.1)' : 'rgba(255, 0, 0, 0.1)',
+                      border: `1px solid ${mine.isOwn ? 'var(--neon-green)' : 'var(--neon-pink)'}`,
+                      fontSize: '12px',
+                      color: mine.isOwn ? 'var(--neon-green)' : 'var(--neon-pink)'
+                    }}
+                  >
+                    💣 {mine.mineCount} mines by {mine.ownerName} {mine.isOwn && '(yours)'}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -2354,20 +2380,21 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
 
           {/* Deploy Mines Button */}
           {sector.region !== 'TerraSpace' && (player as any).shipMines > 0 && (
-            <div style={{ marginBottom: '15px' }}>
+            <>
               {!showDeployMines ? (
                 <button
                   onClick={() => setShowDeployMines(true)}
                   className="cyberpunk-button"
                   style={{
-                    width: '100%',
-                    padding: '10px',
-                    background: 'rgba(255, 100, 0, 0.1)',
+                    padding: '8px 12px',
+                    fontSize: '12px',
+                    background: 'rgba(255, 100, 0, 0.2)',
                     borderColor: '#ff6b00',
-                    color: '#ff6b00'
+                    color: '#ff6b00',
+                    cursor: 'pointer'
                   }}
                 >
-                  💣 DEPLOY MINES ({(player as any).shipMines} on ship, max {maxMines} per sector{hasPlanetOwnership ? ' (planet bonus)' : ''})
+                  💣 DEPLOY MINES ({(player as any).shipMines} on ship)
                 </button>
               ) : (
                 <div style={{
@@ -2437,7 +2464,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                   </div>
                 </div>
               )}
-            </div>
+            </>
           )}
 
           {/* Launch Genesis Button */}
