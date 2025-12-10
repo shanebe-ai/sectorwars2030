@@ -577,29 +577,14 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 
 **Ready For:**
 - **TESTING COMPLETE:** Economy & combat rebalancing fully tested and verified! ✅
-- Aliens with alien planets and ships
+- **Alien System:** Fully implemented, ready for testing (see section 22 below)
 - Port creation system
 - Fighter/mine deployment in sectors (maintenance system implemented)
 
-**Alien System Specifications (Not Yet Implemented):**
-- **Alien Ship & Planet Scaling by Universe Size:**
-  - **0-49 sectors**: 0 alien planets, 1 alien ship (random type)
-  - **50-99 sectors**: 1 alien planet, 1-2 alien ships
-  - **100-499 sectors**: 1-2 alien planets, 3-4 alien ships
-  - **500-999 sectors**: 2-4 alien planets, 3-5 alien ships
-  - **1000+ sectors**: 0.3% alien planets (~3 per 1000 sectors), each with 2-5 alien ships
-- **Alien Communications Channel (Read-Only):**
-  - Appears for players only after entering a sector with an alien planet
-  - Allows monitoring of alien network traffic
-  - Aliens broadcast information about:
-    - Ships crossing paths with alien ships
-    - Ships entering alien-controlled sectors
-    - Combat events (fights, deaths, escape pod launches)
-    - Other alien activities and encounters
-- **Corporation Chat Channel (Read/Write):** ✅ IMPLEMENTED
-  - Available to all members of the same corporation
-  - Real-time communication between alliance members
-  - Each player starts with their own corporation
+**Corporation Chat Channel (Read/Write):** ✅ IMPLEMENTED
+- Available to all members of the same corporation
+- Real-time communication between alliance members
+- Each player starts with their own corporation
 
 **Corporation System (FULLY WORKING!):**
 - ✅ **Leave Corporation** - Players can leave their corp (founders must transfer ownership first)
@@ -622,11 +607,68 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 4. ✅ **TerraSpace Integration** - Combat disabled in safe zone (sectors 1-10)
 5. ✅ **Death/Respawn System** - Escape pod respawn at Sol
 
-### Next Major Feature: Alien System
-**Priority Order:**
-1. **Alien NPC Ships** - AI-controlled ships that patrol sectors
-2. **Alien Planets** - NPC-controlled planets with defenses
-3. **Alien Communications** - Read-only channel for intercepting alien traffic
+### 22. Alien System (FULLY IMPLEMENTED - READY FOR TESTING!) 🛸
+**Status:** ✅ All code complete, needs verification testing
+
+**Database Schema** ([server/src/db/migrations/016_alien_system.sql](server/src/db/migrations/016_alien_system.sql)):
+- `alien_planets` - NPC planets with citadel levels (3-4), fighters (1K-2K), colonists (50K-100K)
+- `alien_ships` - AI-controlled ships with patrol/trade/aggressive/defensive behaviors
+- `alien_communications` - Broadcast messages from alien network
+- `player_alien_unlocks` - Tracks which players have unlocked alien comms channel
+
+**Backend Services** ([server/src/services/alienService.ts](server/src/services/alienService.ts)):
+- `generateAliensForUniverse()` - Auto-generates aliens based on universe size:
+  - 0-49 sectors: 0 planets, 1 ship
+  - 50-99 sectors: 1 planet, 1-2 ships
+  - 100-499 sectors: 1-2 planets, 3-4 ships
+  - 500-999 sectors: 2-4 planets, 3-5 ships
+  - 1000+ sectors: 0.3% alien planets (~3 per 1000), 2-5 ships per planet
+- `getAlienShipsInSector()` / `getAlienPlanetInSector()` - Retrieve alien entities
+- `unlockAlienComms()` / `hasAlienComms()` / `getAlienCommunications()` - Comms channel system
+- `broadcastAlienComm()` - Broadcasts alien network events
+- `attackAlienShip()` - Full combat simulation vs alien ship
+- `attackAlienPlanet()` - Full combat simulation vs alien planet (with citadel bonuses)
+- `startAlienShipMovement()` - AI patrol system (moves ships every 5 min)
+- `startAlienAggression()` - AI combat system (attacks players every 10 min)
+
+**Alien Behaviors:**
+- **patrol**: Move randomly near home sector
+- **trade**: Move between ports (neutral/friendly)
+- **aggressive**: Attack players on sight
+- **defensive**: Guard alien planets
+
+**Alien Races:**
+Xenthi, Vorlak, Krynn, Sslith, Zendarr, Thorax, Quell, Nebari, Vedran, Pyrians
+
+**API Routes** ([server/src/routes/alien.ts](server/src/routes/alien.ts)):
+- GET /api/aliens/comms - Get alien communications (if unlocked)
+- GET /api/aliens/sector/:sectorNumber - Get alien ships and planet in sector
+- POST /api/aliens/unlock - Unlock alien comms channel
+- POST /api/aliens/attack - Attack alien ship
+- POST /api/aliens/attack-planet - Attack alien planet
+
+**Frontend Components:**
+- **SectorView** ([client/src/components/SectorView.tsx](client/src/components/SectorView.tsx)):
+  - Displays alien ships with race, ship type, behavior, fighters/shields
+  - Attack buttons for alien ships/planets (disabled in TerraSpace and with 0 turns)
+  - Alien combat UI with rounds, damage, loot
+  - Escape pod system on player death
+  - Auto-unlocks alien comms when entering alien planet sector
+- **AlienCommsPanel** ([client/src/components/AlienCommsPanel.tsx](client/src/components/AlienCommsPanel.tsx)):
+  - Read-only message feed showing alien network traffic
+  - Messages about player encounters, combat, deaths, sector entries
+  - Color-coded by alien race
+
+**AI Systems** (Active in [server/src/index.ts](server/src/index.ts)):
+- Alien Ship Movement - Every 5 minutes, patrol/trade ships move
+- Alien Aggression - Every 10 minutes, aggressive aliens attack players
+
+**Testing Needed:**
+1. Create new 1000-sector universe, verify aliens generate
+2. Test alien ship combat mechanics
+3. Test alien planet combat with citadel defenses
+4. Verify alien comms auto-unlock and broadcasts
+5. Monitor AI patrol and aggression systems
 
 ### Upcoming: Planet Colonization System
 **Based on TradeWars 2002 mechanics:**
