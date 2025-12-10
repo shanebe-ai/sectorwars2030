@@ -16,6 +16,7 @@ interface UseSocketNotificationsProps {
   playerId: number | null;
   enabled: boolean;
   onNewBroadcast?: () => void;
+  onSectorActivity?: () => void; // Called when players enter/leave sector
 }
 
 export function useSocketNotifications({
@@ -23,18 +24,21 @@ export function useSocketNotifications({
   sectorNumber,
   playerId,
   enabled,
-  onNewBroadcast
+  onNewBroadcast,
+  onSectorActivity
 }: UseSocketNotificationsProps) {
   const [notifications, setNotifications] = useState<SectorNotification[]>([]);
   const [combatNotification, setCombatNotification] = useState<any | null>(null);
   const [connected, setConnected] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const onNewBroadcastRef = useRef(onNewBroadcast);
+  const onSectorActivityRef = useRef(onSectorActivity);
 
-  // Keep the callback ref up to date
+  // Keep the callback refs up to date
   useEffect(() => {
     onNewBroadcastRef.current = onNewBroadcast;
-  }, [onNewBroadcast]);
+    onSectorActivityRef.current = onSectorActivity;
+  }, [onNewBroadcast, onSectorActivity]);
 
   // Add a notification
   const addNotification = useCallback((notification: Omit<SectorNotification, 'id' | 'timestamp'>) => {
@@ -96,23 +100,33 @@ useEffect(() => {
     socket.on('ship_entered', (data: any) => {
       // Don't notify about ourselves
       if (data.playerId === playerId) return;
-      
+
       addNotification({
         type: 'ship_entered',
         message: `⚡ ${data.corpName} (${data.shipType}) warped in from Sector ${data.fromSector}`,
         details: data
       });
+
+      // Trigger sector refresh
+      if (onSectorActivityRef.current) {
+        onSectorActivityRef.current();
+      }
     });
 
     // Handle ship leaving sector
     socket.on('ship_left', (data: any) => {
       if (data.playerId === playerId) return;
-      
+
       addNotification({
         type: 'ship_left',
         message: `◄ ${data.corpName} warped to Sector ${data.toSector}`,
         details: data
       });
+
+      // Trigger sector refresh
+      if (onSectorActivityRef.current) {
+        onSectorActivityRef.current();
+      }
     });
 
     // Handle combat in sector

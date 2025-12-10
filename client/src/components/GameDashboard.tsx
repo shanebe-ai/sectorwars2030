@@ -23,6 +23,7 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [unreadLogCount, setUnreadLogCount] = useState(0);
   const [loginNotification, setLoginNotification] = useState<any>(null);
+  const [sectorRefreshKey, setSectorRefreshKey] = useState(0);
 
   // Fetch unread message and log counts
   const fetchUnreadCounts = async () => {
@@ -54,7 +55,11 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
     sectorNumber: player?.currentSector || null,
     playerId: player?.id || null,
     enabled: !!player,
-    onNewBroadcast: fetchUnreadCounts
+    onNewBroadcast: fetchUnreadCounts,
+    onSectorActivity: () => {
+      // Increment refresh key to trigger sector reload
+      setSectorRefreshKey(prev => prev + 1);
+    }
   });
 
   // Check for escape pod notification on mount
@@ -432,6 +437,7 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
             colonists: player.colonists || 0,
           }}
           onSectorChange={handleSectorChange}
+          refreshKey={sectorRefreshKey}
         />
       </div>
 

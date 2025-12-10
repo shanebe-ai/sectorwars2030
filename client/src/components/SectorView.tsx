@@ -149,9 +149,10 @@ interface SectorViewProps {
   currentPlayerId: number;
   player: PlayerData;
   onSectorChange: (player: any) => void;
+  refreshKey?: number; // Increment to force sector reload
 }
 
-export default function SectorView({ currentSector, token, currentPlayerId, player, onSectorChange }: SectorViewProps) {
+export default function SectorView({ currentSector, token, currentPlayerId, player, onSectorChange, refreshKey }: SectorViewProps) {
   const [sector, setSector] = useState<Sector | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -244,7 +245,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
         setAutoNavigating(false);
       }
     }
-  }, [currentSector, player.shipType]); // Reload when player ship changes (e.g., after StarDock purchase)
+  }, [currentSector, player.shipType, refreshKey]); // Reload when sector changes, ship changes, or refreshKey changes
 
   const loadSectorDetails = async () => {
     try {
