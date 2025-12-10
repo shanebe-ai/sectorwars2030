@@ -28,6 +28,12 @@ export function useSocketNotifications({
   const [notifications, setNotifications] = useState<SectorNotification[]>([]);
   const [connected, setConnected] = useState(false);
   const socketRef = useRef<Socket | null>(null);
+  const onNewBroadcastRef = useRef(onNewBroadcast);
+
+  // Keep the callback ref up to date
+  useEffect(() => {
+    onNewBroadcastRef.current = onNewBroadcast;
+  }, [onNewBroadcast]);
 
   // Add a notification
   const addNotification = useCallback((notification: Omit<SectorNotification, 'id' | 'timestamp'>) => {
@@ -151,8 +157,8 @@ useEffect(() => {
     // Handle new broadcast messages (TNN, combat reports, planet claims, etc.)
     socket.on('new_broadcast', (data: any) => {
       // Call the callback to refresh unread counts
-      if (onNewBroadcast) {
-        onNewBroadcast();
+      if (onNewBroadcastRef.current) {
+        onNewBroadcastRef.current();
       }
     });
 
@@ -160,7 +166,7 @@ useEffect(() => {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [enabled, universeId, playerId, onNewBroadcast, sectorNumber]); // include sectorNumber so we join universe even when sector unknown
+  }, [enabled, universeId, playerId, sectorNumber]); // Removed onNewBroadcast from deps - using ref instead
 
   // Update sector room when sector changes
   useEffect(() => {

@@ -726,9 +726,9 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - [x] Planet generation (~3% of sectors get claimable planets)
 - [x] Planet colonization (claim, manage, produce) ✅ (production buffed 5x + citadel bonuses)
 - [x] Corporation/alliance system (basic - personal corps, corporate chat)
-- [ ] Corporation features: invites, leave corp, join another corp
+- [x] Corporation features: invites, leave corp, join another corp ✅ (full management system)
 - [x] Fighter/mine deployment ✅ (with maintenance system: ₡5/fighter/day)
-- [ ] Genesis torpedoes
+- [x] Genesis torpedoes ✅ (₡50K, create planets anywhere, TNN broadcasts)
 
 ### Phase 7: Multiplayer & Polish
 - [ ] Real-time WebSocket events
