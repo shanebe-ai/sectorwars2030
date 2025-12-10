@@ -21,7 +21,7 @@ router.get('/:universeId', async (req, res) => {
         query = `
           SELECT
             p.id,
-            p.username,
+            u.username,
             p.corp_name,
             p.ship_type,
             p.credits,
@@ -42,6 +42,7 @@ router.get('/:universeId', async (req, res) => {
             p.deaths,
             (SELECT COUNT(*) FROM planets WHERE owner_id = p.id) as planet_count
           FROM players p
+          JOIN users u ON p.user_id = u.id
           LEFT JOIN bank_accounts ba_personal ON ba_personal.player_id = p.id AND ba_personal.account_type = 'personal'
           WHERE p.universe_id = $1 AND p.is_alive = true
         `;
@@ -52,7 +53,7 @@ router.get('/:universeId', async (req, res) => {
         query = `
           SELECT
             p.id,
-            p.username,
+            u.username,
             p.corp_name,
             p.ship_type,
             p.experience,
@@ -61,6 +62,7 @@ router.get('/:universeId', async (req, res) => {
             p.deaths,
             (SELECT COUNT(*) FROM planets WHERE owner_id = p.id) as planet_count
           FROM players p
+          JOIN users u ON p.user_id = u.id
           WHERE p.universe_id = $1 AND p.is_alive = true
         `;
         orderBy = 'ORDER BY experience DESC';
@@ -70,7 +72,7 @@ router.get('/:universeId', async (req, res) => {
         query = `
           SELECT
             p.id,
-            p.username,
+            u.username,
             p.corp_name,
             p.ship_type,
             p.kills,
@@ -79,6 +81,7 @@ router.get('/:universeId', async (req, res) => {
             p.experience,
             p.credits
           FROM players p
+          JOIN users u ON p.user_id = u.id
           WHERE p.universe_id = $1 AND p.is_alive = true AND p.kills > 0
         `;
         orderBy = 'ORDER BY kills DESC, kd_ratio DESC';
@@ -88,7 +91,7 @@ router.get('/:universeId', async (req, res) => {
         query = `
           SELECT
             p.id,
-            p.username,
+            u.username,
             p.corp_name,
             p.ship_type,
             (SELECT COUNT(*) FROM planets WHERE owner_id = p.id) as planet_count,
@@ -96,6 +99,7 @@ router.get('/:universeId', async (req, res) => {
             p.credits,
             p.experience
           FROM players p
+          JOIN users u ON p.user_id = u.id
           WHERE p.universe_id = $1 AND p.is_alive = true
           HAVING (SELECT COUNT(*) FROM planets WHERE owner_id = p.id) > 0
         `;

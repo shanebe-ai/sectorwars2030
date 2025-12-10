@@ -1428,10 +1428,9 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
           right: 0,
           bottom: 0,
           background: 'rgba(0, 0, 0, 0.9)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
+          overflowY: 'auto',
+          zIndex: 1000,
+          padding: '40px 20px'
         }}>
           <div style={{
             background: 'linear-gradient(135deg, #1a0033 0%, #0a001a 100%)',
@@ -1440,8 +1439,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
             padding: '30px',
             maxWidth: '600px',
             width: '90%',
-            maxHeight: '80vh',
-            overflow: 'auto',
+            margin: '0 auto',
             boxShadow: `0 0 30px ${alienCombatResult.combat.winner === 'player' ? 'rgba(0, 255, 0, 0.5)' : alienCombatResult.combat.winner === 'alien' ? 'rgba(255, 0, 102, 0.5)' : 'rgba(255, 153, 0, 0.5)'}`
           }}>
             <div style={{
