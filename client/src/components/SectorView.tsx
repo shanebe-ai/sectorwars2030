@@ -1040,16 +1040,8 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
 
       if (response.ok) {
         setAlienCombatResult(data);
-        // Don't reload sector immediately - wait for user to close combat panel
-
-        // Refresh player data
-        const playerResponse = await fetch(`${API_URL}/api/players/${player.id}`, {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-        if (playerResponse.ok) {
-          const playerData = await playerResponse.json();
-          onSectorChange(playerData.player);
-        }
+        // Don't refresh player or sector immediately - wait for user to close combat panel
+        // This prevents the screen from refreshing when player is destroyed and respawns elsewhere
       } else {
         setError(data.error || 'Failed to attack alien ship');
       }
@@ -1090,17 +1082,8 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
 
       if (response.ok) {
         setAlienCombatResult(data);
-
-        // Refresh player data (without reloading sector to avoid clearing combat result)
-        const playerResponse = await fetch(`${API_URL}/api/players/${player.id}`, {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-        if (playerResponse.ok) {
-          const playerData = await playerResponse.json();
-          onSectorChange(playerData.player);
-        }
-
-        // Sector will be reloaded when user closes the combat panel
+        // Don't refresh player or sector immediately - wait for user to close combat panel
+        // This prevents the screen from refreshing when player is destroyed and respawns elsewhere
       } else {
         setError(data.error || 'Failed to attack alien planet');
       }
@@ -1552,9 +1535,20 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
             )}
 
             <button
-              onClick={() => {
+              onClick={async () => {
                 setAlienCombatResult(null);
-                loadSectorDetails(); // Reload sector after closing combat result
+
+                // Refresh player data first (in case they respawned in a different sector)
+                const playerResponse = await fetch(`${API_URL}/api/players/${player.id}`, {
+                  headers: { 'Authorization': `Bearer ${token}` },
+                });
+                if (playerResponse.ok) {
+                  const playerData = await playerResponse.json();
+                  onSectorChange(playerData.player);
+                }
+
+                // Then reload sector details
+                loadSectorDetails();
               }}
               style={{
                 width: '100%',

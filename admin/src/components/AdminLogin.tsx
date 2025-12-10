@@ -32,6 +32,12 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
         body: JSON.stringify({ username, password }),
       });
 
+      // Check content type to ensure we got JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server error: Invalid response format. Is the server running?');
+      }
+
       const data = await response.json();
 
       if (!response.ok) {
@@ -45,7 +51,7 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
 
       onLogin(data.token, data.user);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Network error - is the server running?');
     } finally {
       setLoading(false);
     }

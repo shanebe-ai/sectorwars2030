@@ -1667,6 +1667,7 @@ function simulatePlanetCombat(
 
 /**
  * Find an escape sector for a destroyed ship
+ * Returns a random adjacent sector (1-5 warps away)
  */
 async function findEscapeSector(client: any, universeId: number, currentSector: number): Promise<number> {
   // Try to find an adjacent sector
@@ -1678,10 +1679,13 @@ async function findEscapeSector(client: any, universeId: number, currentSector: 
   let escapeSector = 1; // Default to Sol
   if (sectorResult.rows.length > 0) {
     const sectorId = sectorResult.rows[0].id;
+
+    // Get all adjacent sectors (ORDER BY RANDOM() to pick a random one)
     const adjacentResult = await client.query(
       `SELECT DISTINCT destination_sector_number as sector
        FROM sector_warps
        WHERE sector_id = $1
+       ORDER BY RANDOM()
        LIMIT 1`,
       [sectorId]
     );
