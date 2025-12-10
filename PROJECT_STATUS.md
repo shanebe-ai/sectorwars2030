@@ -372,13 +372,17 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
   - Net cost displayed for all ships
   - Cargo/fighters/shields transfer to new ship (limited by capacity)
   - Lost cargo/equipment warning message
-- **Ship Types Available** (from [server/src/db/seedShipTypes.ts](server/src/db/seedShipTypes.ts)):
-  - Escape Pod (5 holds, 0 fighters, 0 shields, ₡0)
-  - Scout (20 holds, 10 fighters, 10 shields, ₡10,000)
-  - Trader (60 holds, 20 fighters, 20 shields, ₡50,000)
-  - Freighter (125 holds, 40 fighters, 40 shields, ₡125,000)
-  - Merchant Cruiser (250 holds, 80 fighters, 80 shields, ₡250,000)
-  - Corporate Flagship (500 holds, 150 fighters, 150 shields, ₡500,000)
+- **Ship Types Available** (10 ships from Escape Pod to Dreadnought):
+  - **Escape Pod** (5 holds, 0 fighters, 0 shields, ₡0) - Emergency vessel
+  - **Scout** (20 holds, 10 fighters, 10 shields, ₡10,000) - Starting exploration ship
+  - **Trader** (60 holds, 20 fighters, 20 shields, ₡50,000) - Basic trading vessel
+  - **Interceptor** (30 holds, 40 fighters, 30 shields, ₡75,000) - Fast combat vessel with enhanced fighter capacity
+  - **Freighter** (125 holds, 40 fighters, 40 shields, ₡125,000) - Mid-tier cargo ship
+  - **Transport** (400 holds, 50 fighters, 80 shields, ₡200,000) - Specialized cargo vessel with massive hold capacity
+  - **Merchant Cruiser** (250 holds, 80 fighters, 80 shields, ₡250,000) - Advanced trading ship
+  - **Battlecruiser** (100 holds, 200 fighters, 200 shields, ₡350,000) - Heavy combat ship with superior firepower
+  - **Corporate Flagship** (500 holds, 150 fighters, 150 shields, ₡500,000) - Elite trading vessel
+  - **Dreadnought** (200 holds, 400 fighters, 500 shields, ₡750,000) - Massive warship with overwhelming combat capabilities
 
 ### 16. Planet Management System (NEW!)
 - **Planet Service** ([server/src/services/planetService.ts](server/src/services/planetService.ts)) ✅
