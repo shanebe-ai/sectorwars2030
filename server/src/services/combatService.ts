@@ -1,5 +1,5 @@
 import { query, getClient } from '../db/connection';
-import { emitSectorEvent, emitUniverseEvent } from '../index';
+import { emitSectorEvent, emitUniverseEvent, emitPlayerEvent } from '../index';
 
 /**
  * Combat Service for TradeWars 2030
@@ -732,6 +732,31 @@ export const executeAttack = async (
       defenderDestroyed: combatResult.defenderDestroyed,
       attackerEscapeSector: combatResult.attackerEscapeSector,
       defenderEscapeSector: combatResult.defenderEscapeSector,
+      timestamp: new Date().toISOString()
+    });
+
+    // Send personal notifications to both players
+    emitPlayerEvent(defenderId, 'combat_notification', {
+      type: 'defended',
+      attacker: `${attacker.username} (${attacker.corp_name})`,
+      attackerShip: attacker.ship_type,
+      sector: attacker.current_sector,
+      result: combatResult.winner === 'defender' ? 'victory' : 'defeat',
+      destroyed: combatResult.defenderDestroyed,
+      escapeSector: combatResult.defenderEscapeSector,
+      creditsLost: combatResult.creditsLooted || 0,
+      timestamp: new Date().toISOString()
+    });
+
+    emitPlayerEvent(attackerId, 'combat_notification', {
+      type: 'attacked',
+      defender: `${defender.username} (${defender.corp_name})`,
+      defenderShip: defender.ship_type,
+      sector: attacker.current_sector,
+      result: combatResult.winner === 'attacker' ? 'victory' : 'defeat',
+      destroyed: combatResult.attackerDestroyed,
+      escapeSector: combatResult.attackerEscapeSector,
+      creditsLooted: combatResult.creditsLooted || 0,
       timestamp: new Date().toISOString()
     });
 

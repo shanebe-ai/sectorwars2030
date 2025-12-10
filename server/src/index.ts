@@ -154,6 +154,7 @@ io.on('connection', (socket) => {
   socket.on('join_sector', async (data: { universeId: number; sectorNumber: number; playerId: number }) => {
     const sectorRoomName = `universe_${data.universeId}_sector_${data.sectorNumber}`;
     const universeRoomName = `universe_${data.universeId}`;
+    const playerRoomName = `player_${data.playerId}`;
 
     // Leave any previous sector rooms for this universe
     socket.rooms.forEach(room => {
@@ -162,10 +163,11 @@ io.on('connection', (socket) => {
       }
     });
 
-    // Join the universe room (for broadcasts) and sector room
+    // Join the universe room (for broadcasts), sector room, and personal player room
     socket.join(universeRoomName);
     socket.join(sectorRoomName);
-    console.log(`[WS] Player ${data.playerId} joined ${sectorRoomName}`);
+    socket.join(playerRoomName);
+    console.log(`[WS] Player ${data.playerId} joined ${sectorRoomName} and personal room`);
 
     // Store player info on socket for later use
     (socket as any).playerData = data;
@@ -200,6 +202,16 @@ export const emitUniverseEvent = (
   data: any
 ) => {
   const roomName = `universe_${universeId}`;
+  io.to(roomName).emit(event, data);
+};
+
+// Export function to emit player-specific events (e.g., combat notifications)
+export const emitPlayerEvent = (
+  playerId: number,
+  event: string,
+  data: any
+) => {
+  const roomName = `player_${playerId}`;
   io.to(roomName).emit(event, data);
 };
 

@@ -4,6 +4,7 @@ import MessagingPanel from './MessagingPanel';
 import ShipLogPanel from './ShipLogPanel';
 import CorporationPanel from './CorporationPanel';
 import LeaderboardPanel from './LeaderboardPanel';
+import CombatNotification from './CombatNotification';
 import { API_URL } from '../config/api';
 import { useSocketNotifications } from '../hooks/useSocketNotifications';
 
@@ -48,7 +49,7 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
   };
 
   // WebSocket notifications for sector events
-  const { notifications, dismissNotification } = useSocketNotifications({
+  const { notifications, combatNotification, dismissNotification, dismissCombatNotification } = useSocketNotifications({
     universeId: player?.universeId || null,
     sectorNumber: player?.currentSector || null,
     playerId: player?.id || null,
@@ -467,6 +468,13 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
           universeId={player.universeId}
           token={token}
           onClose={() => setShowLeaderboard(false)}
+        />
+      )}
+
+      {combatNotification && (
+        <CombatNotification
+          notification={combatNotification}
+          onClose={dismissCombatNotification}
         />
       )}
 

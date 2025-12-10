@@ -26,6 +26,7 @@ export function useSocketNotifications({
   onNewBroadcast
 }: UseSocketNotificationsProps) {
   const [notifications, setNotifications] = useState<SectorNotification[]>([]);
+  const [combatNotification, setCombatNotification] = useState<any | null>(null);
   const [connected, setConnected] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const onNewBroadcastRef = useRef(onNewBroadcast);
@@ -162,6 +163,12 @@ useEffect(() => {
       }
     });
 
+    // Handle personal combat notifications
+    socket.on('combat_notification', (data: any) => {
+      console.log('[WS] Combat notification received:', data);
+      setCombatNotification(data);
+    });
+
     return () => {
       socket.disconnect();
       socketRef.current = null;
@@ -181,9 +188,11 @@ useEffect(() => {
 
   return {
     notifications,
+    combatNotification,
     connected,
     clearNotifications,
-    dismissNotification
+    dismissNotification,
+    dismissCombatNotification: () => setCombatNotification(null)
   };
 }
 
