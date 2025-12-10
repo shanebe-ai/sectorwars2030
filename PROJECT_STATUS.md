@@ -1272,6 +1272,28 @@ When implementing new features:
     - Removed code duplication across services
     - Consistent broadcast patterns throughout codebase
   - **Result:** Players are now fully informed of all universe activity through appropriate channels!
+- ✅ **Genesis Torpedo System (2025-12-10):**
+  - **Database Migration 020:** Added `ship_genesis` column to players table
+  - **Backend Services** ([genesisService.ts](server/src/services/genesisService.ts)):
+    - `getGenesisInfo()` - Get current/max genesis torpedoes and price
+    - `purchaseGenesis()` - Buy torpedoes at StarDock (₡50,000 each)
+    - `launchGenesis()` - Deploy torpedo to create new planet (costs 1 turn)
+  - **API Routes** ([genesis.ts](server/src/routes/genesis.ts)):
+    - GET /api/genesis/info - Get torpedo information
+    - POST /api/genesis/purchase - Purchase at StarDock
+    - POST /api/genesis/launch - Launch torpedo in current sector
+  - **Gameplay Mechanics:**
+    - Price: ₡50,000 per torpedo
+    - Capacity by ship: Scout (5), Trader/Freighter (10-15), Corporate Flagship (25)
+    - Launch costs 1 turn
+    - Creates unclaimed planet with random name (e.g., "New Prime", "Genesis Station")
+    - Restrictions: Cannot launch in TerraSpace (1-10), port sectors, or sectors with existing planets
+    - TNN broadcast announces planet creation to entire universe
+  - **UI Integration:**
+    - StarDock Equipment tab: Purchase section with purple theme
+    - SectorView: "Launch Genesis" button (shows when carrying torpedoes)
+    - Only appears in valid sectors (outside TerraSpace, no planet/port)
+  - **Result:** Players can now create planets anywhere, expanding colonization opportunities!
 
 **Mine Mechanics (Current Behavior):**
 - ✅ **Corp Safety:** Corporation members are SAFE from each other's mines

@@ -194,6 +194,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
   const [showDeployMines, setShowDeployMines] = useState(false);
   const [deployMineCount, setDeployMineCount] = useState(0);
   const [deployingMines, setDeployingMines] = useState(false);
+  const [launchingGenesis, setLaunchingGenesis] = useState(false);
   const [mineExplosionResult, setMineExplosionResult] = useState<{message: string, shieldsLost: number, fightersLost: number} | null>(null);
   const [attackingAlienShip, setAttackingAlienShip] = useState<number | null>(null);
   const [attackingAlienPlanet, setAttackingAlienPlanet] = useState<number | null>(null);
@@ -800,10 +801,10 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
 
   const handleDeployMines = async () => {
     if (deployMineCount <= 0) return;
-    
+
     setDeployingMines(true);
     setError('');
-    
+
     try {
       const response = await fetch(`${API_URL}/api/mines/deploy`, {
         method: 'POST',
@@ -835,6 +836,41 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
       setError('Network error');
     } finally {
       setDeployingMines(false);
+    }
+  };
+
+  const handleLaunchGenesis = async () => {
+    setLaunchingGenesis(true);
+    setError('');
+
+    try {
+      const response = await fetch(`${API_URL}/api/genesis/launch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccessMessage(data.message);
+        loadSectorDetails();
+        const playerResponse = await fetch(`${API_URL}/api/players/${player.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (playerResponse.ok) {
+          const playerData = await playerResponse.json();
+          onSectorChange(playerData.player);
+        }
+      } else {
+        setError(data.error || 'Failed to launch genesis torpedo');
+      }
+    } catch (err) {
+      setError('Network error');
+    } finally {
+      setLaunchingGenesis(false);
     }
   };
 
@@ -2400,6 +2436,26 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Launch Genesis Button */}
+          {sector.region !== 'TerraSpace' && !sector.planet && !sector.port && (player as any).shipGenesis > 0 && (
+            <div style={{ marginBottom: '15px' }}>
+              <button
+                onClick={handleLaunchGenesis}
+                disabled={launchingGenesis}
+                className="cyberpunk-button"
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  background: 'rgba(138, 43, 226, 0.1)',
+                  borderColor: 'var(--neon-purple)',
+                  color: 'var(--neon-purple)'
+                }}
+              >
+                {launchingGenesis ? 'LAUNCHING...' : `🌍 LAUNCH GENESIS TORPEDO (${(player as any).shipGenesis} on ship)`}
+              </button>
             </div>
           )}
 
