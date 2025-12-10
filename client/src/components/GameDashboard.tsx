@@ -3,6 +3,7 @@ import SectorView from './SectorView';
 import MessagingPanel from './MessagingPanel';
 import ShipLogPanel from './ShipLogPanel';
 import CorporationPanel from './CorporationPanel';
+import LeaderboardPanel from './LeaderboardPanel';
 import { API_URL } from '../config/api';
 import { useSocketNotifications } from '../hooks/useSocketNotifications';
 
@@ -17,6 +18,7 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
   const [showMessaging, setShowMessaging] = useState(false);
   const [showShipLog, setShowShipLog] = useState(false);
   const [showCorporation, setShowCorporation] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [unreadLogCount, setUnreadLogCount] = useState(0);
   const [loginNotification, setLoginNotification] = useState<any>(null);
@@ -317,6 +319,17 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
             >
               ★ CORP
             </button>
+            <button
+              onClick={() => setShowLeaderboard(true)}
+              className="cyberpunk-button"
+              style={{
+                background: 'rgba(255, 215, 0, 0.1)',
+                borderColor: 'var(--neon-yellow)',
+                color: 'var(--neon-yellow)'
+              }}
+            >
+              🏆 RANKINGS
+            </button>
             <button onClick={onLogout} className="cyberpunk-button" style={{
               background: 'rgba(255, 20, 147, 0.1)',
               borderColor: 'var(--neon-pink)',
@@ -446,6 +459,14 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
           corpId={player.corpId || null}
           corpName={player.corpName || ''}
           universeId={player.universeId}
+        />
+      )}
+
+      {showLeaderboard && (
+        <LeaderboardPanel
+          universeId={player.universeId}
+          token={token}
+          onClose={() => setShowLeaderboard(false)}
         />
       )}
 

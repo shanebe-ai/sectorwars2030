@@ -23,6 +23,7 @@ import mineRoutes from './routes/mines';
 import alienRoutes from './routes/alien';
 import corporationRoutes from './routes/corporation';
 import genesisRoutes from './routes/genesis';
+import leaderboardRoutes from './routes/leaderboard';
 import { startPortRegeneration } from './services/portService';
 import { startFighterMaintenance } from './services/maintenanceService';
 import { startAlienShipMovement, startAlienAggression } from './services/alienService';
@@ -141,6 +142,9 @@ app.use('/api/corporations', corporationRoutes);
 
 // Genesis routes (genesis torpedoes)
 app.use('/api/genesis', genesisRoutes);
+
+// Leaderboard routes
+app.use('/api/leaderboard', leaderboardRoutes);
 
 // WebSocket connection handling
 io.on('connection', (socket) => {
