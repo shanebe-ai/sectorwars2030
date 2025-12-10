@@ -510,16 +510,17 @@ export async function getTransactionHistory(
 /**
  * Search for players by name (for transfer feature)
  */
-export async function searchPlayers(universeId: number, searchTerm: string): Promise<any[]> {
+export async function searchPlayers(universeId: number, searchTerm: string, excludePlayerId?: number): Promise<any[]> {
   const result = await query(
     `SELECT p.id, u.username as name
      FROM players p
      JOIN users u ON p.user_id = u.id
      WHERE p.universe_id = $1
        AND u.username ILIKE $2
+       AND p.id != $3
      ORDER BY u.username
      LIMIT 20`,
-    [universeId, `%${searchTerm}%`]
+    [universeId, `%${searchTerm}%`, excludePlayerId || 0]
   );
 
   return result.rows;

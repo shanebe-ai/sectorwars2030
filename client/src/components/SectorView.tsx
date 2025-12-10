@@ -244,7 +244,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
         setAutoNavigating(false);
       }
     }
-  }, [currentSector]);
+  }, [currentSector, player.shipType]); // Reload when player ship changes (e.g., after StarDock purchase)
 
   const loadSectorDetails = async () => {
     try {

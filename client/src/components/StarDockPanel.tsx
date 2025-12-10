@@ -396,11 +396,24 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
   };
 
   const handleTransfer = async (recipientId: number) => {
-    if (transferAmount <= 0) return;
+    console.log('[Banking] handleTransfer called with recipientId:', recipientId, 'amount:', transferAmount);
+    if (transferAmount <= 0) {
+      console.log('[Banking] Transfer amount is 0 or less, aborting');
+      return;
+    }
+
+    // Check if player has sufficient funds in selected account
+    const account = bankAccounts.find(acc => acc.account_type === selectedAccount);
+    if (!account || account.balance < transferAmount) {
+      setError(`Insufficient funds. Account balance: ₡${account?.balance.toLocaleString() || 0}`);
+      return;
+    }
+
     try {
       setPurchasing(true);
       setError('');
       setMessage('');
+      console.log('[Banking] Sending transfer request...');
       const response = await fetch(`${API_URL}/api/banking/transfer`, {
         method: 'POST',
         headers: {
@@ -414,17 +427,20 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
         })
       });
       const data = await response.json();
+      console.log('[Banking] Transfer response:', response.ok, data);
       if (response.ok) {
         setMessage(`Transferred ₡${transferAmount.toLocaleString()} successfully`);
         setTransferAmount(0);
         setTransferRecipient('');
         setTransferMemo('');
         setSearchResults([]);
+        setSelectedRecipientId(null);
         loadBankingInfo();
       } else {
         setError(data.error || 'Failed to transfer');
       }
     } catch (err) {
+      console.error('[Banking] Transfer error:', err);
       setError('Network error');
     } finally {
       setPurchasing(false);
@@ -1534,10 +1550,16 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
                 </div>
                 <button
                   onClick={() => {
+                    console.log('[Banking] Button clicked. selectedRecipientId:', selectedRecipientId, 'searchResults:', searchResults, 'transferAmount:', transferAmount);
                     const targetId =
                       selectedRecipientId ||
                       (searchResults.length ? searchResults[0].id : null);
-                    if (targetId) handleTransfer(targetId);
+                    console.log('[Banking] targetId:', targetId);
+                    if (targetId) {
+                      handleTransfer(targetId);
+                    } else {
+                      console.log('[Banking] No targetId, not calling handleTransfer');
+                    }
                   }}
                   disabled={purchasing || transferAmount <= 0 || (!selectedRecipientId && !searchResults.length)}
                   style={{

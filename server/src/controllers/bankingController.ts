@@ -264,6 +264,7 @@ export async function searchPlayers(req: Request, res: Response) {
       return res.status(404).json({ error: 'Player not found' });
     }
 
+    const playerId = playerResult.rows[0].id;
     const universeId = playerResult.rows[0].universe_id;
     const searchTerm = req.query.search as string;
 
@@ -271,7 +272,7 @@ export async function searchPlayers(req: Request, res: Response) {
       return res.status(400).json({ error: 'Search term must be at least 2 characters' });
     }
 
-    const players = await bankingService.searchPlayers(universeId, searchTerm);
+    const players = await bankingService.searchPlayers(universeId, searchTerm, playerId);
 
     res.json({ players });
   } catch (error) {
