@@ -166,6 +166,16 @@ export const deployMines = async (
       );
     }
 
+    // Update the sectors table mines_count field
+    await client.query(
+      `UPDATE sectors SET mines_count = (
+        SELECT COALESCE(SUM(mine_count), 0) FROM sector_mines
+        WHERE universe_id = $1 AND sector_number = $2
+      )
+      WHERE universe_id = $1 AND sector_number = $2`,
+      [player.universe_id, player.current_sector]
+    );
+
     await client.query('COMMIT');
 
     // Emit event to sector
@@ -326,6 +336,16 @@ export const checkMinesOnEntry = async (
         }
       }
     }
+
+    // Update the sectors table mines_count field
+    await client.query(
+      `UPDATE sectors SET mines_count = (
+        SELECT COALESCE(SUM(mine_count), 0) FROM sector_mines
+        WHERE universe_id = $1 AND sector_number = $2
+      )
+      WHERE universe_id = $1 AND sector_number = $2`,
+      [universeId, sectorNumber]
+    );
 
     await client.query('COMMIT');
 
@@ -512,6 +532,16 @@ export const checkMinesOnAlienEntry = async (
     if (remainingDamage > 0 && alien.fighters > 0) {
       fightersLost = Math.min(alien.fighters, remainingDamage);
     }
+
+    // Update the sectors table mines_count field
+    await client.query(
+      `UPDATE sectors SET mines_count = (
+        SELECT COALESCE(SUM(mine_count), 0) FROM sector_mines
+        WHERE universe_id = $1 AND sector_number = $2
+      )
+      WHERE universe_id = $1 AND sector_number = $2`,
+      [universeId, sectorNumber]
+    );
 
     await client.query('COMMIT');
 
