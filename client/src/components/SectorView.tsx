@@ -1988,19 +1988,6 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
             </div>
           )}
 
-          {sector.hasBeacon && (
-            <div style={{
-              padding: '10px',
-              background: 'rgba(255, 255, 0, 0.05)',
-              border: '1px solid var(--neon-yellow)',
-              marginBottom: '15px',
-              color: 'var(--neon-yellow)',
-              fontSize: '13px'
-            }}>
-              ► Navigation Beacon Active
-            </div>
-          )}
-
           {sector.fightersCount > 0 && (
             <div style={{
               padding: '10px',
