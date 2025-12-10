@@ -94,14 +94,19 @@ router.get('/:universeId', async (req, res) => {
             u.username,
             p.corp_name,
             p.ship_type,
-            (SELECT COUNT(*) FROM planets WHERE owner_id = p.id) as planet_count,
-            (SELECT SUM(colonists) FROM planets WHERE owner_id = p.id) as total_colonists,
+            COALESCE(planet_stats.planet_count, 0) as planet_count,
+            COALESCE(planet_stats.total_colonists, 0) as total_colonists,
             p.credits,
             p.experience
           FROM players p
           JOIN users u ON p.user_id = u.id
+          LEFT JOIN (
+            SELECT owner_id, COUNT(*) as planet_count, SUM(colonists) as total_colonists
+            FROM planets
+            GROUP BY owner_id
+          ) planet_stats ON planet_stats.owner_id = p.id
           WHERE p.universe_id = $1 AND p.is_alive = true
-          HAVING (SELECT COUNT(*) FROM planets WHERE owner_id = p.id) > 0
+            AND planet_stats.planet_count > 0
         `;
         orderBy = 'ORDER BY planet_count DESC, total_colonists DESC';
         break;
