@@ -4,7 +4,7 @@ import { API_URL } from '../config/api';
 
 export interface SectorNotification {
   id: string;
-  type: 'ship_entered' | 'ship_left' | 'combat_occurred' | 'escape_pod_arrived' | 'cargo_dropped' | 'beacon_message';
+  type: 'ship_entered' | 'ship_left' | 'combat_occurred' | 'escape_pod_arrived' | 'cargo_dropped' | 'beacon_message' | 'mines_exploded' | 'beacon_launched' | 'beacon_attacked';
   message: string;
   details?: any;
   timestamp: Date;
@@ -167,6 +167,48 @@ useEffect(() => {
         message: `📡 BEACON from ${data.ownerName}: "${data.message}"`,
         details: data
       });
+    });
+
+    // Handle mine explosions in sector
+    socket.on('mines_exploded', (data: any) => {
+      addNotification({
+        type: 'mines_exploded',
+        message: data.message || `💥 ${data.playerName} triggered mines!`,
+        details: data
+      });
+
+      // Trigger sector refresh to update mine counts
+      if (onSectorActivityRef.current) {
+        onSectorActivityRef.current();
+      }
+    });
+
+    // Handle beacon launches
+    socket.on('beacon_launched', (data: any) => {
+      addNotification({
+        type: 'beacon_launched',
+        message: `📡 ${data.ownerName} launched a beacon`,
+        details: data
+      });
+
+      // Trigger sector refresh to show new beacon
+      if (onSectorActivityRef.current) {
+        onSectorActivityRef.current();
+      }
+    });
+
+    // Handle beacon attacks
+    socket.on('beacon_attacked', (data: any) => {
+      addNotification({
+        type: 'beacon_attacked',
+        message: `💥 ${data.attackerName} attacked a beacon owned by ${data.ownerName}!`,
+        details: data
+      });
+
+      // Trigger sector refresh to update beacon status
+      if (onSectorActivityRef.current) {
+        onSectorActivityRef.current();
+      }
     });
 
     // Handle new broadcast messages (TNN, combat reports, planet claims, etc.)
