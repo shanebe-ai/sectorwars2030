@@ -964,6 +964,12 @@ When implementing new features:
 **Current Session:** Economy fixes and automated testing
 **Next Priority:** Comprehensive Testing / Alien System
 **Recent Changes:**
+- ✅ **StarDock / Combat UX Fixes (2025-12-10):**
+  - Ship trade-ins now clear escape-pod flag and carry over fighters, shields, mines, beacons, and genesis torpedoes up to the new ship’s capacity; excess is discarded. (`server/src/services/stardockService.ts`)
+  - Player death/respawn now zeroes mines, beacons, and genesis in addition to fighters/shields/cargo for PvP and alien combat. (`server/src/services/combatService.ts`, `server/src/services/alienService.ts`)
+  - Fixed alien combat death penalty type error (`0.25` now numeric) to prevent attack crashes. (`server/src/services/alienService.ts`)
+  - CombatPanel no longer crashes on undefined `setUpdatedPlayer`, preventing double-render of victory/defeat modals. (`client/src/components/CombatPanel.tsx`)
+  - Sector scan reflects new ship details immediately after StarDock purchases. (`client/src/components/GameDashboard.tsx`, `client/src/components/SectorView.tsx`)
 - ✅ **Combat System (2025-12-01):**
   - Full player-vs-player combat with round-based mechanics
   - Combat Service: canAttack(), executeAttack(), simulateCombat()

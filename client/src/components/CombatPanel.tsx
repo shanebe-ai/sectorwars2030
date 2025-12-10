@@ -106,7 +106,6 @@ export default function CombatPanel({
 
       if (response.ok) {
         setCombatResult(data.combat);
-        setUpdatedPlayer(data.player);
         onCombatComplete(data.player);
         
         // If attacker was destroyed, close panel after showing escape pod message

@@ -111,6 +111,14 @@ interface PlayerData {
   credits: number;
   turnsRemaining: number;
   shipHoldsMax: number;
+  shipType?: string;
+  shipFighters?: number;
+  shipShields?: number;
+  shipMines?: number;
+  shipBeacons?: number;
+  shipGenesis?: number;
+  shipFightersMax?: number;
+  shipShieldsMax?: number;
   cargoFuel: number;
   cargoOrganics: number;
   cargoEquipment: number;

@@ -850,11 +850,14 @@ export async function attackAlienShip(
       // Apply death penalty (25% credits and bank balance)
       await client.query(`
         UPDATE players SET
-          credits = GREATEST(0, FLOOR(credits * (1 - $1))),
+          credits = GREATEST(0, FLOOR(credits * (1.0 - $1::numeric))),
           ship_type = 'Escape Pod',
           ship_holds_max = 5,
           ship_fighters = 0,
           ship_shields = 0,
+          ship_mines = 0,
+          ship_beacons = 0,
+          ship_genesis = 0,
           cargo_fuel = 0,
           cargo_organics = 0,
           cargo_equipment = 0,
@@ -868,7 +871,7 @@ export async function attackAlienShip(
       // Apply bank penalty
       await client.query(`
         UPDATE bank_accounts SET
-          balance = GREATEST(0, FLOOR(balance * (1 - $1)))
+          balance = GREATEST(0, FLOOR(balance * (1.0 - $1::numeric)))
         WHERE player_id = $2
       `, [ALIEN_DEATH_PENALTY, playerId]);
 
@@ -1125,11 +1128,14 @@ async function alienAttacksPlayer(
       // Apply death penalty
       await client.query(`
         UPDATE players SET
-          credits = GREATEST(0, FLOOR(credits * (1 - $1))),
+          credits = GREATEST(0, FLOOR(credits * (1.0 - $1::numeric))),
           ship_type = 'Escape Pod',
           ship_holds_max = 5,
           ship_fighters = 0,
           ship_shields = 0,
+          ship_mines = 0,
+          ship_beacons = 0,
+          ship_genesis = 0,
           cargo_fuel = 0,
           cargo_organics = 0,
           cargo_equipment = 0,
@@ -1143,7 +1149,7 @@ async function alienAttacksPlayer(
       // Apply bank penalty
       await client.query(`
         UPDATE bank_accounts SET
-          balance = GREATEST(0, FLOOR(balance * (1 - $1)))
+          balance = GREATEST(0, FLOOR(balance * (1.0 - $1::numeric)))
         WHERE player_id = $2
       `, [ALIEN_DEATH_PENALTY, playerId]);
 
@@ -1413,6 +1419,9 @@ export async function attackAlienPlanet(
           ship_fighters = 0,
           ship_shields = 0,
           ship_holds_max = 5,
+          ship_mines = 0,
+          ship_beacons = 0,
+          ship_genesis = 0,
           cargo_fuel = 0,
           cargo_organics = 0,
           cargo_equipment = 0,

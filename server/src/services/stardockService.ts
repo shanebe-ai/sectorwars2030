@@ -48,6 +48,9 @@ export interface PurchaseResult {
     fightersMax?: number;
     shields?: number;
     shieldsMax?: number;
+    mines?: number;
+    beacons?: number;
+    genesis?: number;
   };
 }
 
@@ -228,9 +231,12 @@ export async function purchaseShip(userId: number, shipName: string): Promise<Pu
       newColonists = Math.floor((player.colonists || 0) * ratio);
     }
 
-    // Fighters and shields transfer (limited by new ship's max)
+    // Fighters, shields, mines, beacons, and genesis transfer (capped by new ship)
     const newFighters = Math.min(player.ship_fighters || 0, newShip.fighters_max || 0);
     const newShields = Math.min(player.ship_shields || 0, newShip.shields_max || 0);
+    const newMines = Math.min(player.ship_mines || 0, newShip.mines_max || 0);
+    const newBeacons = Math.min(player.ship_beacons || 0, newShip.beacons_max || 0);
+    const newGenesis = Math.min(player.ship_genesis || 0, newShip.genesis_max || 0);
 
     // Update player
     await client.query(
@@ -243,14 +249,35 @@ export async function purchaseShip(userId: number, shipName: string): Promise<Pu
         cargo_fuel = $6,
         cargo_organics = $7,
         cargo_equipment = $8,
-        colonists = $9
-       WHERE id = $10`,
-      [netCost, newShip.name, newShip.holds, newFighters, newShields, newFuel, newOrganics, newEquipment, newColonists, player.id]
+        colonists = $9,
+        ship_mines = $10,
+        ship_beacons = $11,
+        ship_genesis = $12,
+        in_escape_pod = FALSE
+       WHERE id = $13`,
+      [
+        netCost,
+        newShip.name,
+        newShip.holds,
+        newFighters,
+        newShields,
+        newFuel,
+        newOrganics,
+        newEquipment,
+        newColonists,
+        newMines,
+        newBeacons,
+        newGenesis,
+        player.id
+      ]
     );
 
     // Get updated player
     const updatedResult = await client.query(
-      'SELECT credits, ship_type, ship_holds_max, ship_fighters, ship_shields, cargo_fuel, cargo_organics, cargo_equipment, colonists FROM players WHERE id = $1',
+      `SELECT credits, ship_type, ship_holds_max, ship_fighters, ship_shields,
+              ship_mines, ship_beacons, ship_genesis,
+              cargo_fuel, cargo_organics, cargo_equipment, colonists
+       FROM players WHERE id = $1`,
       [player.id]
     );
 
@@ -281,6 +308,9 @@ export async function purchaseShip(userId: number, shipName: string): Promise<Pu
         fightersMax: newShip.fighters_max,
         shields: updated.ship_shields,
         shieldsMax: newShip.shields_max,
+        mines: updated.ship_mines,
+        beacons: updated.ship_beacons,
+        genesis: updated.ship_genesis,
       },
     };
   } catch (error) {
