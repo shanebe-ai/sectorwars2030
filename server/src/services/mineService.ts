@@ -315,11 +315,51 @@ export const checkMinesOnEntry = async (
     // Check if player was destroyed
     const playerDestroyed = currentFighters <= 0;
 
-    // Update player
-    await client.query(
-      `UPDATE players SET ship_shields = $1, ship_fighters = $2 WHERE id = $3`,
-      [currentShields, currentFighters, playerId]
-    );
+    // Update player - convert to escape pod if destroyed
+    if (playerDestroyed) {
+      // Find escape sector
+      const adjacentResult = await client.query(
+        `SELECT s2.sector_number as sector
+         FROM sectors s1
+         JOIN sector_warps sw ON (sw.sector_a = s1.sector_number OR sw.sector_b = s1.sector_number) AND sw.universe_id = s1.universe_id
+         JOIN sectors s2 ON ((s2.sector_number = sw.sector_a OR s2.sector_number = sw.sector_b) AND s2.sector_number != s1.sector_number) AND s2.universe_id = s1.universe_id
+         WHERE s1.universe_id = $1 AND s1.sector_number = $2
+         ORDER BY RANDOM()
+         LIMIT 1`,
+        [universeId, sectorNumber]
+      );
+
+      let escapeSector = 1; // Default to sector 1 if no adjacent sectors found
+      if (adjacentResult.rows.length > 0) {
+        escapeSector = adjacentResult.rows[0].sector;
+      }
+
+      await client.query(
+        `UPDATE players SET
+          ship_type = 'Escape Pod',
+          ship_holds_max = 5,
+          ship_fighters = 0,
+          ship_shields = 0,
+          ship_mines = 0,
+          ship_beacons = 0,
+          ship_genesis = 0,
+          cargo_fuel = 0,
+          cargo_organics = 0,
+          cargo_equipment = 0,
+          colonists = 0,
+          current_sector = $1,
+          in_escape_pod = TRUE,
+          deaths = deaths + 1
+         WHERE id = $2`,
+        [escapeSector, playerId]
+      );
+    } else {
+      // Just update shields and fighters
+      await client.query(
+        `UPDATE players SET ship_shields = $1, ship_fighters = $2 WHERE id = $3`,
+        [currentShields, currentFighters, playerId]
+      );
+    }
 
     // Remove destroyed mines from sector
     for (const triggered of triggeredMines) {

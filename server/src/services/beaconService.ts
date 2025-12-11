@@ -1,5 +1,6 @@
 import { query, getClient } from '../db/connection';
 import { sendMessage } from './messageService';
+import { emitSectorEvent } from '../websocket/socketManager';
 
 export const BEACON_PRICE = 500; // Credits per beacon
 
@@ -175,6 +176,14 @@ export const launchBeacon = async (
 
     await client.query('COMMIT');
 
+    // Emit WebSocket event to all players in sector
+    emitSectorEvent(player.universe_id, player.current_sector, 'beacon_launched', {
+      ownerName: player.corp_name,
+      ownerId: playerId,
+      sectorNumber: player.current_sector,
+      message: message.trim()
+    });
+
     return { success: true, message: `Beacon launched in Sector ${player.current_sector}` };
   } catch (error) {
     await client.query('ROLLBACK');
@@ -342,6 +351,16 @@ export const attackBeacon = async (
     }
 
     await client.query('COMMIT');
+
+    // Emit WebSocket event to all players in sector
+    emitSectorEvent(attacker.universe_id, attacker.current_sector, 'beacon_attacked', {
+      attackerName: attacker.corp_name,
+      attackerId: attackerId,
+      ownerName: beacon.owner_name,
+      ownerId: beacon.owner_id,
+      sectorNumber: attacker.current_sector,
+      fightersLost
+    });
 
     return {
       success: true,
