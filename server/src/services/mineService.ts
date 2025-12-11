@@ -313,7 +313,9 @@ export const checkMinesOnEntry = async (
     currentFighters = Math.max(0, currentFighters - fightersLost);
 
     // Check if player was destroyed
-    const playerDestroyed = currentFighters <= 0;
+    // If player had no defenses (shields + fighters = 0) and took damage, they're destroyed
+    const hadNoDefenses = (player.ship_shields + player.ship_fighters) === 0;
+    const playerDestroyed = currentFighters <= 0 && (hadNoDefenses ? totalDamage > 0 : true);
 
     // Update player - convert to escape pod if destroyed
     if (playerDestroyed) {
