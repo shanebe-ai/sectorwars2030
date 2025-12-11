@@ -4,7 +4,7 @@ import { API_URL } from '../config/api';
 
 export interface SectorNotification {
   id: string;
-  type: 'ship_entered' | 'ship_left' | 'combat_occurred' | 'escape_pod_arrived' | 'cargo_dropped' | 'beacon_message' | 'mines_exploded' | 'beacon_launched' | 'beacon_attacked';
+  type: 'ship_entered' | 'ship_left' | 'combat_occurred' | 'escape_pod_arrived' | 'cargo_dropped' | 'beacon_message' | 'mines_exploded' | 'mines_deployed' | 'beacon_launched' | 'beacon_attacked';
   message: string;
   details?: any;
   timestamp: Date;
@@ -178,6 +178,20 @@ useEffect(() => {
       });
 
       // Trigger sector refresh to update mine counts
+      if (onSectorActivityRef.current) {
+        onSectorActivityRef.current();
+      }
+    });
+
+    // Handle mine deployment in sector
+    socket.on('mines_deployed', (data: any) => {
+      addNotification({
+        type: 'mines_deployed',
+        message: `💣 ${data.ownerName} deployed ${data.count} mines (${data.totalInSector} total)`,
+        details: data
+      });
+
+      // Trigger sector refresh to show new mines
       if (onSectorActivityRef.current) {
         onSectorActivityRef.current();
       }

@@ -161,56 +161,116 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
           gap: '10px',
           maxWidth: '400px'
         }}>
-          {notifications.map(notification => (
-            <div
-              key={notification.id}
-              style={{
-                padding: '12px 40px 12px 15px',
-                background: notification.type === 'combat_occurred' 
-                  ? 'rgba(255, 20, 147, 0.95)' 
-                  : notification.type === 'ship_entered'
-                  ? 'rgba(255, 200, 0, 0.95)'
-                  : notification.type === 'escape_pod_arrived'
-                  ? 'rgba(255, 100, 0, 0.95)'
-                  : notification.type === 'beacon_message'
-                  ? 'rgba(0, 200, 255, 0.95)'
-                  : 'rgba(0, 200, 200, 0.95)',
-                border: `2px solid ${
-                  notification.type === 'combat_occurred' 
-                    ? 'var(--neon-pink)' 
-                    : notification.type === 'ship_entered'
-                    ? 'var(--neon-yellow)'
-                    : notification.type === 'beacon_message'
-                    ? 'var(--neon-cyan)'
-                    : 'var(--neon-cyan)'
-                }`,
-                color: '#000',
-                fontSize: '13px',
-                fontWeight: 'bold',
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
-                animation: 'slideIn 0.3s ease-out',
-                position: 'relative'
-              }}
-            >
-              {notification.message}
-              <button
-                onClick={() => dismissNotification(notification.id)}
+          {notifications.map(notification => {
+            // Determine colors based on notification type
+            const getNotificationStyle = () => {
+              switch (notification.type) {
+                case 'combat_occurred':
+                  return {
+                    bg: 'rgba(20, 20, 30, 0.95)',
+                    border: 'var(--neon-pink)',
+                    shadow: '0 0 20px rgba(255, 20, 147, 0.5)',
+                    textColor: 'var(--neon-pink)'
+                  };
+                case 'mines_exploded':
+                  return {
+                    bg: 'rgba(20, 20, 30, 0.95)',
+                    border: '#ff6b00',
+                    shadow: '0 0 20px rgba(255, 107, 0, 0.5)',
+                    textColor: '#ff6b00'
+                  };
+                case 'mines_deployed':
+                  return {
+                    bg: 'rgba(20, 20, 30, 0.95)',
+                    border: '#ff6b00',
+                    shadow: '0 0 20px rgba(255, 107, 0, 0.3)',
+                    textColor: '#ff6b00'
+                  };
+                case 'ship_entered':
+                  return {
+                    bg: 'rgba(20, 20, 30, 0.95)',
+                    border: 'var(--neon-yellow)',
+                    shadow: '0 0 20px rgba(255, 200, 0, 0.5)',
+                    textColor: 'var(--neon-yellow)'
+                  };
+                case 'ship_left':
+                  return {
+                    bg: 'rgba(20, 20, 30, 0.95)',
+                    border: 'var(--neon-cyan)',
+                    shadow: '0 0 20px rgba(0, 255, 255, 0.4)',
+                    textColor: 'var(--neon-cyan)'
+                  };
+                case 'escape_pod_arrived':
+                  return {
+                    bg: 'rgba(20, 20, 30, 0.95)',
+                    border: '#ff6b00',
+                    shadow: '0 0 20px rgba(255, 107, 0, 0.5)',
+                    textColor: '#ff6b00'
+                  };
+                case 'beacon_message':
+                case 'beacon_launched':
+                  return {
+                    bg: 'rgba(20, 20, 30, 0.95)',
+                    border: 'var(--neon-cyan)',
+                    shadow: '0 0 20px rgba(0, 255, 255, 0.5)',
+                    textColor: 'var(--neon-cyan)'
+                  };
+                case 'beacon_attacked':
+                  return {
+                    bg: 'rgba(20, 20, 30, 0.95)',
+                    border: 'var(--neon-pink)',
+                    shadow: '0 0 20px rgba(255, 20, 147, 0.5)',
+                    textColor: 'var(--neon-pink)'
+                  };
+                default:
+                  return {
+                    bg: 'rgba(20, 20, 30, 0.95)',
+                    border: 'var(--neon-green)',
+                    shadow: '0 0 20px rgba(0, 255, 0, 0.4)',
+                    textColor: 'var(--neon-green)'
+                  };
+              }
+            };
+
+            const style = getNotificationStyle();
+
+            return (
+              <div
+                key={notification.id}
                 style={{
-                  position: 'absolute',
-                  top: '5px',
-                  right: '8px',
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#000',
-                  cursor: 'pointer',
-                  fontSize: '16px',
-                  opacity: 0.7
+                  padding: '12px 40px 12px 15px',
+                  background: style.bg,
+                  border: `2px solid ${style.border}`,
+                  color: style.textColor,
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  boxShadow: style.shadow,
+                  animation: 'slideIn 0.3s ease-out, pulseGlow 2s ease-in-out infinite',
+                  position: 'relative',
+                  backdropFilter: 'blur(10px)'
                 }}
               >
-                ×
-              </button>
-            </div>
-          ))}
+                {notification.message}
+                <button
+                  onClick={() => dismissNotification(notification.id)}
+                  style={{
+                    position: 'absolute',
+                    top: '5px',
+                    right: '8px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: style.textColor,
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    opacity: 0.7,
+                    fontWeight: 'bold'
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -223,6 +283,15 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
           to {
             transform: translateX(0);
             opacity: 1;
+          }
+        }
+
+        @keyframes pulseGlow {
+          0%, 100% {
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+          }
+          50% {
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.6);
           }
         }
       `}</style>

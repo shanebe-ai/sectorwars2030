@@ -5,6 +5,8 @@ const MAX_MINES_PER_SECTOR = 5;
 const MAX_MINES_PER_SECTOR_WITH_PLANET = 8; // Increased limit if corp owns planet
 const MINE_EXPLOSION_CHANCE_MIN = 0.20; // 20%
 const MINE_EXPLOSION_CHANCE_MAX = 0.90; // 90%
+const MINE_EXPLOSION_CHANCE_WARP_MIN = 0.60; // 60% when warping in
+const MINE_EXPLOSION_CHANCE_WARP_MAX = 0.95; // 95% when warping in
 const MINE_DAMAGE_BASE = 150; // Base damage per mine
 const MINE_DAMAGE_VARIANCE = 0.5; // 50-150% variance
 
@@ -258,12 +260,12 @@ export const checkMinesOnEntry = async (
     for (const mine of minesResult.rows) {
       const mineCount = mine.mine_count;
       let minesDestroyedForThisDeployment = 0;
-      
-      // Each mine has 20-90% chance to explode
+
+      // Each mine has 60-95% chance to explode when warping in (higher than normal 20-90%)
       for (let i = 0; i < mineCount; i++) {
-        const explosionChance = MINE_EXPLOSION_CHANCE_MIN + 
-          Math.random() * (MINE_EXPLOSION_CHANCE_MAX - MINE_EXPLOSION_CHANCE_MIN);
-        
+        const explosionChance = MINE_EXPLOSION_CHANCE_WARP_MIN +
+          Math.random() * (MINE_EXPLOSION_CHANCE_WARP_MAX - MINE_EXPLOSION_CHANCE_WARP_MIN);
+
         if (Math.random() < explosionChance) {
           // Mine explodes - calculate damage
           const damageMultiplier = 0.5 + Math.random(); // 50-150% variance

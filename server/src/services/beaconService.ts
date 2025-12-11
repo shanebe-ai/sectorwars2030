@@ -1,6 +1,6 @@
 import { query, getClient } from '../db/connection';
 import { sendMessage } from './messageService';
-import { emitSectorEvent } from '../websocket/socketManager';
+import { emitSectorEvent } from '../index';
 
 export const BEACON_PRICE = 500; // Credits per beacon
 
