@@ -3,6 +3,7 @@ import PortTradingPanel from './PortTradingPanel';
 import PlanetManagementPanel from './PlanetManagementPanel';
 import StarDockPanel from './StarDockPanel';
 import CombatPanel from './CombatPanel';
+import AlienTradePanel from './AlienTradePanel';
 import { API_URL } from '../config/api';
 
 interface Warp {
@@ -191,6 +192,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
   const [showPlanetPanel, setShowPlanetPanel] = useState<number | null>(null);
   const [showStarDock, setShowStarDock] = useState(false);
   const [combatTarget, setCombatTarget] = useState<CombatTarget | null>(null);
+  const [showAlienTrade, setShowAlienTrade] = useState<{ id: number; name: string; race: string } | null>(null);
   const [pickingUpCargo, setPickingUpCargo] = useState<number | null>(null);
   const [showBeaconLaunch, setShowBeaconLaunch] = useState(false);
   const [beaconMessage, setBeaconMessage] = useState('');
@@ -2572,26 +2574,45 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                   <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '2px', color: '#ff9900' }}>
                     ⚔ {alien.fighters} Fighters • 🛡️ {alien.shields} Shields
                   </div>
-                  {sector.region !== 'TerraSpace' && (
-                    <button
-                      onClick={() => handleAttackAlienShip(alien.id)}
-                      disabled={attackingAlienShip === alien.id || player.turnsRemaining < 1}
-                      style={{
-                        marginTop: '8px',
-                        padding: '6px 12px',
-                        background: attackingAlienShip === alien.id ? '#666' : 'linear-gradient(135deg, #ff0066 0%, #9d00ff 100%)',
-                        color: 'white',
-                        border: 'none',
-                        cursor: attackingAlienShip === alien.id || player.turnsRemaining < 1 ? 'not-allowed' : 'pointer',
-                        fontSize: '12px',
-                        fontWeight: 'bold',
-                        opacity: attackingAlienShip === alien.id || player.turnsRemaining < 1 ? 0.5 : 1
-                      }}
-                    >
-                      {attackingAlienShip === alien.id ? 'ATTACKING...' : '⚔️ ATTACK'}
-                    </button>
-                  )}
-                  {sector.region === 'TerraSpace' && (
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                    {alien.behavior === 'trade' && (
+                      <button
+                        onClick={() => setShowAlienTrade({ id: alien.id, name: alien.shipName, race: alien.alienRace })}
+                        style={{
+                          flex: 1,
+                          padding: '6px 12px',
+                          background: 'linear-gradient(135deg, #00ff00 0%, #00cc00 100%)',
+                          color: '#000',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        💰 TRADE
+                      </button>
+                    )}
+                    {sector.region !== 'TerraSpace' && (
+                      <button
+                        onClick={() => handleAttackAlienShip(alien.id)}
+                        disabled={attackingAlienShip === alien.id || player.turnsRemaining < 1}
+                        style={{
+                          flex: 1,
+                          padding: '6px 12px',
+                          background: attackingAlienShip === alien.id ? '#666' : 'linear-gradient(135deg, #ff0066 0%, #9d00ff 100%)',
+                          color: 'white',
+                          border: 'none',
+                          cursor: attackingAlienShip === alien.id || player.turnsRemaining < 1 ? 'not-allowed' : 'pointer',
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                          opacity: attackingAlienShip === alien.id || player.turnsRemaining < 1 ? 0.5 : 1
+                        }}
+                      >
+                        {attackingAlienShip === alien.id ? 'ATTACKING...' : '⚔️ ATTACK'}
+                      </button>
+                    )}
+                  </div>
+                  {sector.region === 'TerraSpace' && alien.behavior !== 'trade' && (
                     <div style={{
                       marginTop: '8px',
                       fontSize: '11px',
@@ -3078,6 +3099,22 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
           onCombatComplete={(updatedPlayer) => {
             onSectorChange(updatedPlayer);
           }}
+        />
+      )}
+
+      {/* Alien Trade Panel */}
+      {showAlienTrade && (
+        <AlienTradePanel
+          playerId={currentPlayerId}
+          alienShipId={showAlienTrade.id}
+          alienName={showAlienTrade.name}
+          alienRace={showAlienTrade.race}
+          token={token}
+          onTradeComplete={(updatedPlayer) => {
+            onSectorChange(updatedPlayer);
+            loadSectorDetails();
+          }}
+          onClose={() => setShowAlienTrade(null)}
         />
       )}
 
