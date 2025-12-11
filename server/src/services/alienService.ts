@@ -185,21 +185,36 @@ export async function generateAliensForUniverse(config: AlienGenerationConfig): 
       const homeSector = alienPlanets.includes(startSector) ? startSector : null;
 
       // Alignment based on behavior: traders are neutral/friendly, others are hostile
-      const alignment = behavior === 'trade' 
+      const alignment = behavior === 'trade'
         ? Math.floor(Math.random() * 100) + 50 // Neutral to friendly (50-150)
         : -200; // Hostile for aggressive/patrol/defensive
+
+      // Generate cargo for trade aliens
+      let cargoFuel = 0;
+      let cargoOrganics = 0;
+      let cargoEquipment = 0;
+
+      if (behavior === 'trade') {
+        // Trade aliens carry significant cargo for trading
+        // Random amounts between 500-2000 units of each commodity
+        cargoFuel = Math.floor(Math.random() * 1500) + 500;
+        cargoOrganics = Math.floor(Math.random() * 1500) + 500;
+        cargoEquipment = Math.floor(Math.random() * 1500) + 500;
+      }
 
       await client.query(`
         INSERT INTO alien_ships (
           universe_id, alien_race, ship_name, ship_type_id,
           current_sector, credits, fighters, shields,
-          behavior, home_sector, alignment
+          behavior, home_sector, alignment,
+          cargo_fuel, cargo_organics, cargo_equipment
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       `, [
         universeId, race, shipName, shipType.id,
         startSector, credits, fighters, shields,
-        behavior, homeSector, alignment
+        behavior, homeSector, alignment,
+        cargoFuel, cargoOrganics, cargoEquipment
       ]);
 
       console.log(`  ✓ Created alien ship: ${shipName} in sector ${startSector} (${behavior})`);

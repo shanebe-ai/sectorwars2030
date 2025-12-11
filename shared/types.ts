@@ -468,3 +468,154 @@ export interface AlienCommsResponse {
   unlocked: boolean;
   communications: AlienCommunication[];
 }
+
+// Alien Trading types
+export interface AlienTradeOffer {
+  id: number;
+  universeId: number;
+  alienShipId: number;
+  playerId: number;
+  alienOffersCredits: number;
+  alienOffersFuel: number;
+  alienOffersOrganics: number;
+  alienOffersEquipment: number;
+  alienRequestsCredits: number;
+  alienRequestsFuel: number;
+  alienRequestsOrganics: number;
+  alienRequestsEquipment: number;
+  alienAlignment: number;
+  priceModifier: number;
+  status: 'pending' | 'accepted' | 'expired' | 'cancelled' | 'robbed';
+  createdAt: string;
+  expiresAt: string;
+  completedAt?: string;
+  // Populated alien ship data
+  alienShip?: {
+    id: number;
+    race: string;
+    shipName: string;
+    shipType: string;
+    sectorNumber: number;
+    alignment: number;
+    cargoFuel: number;
+    cargoOrganics: number;
+    cargoEquipment: number;
+  };
+}
+
+export interface AlienTradeHistory {
+  id: number;
+  universeId: number;
+  alienShipId: number;
+  playerId: number;
+  fuelTraded: number;
+  organicsTraded: number;
+  equipmentTraded: number;
+  creditsTraded: number;
+  outcome: 'completed' | 'robbery_success' | 'robbery_combat';
+  wasRobbery: boolean;
+  robberId?: number;
+  alienRace: string;
+  alienAlignment: number;
+  sectorNumber: number;
+  tradedAt: string;
+}
+
+export interface AcceptAlienTradeRequest {
+  offerId: number;
+  playerId: number;
+}
+
+export interface AttemptAlienRobberyRequest {
+  offerId: number;
+  playerId: number;
+}
+
+export interface AlienTradeOfferResponse {
+  success: boolean;
+  offer?: AlienTradeOffer;
+  message?: string;
+  error?: string;
+}
+
+export interface AlienTradeHistoryResponse {
+  success: boolean;
+  history: AlienTradeHistory[];
+  total: number;
+}
+
+// Player-to-Player Trading types (Phase 2)
+export interface PlayerTradeOffer {
+  id: number;
+  universeId: number;
+  senderPlayerId: number;
+  receiverPlayerId: number;
+  senderOffersCredits: number;
+  senderOffersFuel: number;
+  senderOffersOrganics: number;
+  senderOffersEquipment: number;
+  senderOffersColonists: number;
+  receiverOffersCredits: number;
+  receiverOffersFuel: number;
+  receiverOffersOrganics: number;
+  receiverOffersEquipment: number;
+  receiverOffersColonists: number;
+  message?: string;
+  status: 'pending' | 'accepted' | 'rejected' | 'expired' | 'cancelled' | 'robbed';
+  createdAt: string;
+  expiresAt: string;
+  completedAt?: string;
+  // Populated player data
+  senderPlayer?: {
+    id: number;
+    corpName: string;
+    username: string;
+    currentSector: number;
+  };
+  receiverPlayer?: {
+    id: number;
+    corpName: string;
+    username: string;
+    currentSector: number;
+  };
+}
+
+export interface PlayerTradeHistory {
+  id: number;
+  universeId: number;
+  senderPlayerId: number;
+  receiverPlayerId: number;
+  creditsTraded: number;
+  fuelTraded: number;
+  organicsTraded: number;
+  equipmentTraded: number;
+  colonistsTraded: number;
+  outcome: 'completed' | 'robbery_success' | 'robbery_combat';
+  wasRobbery: boolean;
+  robberId?: number;
+  sectorNumber: number;
+  tradedAt: string;
+}
+
+export interface CreatePlayerTradeRequest {
+  receiverPlayerId: number;
+  offeredCredits: number;
+  offeredFuel: number;
+  offeredOrganics: number;
+  offeredEquipment: number;
+  offeredColonists: number;
+  requestedCredits: number;
+  requestedFuel: number;
+  requestedOrganics: number;
+  requestedEquipment: number;
+  requestedColonists: number;
+  message?: string;
+}
+
+export interface AcceptPlayerTradeRequest {
+  offerId: number;
+}
+
+export interface AttemptPlayerRobberyRequest {
+  offerId: number;
+}

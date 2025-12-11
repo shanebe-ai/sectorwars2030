@@ -821,6 +821,15 @@ export const moveToSector = async (req: Request, res: Response) => {
 
       const updatedPlayer = updateResult.rows[0];
 
+      // Check for trade aliens in the destination sector and generate offers
+      try {
+        const { generateTradeOfferOnEntry } = await import('../services/alienTradingService');
+        await generateTradeOfferOnEntry(player.id, player.universe_id, actualDestination);
+      } catch (tradeError) {
+        console.error('Error generating trade offer:', tradeError);
+        // Non-fatal - continue with move
+      }
+
       // Check for mines in destination sector (only if not same corp)
       let mineResult = null;
       try {
