@@ -972,4 +972,644 @@ If you find any issues during testing:
 4. Check server logs for backend errors
 5. Report with expected vs actual results
 
+---
+
+## 12. Alien System Tests (NEW - 2025-12-10)
+
+### 12.1 Alien Generation - Universe Creation
+**Test:** Verify aliens generate correctly when creating new universe
+
+**Steps:**
+1. Login as admin at http://localhost:5174
+2. Click CREATE UNIVERSE
+3. Create a 1000-sector universe (default settings)
+4. Wait for universe generation to complete
+5. Check database for alien planets and ships
+6. Login as player and explore to find aliens
+
+**Expected Results:**
+- ✅ **0-49 sectors:** 0 alien planets, 1 alien ship
+- ✅ **50-99 sectors:** 1 alien planet, 1-2 alien ships
+- ✅ **100-499 sectors:** 1-2 alien planets, 3-4 alien ships
+- ✅ **500-999 sectors:** 2-4 alien planets, 3-5 alien ships
+- ✅ **1000+ sectors:** ~0.3% alien planets (~3 per 1000), 2-5 ships per planet
+
+**Database Verification (PostgreSQL):**
+```sql
+-- Count alien planets
+SELECT COUNT(*) FROM alien_planets WHERE universe_id = [UNIVERSE_ID];
+-- Should be ~3 for 1000-sector universe
+
+-- Count alien ships
+SELECT COUNT(*) FROM alien_ships WHERE universe_id = [UNIVERSE_ID];
+-- Should be 6-15 for 1000-sector universe
+
+-- View alien distribution
+SELECT race, ship_type, behavior, COUNT(*)
+FROM alien_ships
+WHERE universe_id = [UNIVERSE_ID]
+GROUP BY race, ship_type, behavior;
+```
+
+**Alien Races to Verify:**
+- Xenthi, Vorlak, Krynn, Sslith, Zendarr, Thorax, Quell, Nebari, Vedran, Pyrians
+
+---
+
+### 12.2 Alien Ship Detection in Sectors
+**Test:** Verify alien ships appear in sector view
+
+**Steps:**
+1. Navigate universe looking for alien ships
+2. When alien ship is detected, verify display
+3. Check ship details (race, type, behavior, fighters, shields)
+
+**Expected Results:**
+- ✅ Alien ship shown in sector with distinct styling (purple/alien theme)
+- ✅ Shows: Race name (e.g., "Vorlak"), ship type (e.g., "Merchant Cruiser")
+- ✅ Shows: Behavior (patrol/trade/aggressive/defensive)
+- ✅ Shows: Fighters and shields count
+- ✅ "Attack" button available (disabled in TerraSpace or with 0 turns)
+- ✅ Ship stats are 65-90% of ship type max values
+
+**Example Display:**
+```
+👾 ALIEN SHIP DETECTED
+   Race: Vorlak
+   Ship: Merchant Cruiser
+   Behavior: AGGRESSIVE
+   Fighters: 112 | Shields: 98
+   [ATTACK ALIEN SHIP]
+```
+
+---
+
+### 12.3 Alien Planet Detection in Sectors
+**Test:** Verify alien planets appear in sector view
+
+**Steps:**
+1. Navigate universe looking for alien planets (~3 in 1000 sectors)
+2. When alien planet is detected, verify display
+3. Check planet details and auto-unlock alien comms
+
+**Expected Results:**
+- ✅ Alien planet shown with distinct purple/alien theme
+- ✅ Shows: Race name, planet type, citadel level
+- ✅ Shows: Fighters count (1,000-2,000), colonists (50K-100K)
+- ✅ "Attack" button available (disabled in TerraSpace)
+- ✅ **Alien Comms Auto-Unlock:** Notification appears "Alien communications channel unlocked!"
+- ✅ COMMS button badge increments (new channel available)
+- ✅ Ship log auto-logs the alien planet with special marker
+
+**Example Display:**
+```
+👾 ALIEN PLANET
+   Race: Krynn
+   Name: Krynn Outpost Delta-7
+   Citadel: Level 3
+   Fighters: 1,450 | Colonists: 75,000
+   [ATTACK ALIEN PLANET]
+```
+
+---
+
+### 12.4 Alien Communications Channel
+**Test:** Verify alien comms channel works correctly
+
+**Steps:**
+1. Enter sector with alien planet (unlocks comms)
+2. Open COMMS panel
+3. Verify "Alien Comms" tab appears
+4. Read messages in alien comms feed
+
+**Expected Results:**
+- ✅ New "ALIEN COMMS" tab in MessagingPanel (purple theme)
+- ✅ Tab shows message count badge
+- ✅ Messages are **read-only** (no compose option)
+- ✅ Messages show:
+  - Alien race name (color-coded)
+  - Message content (combat, movement, encounters)
+  - Sector number
+  - Timestamp
+
+**Message Types to Verify:**
+- ✅ "Xenthi scout moving through sector [X]" (movement, 30% chance)
+- ✅ "Vorlak battlecruiser attacking player [username] in sector [X]" (combat)
+- ✅ "Player [username] destroyed Krynn merchant cruiser in sector [X]" (combat)
+- ✅ "Sslith ship encountered player [username] in sector [X]" (encounters)
+- ✅ "Thorax ship hit mines in sector [X], took [damage] damage" (mines)
+- ✅ "Zendarr ship destroyed by deployed fighters in sector [X]" (fighters)
+
+---
+
+### 12.5 Attack Alien Ship - Victory
+**Test:** Player destroys alien ship successfully
+
+**Steps:**
+1. Find alien ship in sector (preferably weak one)
+2. Have strong ship (150+ fighters, 100+ shields)
+3. Click "ATTACK ALIEN SHIP"
+4. Watch combat simulation
+5. Verify victory and loot
+
+**Expected Results:**
+- ✅ Combat costs **1 turn**
+- ✅ Combat panel shows round-by-round simulation
+- ✅ Damage randomness: 50-150% variance
+- ✅ Critical hits: 10% chance (2x damage)
+- ✅ Dodge chance: 15% (50% damage reduction)
+- ✅ Shields absorb damage first (2 damage per shield)
+- ✅ **Victory:** Alien ship destroyed message
+- ✅ **Loot:** Receive 75% of alien's credits (if any)
+- ✅ **Kill count** incremented
+- ✅ Alien ship removed from sector
+- ✅ **Alien Comms Broadcast:** "Player [username] destroyed [race] [ship] in sector [X]"
+- ✅ Combat panel closes after dismissal
+- ✅ Sector refreshes to show alien gone
+
+---
+
+### 12.6 Attack Alien Ship - Defeat
+**Test:** Player loses to alien ship
+
+**Steps:**
+1. Find strong alien ship (aggressive with high stats)
+2. Have weak ship (20 fighters, 10 shields)
+3. Attack alien ship
+4. Get destroyed by alien
+
+**Expected Results:**
+- ✅ Combat simulation shows you losing
+- ✅ **Player Death:** "Your ship was DESTROYED!" message
+- ✅ **Respawn:** In Escape Pod (5 holds, 0 fighters/shields)
+- ✅ **Respawn Location:** Random sector 1-3 jumps away OR Sol if isolated
+- ✅ **Death Penalty:** Lose 25% of on-hand credits
+- ✅ **Bank Penalty:** Lose 25% of bank balance
+- ✅ **Cargo Lost:** All fuel/org/equip lost
+- ✅ **Colonists Lost:** All colonists lost
+- ✅ **Mines/Beacons/Genesis Lost:** All zeroed
+- ✅ **Death count** incremented
+- ✅ **Alien Comms Broadcast:** "[Race] [ship] destroyed player [username]'s ship in sector [X]"
+- ✅ Respawn in escape pod message shown clearly
+
+---
+
+### 12.7 Attack Alien Planet - Victory
+**Test:** Player destroys alien planet successfully
+
+**Steps:**
+1. Find alien planet in sector
+2. Have very strong ship (250+ fighters, 200+ shields)
+3. Click "ATTACK ALIEN PLANET"
+4. Watch combat simulation
+5. Verify victory and massive loot
+
+**Expected Results:**
+- ✅ Combat costs **1 turn**
+- ✅ Combat simulation shows citadel-enhanced fighters
+- ✅ **Citadel Bonus:** Planet fighters = base × (1 + 0.1 × citadel_level)
+  - Example: Level 3 citadel = 30% more fighters
+- ✅ Combat shows "(citadel-enhanced)" tag
+- ✅ **Victory:** Alien planet destroyed message
+- ✅ **Loot - Credits:** 75% of planet's stored credits
+- ✅ **Loot - Resources:** 75% of fuel/org/equip (up to cargo capacity)
+- ✅ **Excess Cargo:** Floats in sector if ship full
+- ✅ **Kill count** incremented
+- ✅ Alien planet removed from database
+- ✅ **Alien Comms Broadcast:** "Player [username] destroyed [race] planet in sector [X]"
+
+**Loot Calculation Example:**
+- Alien planet has: 5,000 fuel, 3,000 organics, 2,000 equipment, 100,000 credits
+- Player gets 75%: 3,750 fuel, 2,250 organics, 1,500 equipment, 75,000 credits
+- Ship capacity: 250 holds
+- Can carry: Mix of commodities up to 250 units
+- **Excess:** Remaining resources float in sector as sector_cargo
+
+---
+
+### 12.8 Attack Alien Planet - Defeat
+**Test:** Player loses to alien planet defenses
+
+**Steps:**
+1. Find heavily defended alien planet (Level 4-5 citadel, 1500+ fighters)
+2. Have weak ship (50 fighters, 30 shields)
+3. Attack planet
+4. Get destroyed by planetary defenses
+
+**Expected Results:**
+- ✅ Combat simulation shows overwhelming alien defense
+- ✅ **Player Death:** Same death penalty as alien ship combat
+- ✅ **Respawn:** Escape Pod in random sector 1-3 jumps away
+- ✅ **Credits Lost:** 25% on-hand + 25% bank balance
+- ✅ **Cargo Lost:** All resources lost
+- ✅ **Planet Survives:** Alien planet fighters reduced but still standing
+- ✅ **Alien Comms Broadcast:** "[Race] planet defenses destroyed player [username]'s ship in sector [X]"
+
+---
+
+### 12.9 Alien Ship AI Movement
+**Test:** Verify alien ships move automatically
+
+**Setup:** Requires waiting or monitoring alien ship positions
+
+**Steps:**
+1. Note the sector number of an alien ship with "patrol" behavior
+2. Wait 5 minutes (alien ship movement interval)
+3. Check if alien ship has moved to adjacent sector
+4. Repeat observation
+
+**Expected Results:**
+- ✅ **Patrol behavior:** Moves to random adjacent sector every 5 minutes
+- ✅ **Trade behavior:** Moves between port sectors
+- ✅ **Aggressive behavior:** Patrols actively
+- ✅ **Defensive behavior:** Stays near home alien planet
+- ✅ **Alien Comms Broadcast:** 30% chance of movement broadcast
+  - "[Race] [ship] moving through sector [X]"
+
+**Testing AI Systems:**
+- Check server logs for "Alien ship movement tick" messages
+- Verify no crashes during alien movement
+- Verify aliens don't get stuck in infinite loops
+
+---
+
+### 12.10 Alien Ship vs Deployed Fighters
+**Test:** Verify aliens encounter player-deployed fighters
+
+**Steps:**
+1. Deploy 100 fighters in a sector
+2. Wait for alien ship to move into that sector
+3. Check inbox for notification
+
+**Expected Results:**
+- ✅ **Alien Evaluation:** If alien strength < 50% of fighter strength, alien **retreats**
+- ✅ **Retreat Notification:** Owner receives inbox message "Alien Retreat - Sector [X]"
+- ✅ **Alien Comms Broadcast:** "[Race] [ship] retreated from deployed fighters in sector [X]"
+- ✅ **Fight:** If alien is strong enough, they **attack**
+- ✅ **Combat:** Simple damage calculation (fighters deal damage equal to count)
+- ✅ **Combat Result:** Fighters destroyed, alien loses shields/fighters
+- ✅ **Owner Notification:** Detailed combat report via inbox
+- ✅ **Alien Comms Broadcast:** Combat outcome (alien destroyed or fighters destroyed)
+
+---
+
+### 12.11 Alien Ship vs Mines
+**Test:** Verify aliens trigger mines when entering sectors
+
+**Steps:**
+1. Deploy 10 mines in a sector
+2. Wait for alien ship to move into that sector
+3. Check alien comms and mine status
+
+**Expected Results:**
+- ✅ **Mine Triggering:** 20-90% chance per mine to explode
+- ✅ **Damage:** 75-225 damage per mine (base 150 × 0.5-1.5 variance)
+- ✅ **Shields First:** Alien shields absorb damage before fighters
+- ✅ **Mine Destruction:** Exploded mines are removed
+- ✅ **Alien Survival:** Alien ship continues if fighters > 0
+- ✅ **Alien Death:** Alien ship destroyed if fighters reach 0
+- ✅ **Alien Comms Broadcast:**
+  - "[Race] [ship] hit mines in sector [X], took [damage] damage"
+  - OR "[Race] [ship] destroyed by mines in sector [X]"
+- ✅ **Owner Notification:** Mine owner receives inbox message if alien destroyed
+
+---
+
+### 12.12 Alien Ship Aggression System
+**Test:** Verify aggressive aliens attack players
+
+**Setup:** Requires waiting 10 minutes (aggression tick interval)
+
+**Steps:**
+1. Have a player in same sector as "aggressive" alien ship
+2. Wait 10 minutes for aggression tick
+3. Check if combat occurred
+
+**Expected Results:**
+- ✅ **Aggression Check:** Every 10 minutes, aggressive aliens scan sector for players
+- ✅ **Combat Initiation:** Aggressive alien attacks player in same sector
+- ✅ **Combat Simulation:** Same mechanics as player-initiated combat
+- ✅ **Player Notification:** Inbox message "⚠️ Alien Attack! [Race] [ship] attacked you in sector [X]"
+- ✅ **Combat Result:** Either player or alien destroyed
+- ✅ **Alien Comms Broadcast:** Combat outcome
+- ✅ **Death Penalty:** Player loses 25% credits if destroyed
+
+**Testing AI Aggression:**
+- Check server logs for "Alien aggression tick" messages
+- Verify only "aggressive" behavior aliens attack
+- Verify "patrol"/"trade"/"defensive" aliens don't attack unprovoked
+
+---
+
+### 12.13 Alien Ship Stats Verification
+**Test:** Verify alien ships have correct stat ranges
+
+**Steps:**
+1. Find multiple alien ships of same type (e.g., "Merchant Cruiser")
+2. Note their fighter and shield counts
+3. Check against ship type maximum values
+
+**Expected Results:**
+- ✅ Alien ships have **65-90% of ship type max** fighters/shields
+- ✅ **Example:** Merchant Cruiser max = 150 fighters, 150 shields
+  - Alien should have: 98-135 fighters, 98-135 shields
+- ✅ Stats are randomized within range
+- ✅ Different aliens of same ship type have different stats
+
+**Stat Verification (via database):**
+```sql
+SELECT
+  a.race,
+  a.ship_type,
+  a.fighters,
+  a.shields,
+  st.fighters_max,
+  st.shields_max,
+  ROUND((a.fighters::numeric / st.fighters_max) * 100, 1) as fighter_pct,
+  ROUND((a.shields::numeric / st.shields_max) * 100, 1) as shield_pct
+FROM alien_ships a
+JOIN ship_types st ON a.ship_type = st.name
+WHERE a.universe_id = [UNIVERSE_ID];
+-- fighter_pct and shield_pct should be 65-90%
+```
+
+---
+
+### 12.14 Alien System Performance
+**Test:** Verify alien systems don't cause lag or crashes
+
+**Steps:**
+1. Create large universe (2000+ sectors)
+2. Generate aliens (~6 planets, 12-30 ships)
+3. Let game run for 1+ hour
+4. Monitor server performance and logs
+
+**Expected Results:**
+- ✅ No server crashes during alien movement ticks
+- ✅ No database deadlocks during alien combat
+- ✅ Alien movement completes within ~5 seconds per tick
+- ✅ Alien aggression completes within ~10 seconds per tick
+- ✅ No infinite loops or stuck aliens
+- ✅ Server memory usage stable (no leaks)
+- ✅ Database query performance acceptable
+
+**Performance Monitoring:**
+- Check server CPU usage during ticks
+- Check PostgreSQL active queries: `SELECT * FROM pg_stat_activity;`
+- Monitor for "idle in transaction" queries (indicates deadlock)
+- Check alien_communications table size doesn't explode
+
+---
+
+### 12.15 Edge Cases - Alien System
+
+**Test 1: Alien in TerraSpace**
+- ✅ Aliens should NOT generate in sectors 1-10 (safe zone)
+- ✅ Cannot attack aliens in TerraSpace (error message)
+
+**Test 2: Player in Escape Pod vs Alien**
+- ✅ Player in escape pod should see warning when trying to attack
+- ✅ Error: "Cannot attack while in Escape Pod"
+
+**Test 3: Zero Turns vs Alien**
+- ✅ Cannot attack alien with 0 turns
+- ✅ Error: "Not enough turns"
+
+**Test 4: Alien Ship Destroyed Mid-Combat**
+- ✅ If alien ship moves/destroyed before attack, show error
+- ✅ "Alien ship no longer in sector"
+
+**Test 5: Multiple Players Attack Same Alien**
+- ✅ First attack locks alien (SKIP LOCKED in database)
+- ✅ Second player gets error "Alien is currently engaged in combat"
+
+**Test 6: Alien Communications Without Unlock**
+- ✅ Alien Comms tab should NOT appear if never visited alien planet
+- ✅ After visiting alien planet, tab appears permanently
+
+---
+
+## 13. Genesis Torpedo System Tests (NEW - 2025-12-10)
+
+### 13.1 Purchase Genesis Torpedoes
+**Test:** Buy genesis torpedoes at StarDock
+
+**Steps:**
+1. Navigate to any StarDock sector
+2. Open StarDock panel
+3. Go to Equipment tab
+4. Find "Genesis Torpedoes" section
+5. Purchase 1 torpedo (₡50,000)
+
+**Expected Results:**
+- ✅ Costs ₡50,000 per torpedo
+- ✅ Credits deducted correctly
+- ✅ `ship_genesis` count increments
+- ✅ Cannot buy if credits < ₡50,000
+- ✅ Cannot buy if at max capacity (varies by ship)
+- ✅ Success message shows new count
+
+**Capacity by Ship:**
+- Scout: 5 genesis torpedoes max
+- Trader: 10
+- Freighter: 15
+- Merchant Cruiser: 20
+- Corporate Flagship: 25
+
+---
+
+### 13.2 Launch Genesis Torpedo - Success
+**Test:** Successfully create a new planet with genesis torpedo
+
+**Steps:**
+1. Navigate to an empty sector (no port, no planet)
+2. Sector must be outside TerraSpace (sector 11+)
+3. Have at least 1 genesis torpedo
+4. Click "LAUNCH GENESIS" button
+5. Confirm launch
+
+**Expected Results:**
+- ✅ Costs **1 turn** to launch
+- ✅ Genesis torpedo count decrements by 1
+- ✅ **New Planet Created:**
+  - Random name (e.g., "New Prime", "Genesis Station", "Nova Colony")
+  - Unclaimed (owner_id = NULL)
+  - Sector number = current sector
+  - Created by player tracked in database
+- ✅ **TNN Broadcast:** "TerraCorp News Network: Player [username] deployed a Genesis Torpedo in Sector [X], creating [Planet Name]!"
+- ✅ **Ship Log:** Auto-logs the new planet
+- ✅ Planet appears in sector view immediately
+- ✅ Can claim planet after creation
+
+---
+
+### 13.3 Launch Genesis Torpedo - Restrictions
+**Test:** Verify launch restrictions are enforced
+
+**Restriction Tests:**
+
+**Test 3a: Launch in TerraSpace (sectors 1-10)**
+- ✅ "LAUNCH GENESIS" button does NOT appear
+- ✅ If forced via API: Error "Cannot launch Genesis Torpedoes in TerraSpace"
+
+**Test 3b: Launch in Port Sector**
+- ✅ Button does NOT appear in port sectors
+- ✅ Error: "Cannot launch in port sectors"
+
+**Test 3c: Launch in Sector with Existing Planet**
+- ✅ Button does NOT appear if planet exists
+- ✅ Error: "Sector already has a planet"
+
+**Test 3d: Launch with 0 Torpedoes**
+- ✅ Button appears grayed/disabled
+- ✅ Error: "No Genesis Torpedoes available"
+
+**Test 3e: Launch with 0 Turns**
+- ✅ Button appears grayed/disabled
+- ✅ Error: "Not enough turns"
+
+---
+
+### 13.4 Genesis Torpedo - UI Integration
+**Test:** Verify UI shows genesis torpedo info correctly
+
+**Steps:**
+1. Check GameDashboard header shows genesis count
+2. Check StarDock Equipment tab shows capacity
+3. Check SectorView shows launch button when applicable
+
+**Expected Results:**
+- ✅ **GameDashboard:** Shows "Genesis: 3/5" (current/max)
+- ✅ **StarDock Equipment:** Shows current count, max capacity, price
+- ✅ **SectorView:** "LAUNCH GENESIS" button appears in valid sectors
+- ✅ Button styling: Purple/special theme (genesis is special)
+- ✅ Tooltip or description explains what genesis does
+
+---
+
+### 13.5 Genesis Torpedo - Planet Claiming
+**Test:** Verify newly created planets can be claimed
+
+**Steps:**
+1. Launch genesis torpedo to create planet
+2. View sector, see new planet
+3. Click "CLAIM PLANET" button
+4. Verify planet is now yours
+
+**Expected Results:**
+- ✅ New planet shows as "Unclaimed"
+- ✅ CLAIM button available
+- ✅ Claiming costs 0 credits (free)
+- ✅ After claim: Planet owner is you
+- ✅ Can set production type, deposit colonists, etc.
+- ✅ Planet appears in "My Planets" list
+
+---
+
+### 13.6 Genesis Torpedo - Death Penalty
+**Test:** Verify genesis torpedoes lost on death
+
+**Steps:**
+1. Have 5 genesis torpedoes on ship
+2. Get destroyed in combat (player or alien)
+3. Respawn in Escape Pod
+4. Check genesis count
+
+**Expected Results:**
+- ✅ All genesis torpedoes lost (ship_genesis = 0)
+- ✅ Respawn shows 0/0 genesis (Escape Pod has 0 capacity)
+
+---
+
+### 13.7 Genesis Torpedo - Ship Upgrade Transfer
+**Test:** Verify genesis transfers when upgrading ships
+
+**Steps:**
+1. Have Scout with 3 genesis torpedoes (max 5)
+2. Upgrade to Trader (max 10)
+3. Check genesis count after upgrade
+
+**Expected Results:**
+- ✅ Genesis torpedoes transfer to new ship
+- ✅ Count preserved: 3/10 genesis on Trader
+- ✅ No loss during transfer
+
+**Edge Case: Downgrade**
+- Have Corporate Flagship with 25 genesis
+- "Downgrade" to Scout (max 5)
+- ✅ Only 5 genesis transfer (excess 20 lost)
+- ⚠️ Warning message before upgrade: "Excess genesis will be discarded"
+
+---
+
+### 13.8 Genesis Torpedo - Strategic Uses
+**Test:** Real-world strategic applications
+
+**Scenario 1: Remote Planet Creation**
+1. Find deep-space empty sector (500+ jumps from Sol)
+2. Launch genesis torpedo
+3. Claim planet
+4. Build secret production base
+
+**Expected Results:**
+- ✅ Planet created in remote location
+- ✅ Other players unlikely to find it
+- ✅ Can colonize and produce resources safely
+
+**Scenario 2: Territory Expansion**
+1. Corporation controls sector cluster
+2. Launch genesis in strategic sector
+3. Claim and fortify with citadel + fighters
+4. Control more territory
+
+**Expected Results:**
+- ✅ New planet adds territory control
+- ✅ Can deploy fighters to defend cluster
+- ✅ Strategic choke point created
+
+**Scenario 3: Trade Hub Creation**
+1. Find sector equidistant from 3+ ports
+2. Launch genesis
+3. Use as colonist/cargo storage hub
+4. Optimize trade routes
+
+**Expected Results:**
+- ✅ Planet acts as intermediate storage
+- ✅ Can deposit cargo mid-route
+- ✅ Withdraw resources as needed
+
+---
+
+## Testing Checklist Summary - Alien & Genesis Systems
+
+### Alien System
+- [ ] Alien generation (planets & ships scale with universe size)
+- [ ] Alien ships appear in sectors correctly
+- [ ] Alien planets appear and auto-unlock comms
+- [ ] Alien communications channel displays messages
+- [ ] Attack alien ship - victory (75% loot)
+- [ ] Attack alien ship - defeat (25% death penalty)
+- [ ] Attack alien planet - victory (75% resources + credits)
+- [ ] Attack alien planet - defeat (25% death penalty)
+- [ ] Alien ship AI movement (patrol/trade/aggressive/defensive)
+- [ ] Alien ships vs deployed fighters (retreat/combat)
+- [ ] Alien ships vs mines (trigger and damage)
+- [ ] Alien aggression system (attack players every 10min)
+- [ ] Alien ship stats (65-90% of max)
+- [ ] Performance (no crashes, no deadlocks)
+- [ ] Edge cases (TerraSpace, escape pod, zero turns)
+
+### Genesis Torpedo System
+- [ ] Purchase at StarDock (₡50,000)
+- [ ] Launch in valid sector (creates planet)
+- [ ] Restrictions enforced (TerraSpace, ports, existing planets)
+- [ ] TNN broadcast on planet creation
+- [ ] UI shows genesis count correctly
+- [ ] Newly created planets can be claimed
+- [ ] Genesis lost on death
+- [ ] Genesis transfers on ship upgrade
+- [ ] Strategic uses verified
+
+---
+
 
