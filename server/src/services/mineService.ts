@@ -224,8 +224,10 @@ export const checkMinesOnEntry = async (
 
     // Get player data
     const playerResult = await client.query(
-      `SELECT id, corp_name, ship_shields, ship_fighters
-       FROM players WHERE id = $1 FOR UPDATE`,
+      `SELECT p.id, p.corp_name, p.ship_shields, p.ship_fighters, u.username
+       FROM players p
+       JOIN users u ON p.user_id = u.id
+       WHERE p.id = $1 FOR UPDATE`,
       [playerId]
     );
 
