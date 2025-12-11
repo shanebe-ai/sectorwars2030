@@ -420,7 +420,7 @@ export async function acceptAlienTrade(
             organics: offer.alien_offers_organics,
             equipment: offer.alien_offers_equipment
           },
-          creditsP aid: offer.alien_requests_credits
+          creditsPaid: offer.alien_requests_credits
         }),
         alien.sector_number
       ]
