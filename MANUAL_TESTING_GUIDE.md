@@ -1613,3 +1613,427 @@ WHERE a.universe_id = [UNIVERSE_ID];
 ---
 
 
+
+---
+
+## Trading Systems Tests (Phase 1 & Phase 2)
+
+### Added: 2025-12-12
+
+This section covers manual testing for the Alien Trading System (Phase 1) and Player-to-Player Trading System (Phase 2).
+
+---
+
+## Phase 1: Alien Trading System
+
+### Test: Generate Alien Trade Offer
+
+**Steps:**
+1. Navigate to a sector with a trade alien (behavior = 'trade')
+2. Click the **TRADE** button next to the alien ship
+3. Verify offer displays:
+   - Alien name, race, alignment
+   - What alien offers (fuel/organics/equipment/credits)
+   - What alien requests
+   - Price modifier (0.9-1.1 based on alignment 50-150)
+   - 5-minute countdown timer
+
+**Expected Results:**
+- ✅ Modal opens with bidirectional trade offer
+- ✅ Price modifier reflects alignment (100+ = better prices)
+- ✅ Timer counts down from 5:00
+
+---
+
+### Test: Accept Alien Trade
+
+**Steps:**
+1. Have active alien trade offer
+2. Ensure sufficient credits/cargo space
+3. Click **ACCEPT**
+4. Verify inventory updates
+
+**Expected Results:**
+- ✅ Trade completes successfully
+- ✅ Credits/cargo updated correctly
+- ✅ Offer status = 'accepted'
+- ✅ History logged
+
+**Edge Cases:**
+- ❌ Insufficient credits → Error
+- ❌ Insufficient cargo → Error
+- ❌ Expired offer → Error
+
+---
+
+### Test: Rob Alien Trade (20% Success)
+
+**Steps:**
+1. Have active alien offer
+2. Click **ROB (20%)**
+3. Confirm warning
+4. Observe outcome:
+   - 20%: Robbery success → goods stolen
+   - 80%: Combat initiated
+
+**Expected Results (Success):**
+- ✅ Stolen goods added to inventory
+- ✅ Offer status = 'robbed'
+- ✅ History: 'robbed_success'
+
+**Expected Results (Combat):**
+- ✅ Combat modal appears
+- ✅ Combat results displayed
+- ✅ History: 'robbed_failed'
+
+**Statistical:** Run 10 attempts → ~2 successes, ~8 combat
+
+---
+
+### Test: Alien Offer Expiry (5 Minutes)
+
+**Steps:**
+1. Generate trade offer
+2. Wait 5 minutes OR manually expire via database
+3. Try to accept expired offer
+
+**Expected Results:**
+- ✅ Error: "Trade offer has expired"
+- ✅ Auto-expired by cron job (runs every 1 minute)
+
+**Database Check:**
+```sql
+-- Manually expire for testing
+UPDATE alien_trade_offers
+SET expires_at = NOW() - INTERVAL '1 hour'
+WHERE id = <offer_id>;
+```
+
+---
+
+## Phase 2: Player-to-Player Trading
+
+### Test: Access Trade Inbox/Outbox
+
+**Steps:**
+1. Log in to any sector
+2. Locate **📬 TRADE INBOX** button in action menu
+3. Click to open inbox modal
+4. Close and click **📤 TRADE OUTBOX**
+5. Verify outbox modal opens
+
+**Expected Results:**
+- ✅ Both buttons visible
+- ✅ Inbox shows received offers
+- ✅ Outbox shows sent offers
+
+---
+
+### Test: Create P2P Trade Offer (Same Sector Required)
+
+**Prerequisites:**
+- Player 1 in sector 10
+- Player 2 in sector 10 (same sector!)
+
+**Steps (as Player 1):**
+1. Find Player 2's ship in sector
+2. Click **TRADE** button next to their ship
+3. TradeOfferModal opens
+4. Fill offer:
+   - You Offer: 1000 fuel, 500 credits
+   - You Request: 800 organics, 100 equipment
+   - Message: "Fair trade!"
+5. Click **Create Offer**
+
+**Expected Results:**
+- ✅ Split panel UI (You Offer | You Request)
+- ✅ Real-time validation (can't offer more than you have)
+- ✅ Submit disabled if invalid
+- ✅ Success message on creation
+- ✅ Appears in Player 1's outbox
+- ✅ Appears in Player 2's inbox
+- ✅ WebSocket notification to Player 2
+
+**Edge Cases:**
+- ❌ No offers → Error
+- ❌ No requests → Error
+- ❌ Exceed inventory → Error
+- ❌ Different sectors → Error
+- ❌ 11th pending offer → Error (max 10)
+
+---
+
+### Test: Accept P2P Trade (Same Sector Validation)
+
+**Steps (as Player 2):**
+1. Open **📬 TRADE INBOX**
+2. View offer from Player 1
+3. Verify details displayed
+4. Check resource availability (green/red text)
+5. Ensure both players still in sector 10
+6. Click **ACCEPT**
+
+**Expected Results:**
+- ✅ Bidirectional transfer:
+  - Player 1: -1000 fuel, -500 credits, +800 organics, +100 equipment
+  - Player 2: +1000 fuel, +500 credits, -800 organics, -100 equipment
+- ✅ Offer status = 'accepted'
+- ✅ Removed from inbox/outbox
+- ✅ History logged
+- ✅ WebSocket notifications to both
+
+**Edge Cases:**
+- ❌ Insufficient resources → Error
+- ❌ Cargo space full → Error
+- ❌ Players in different sectors → Error
+- ❌ Expired (24h) → Error
+
+---
+
+### Test: Different Sector Prevention
+
+**Steps:**
+1. Player 1 in sector 10
+2. Player 2 in sector 15
+3. Try to create offer
+
+**Expected Results:**
+- ✅ Error: "Both players must be in the same sector"
+
+**Alternative:**
+1. Create offer when both in sector 10
+2. Player 1 moves to sector 15
+3. Player 2 tries to accept
+4. Error: "Players must be in the same sector to complete trade"
+
+---
+
+### Test: Rob P2P Trade (25% Success, Corp Protection)
+
+**Prerequisites:**
+- Player 1 created offer to Player 2
+- Player 3 in same sector (NOT in same corp as Player 1)
+
+**Steps (as Player 3):**
+1. View offer in sector
+2. Click **ROB (25%)**
+3. Confirm warning: "Corporation members CANNOT rob each other"
+4. Observe outcome:
+   - 25%: Robbery success → stolen goods
+   - 75%: Combat initiated
+
+**Expected Results (Success):**
+- ✅ Player 3 receives offered goods
+- ✅ Offer status = 'robbed'
+- ✅ History: 'robbed_success'
+- ✅ Notifications to both players
+
+**Expected Results (Combat):**
+- ✅ Combat between Player 3 and Player 1
+- ✅ Offer status = 'robbed'
+- ✅ History: 'robbed_failed'
+- ✅ Note: -20% penalty not yet in combat service
+
+**Statistical:** Run 12 attempts → ~3 successes, ~9 combat
+
+---
+
+### Test: Corporation Member Protection
+
+**Prerequisites:**
+- Corp "TestCorp" exists
+- Player 1 in TestCorp
+- Player 2 in TestCorp
+- Player 1 creates offer to Player 3 (not in corp)
+
+**Steps (as Player 2):**
+1. Try to rob Player 1's offer
+2. Observe error
+
+**Expected Results:**
+- ✅ Error: "Cannot rob corporation members"
+- ✅ Robbery blocked
+- ✅ No combat
+- ✅ Offer remains pending
+
+---
+
+### Test: Cancel P2P Offer
+
+**Test A: Initiator Cancels**
+
+**Steps (as Player 1):**
+1. Open **📤 TRADE OUTBOX**
+2. Find pending offer
+3. Click **Cancel Offer**
+4. Confirm
+
+**Expected Results:**
+- ✅ Status = 'cancelled'
+- ✅ Removed from outbox
+- ✅ Player 2's inbox updated
+- ✅ History logged
+- ✅ Notification to Player 2
+
+**Test B: Recipient Rejects**
+
+**Steps (as Player 2):**
+1. Open **📬 TRADE INBOX**
+2. Click **Reject** on offer
+3. Confirm
+
+**Expected Results:**
+- ✅ Same as above
+- ✅ Notification to Player 1
+
+---
+
+### Test: P2P Offer Expiry (24 Hours)
+
+**Steps:**
+1. Create trade offer
+2. Wait 24 hours OR manually expire via database
+3. Try to accept
+
+**Expected Results:**
+- ✅ Error: "Trade offer has expired"
+- ✅ Auto-expired by cron job
+
+**Database Check:**
+```sql
+-- Manually expire for testing
+UPDATE player_trade_offers
+SET expires_at = NOW() - INTERVAL '25 hours'
+WHERE id = <offer_id>;
+
+-- Run cleanup
+SELECT expire_player_trade_offers();
+```
+
+---
+
+### Test: Max 10 Pending Offers Limit
+
+**Steps:**
+1. Create 10 pending offers
+2. Try to create 11th offer
+
+**Expected Results:**
+- ✅ First 10 succeed
+- ✅ 11th rejected
+- ✅ Error: "Maximum 10 pending offers reached"
+
+---
+
+### Test: XSS Sanitization
+
+**Steps:**
+1. Create offer with message: `<script>alert('XSS')</script>Test`
+2. Submit
+3. View in recipient's inbox
+
+**Expected Results:**
+- ✅ Script tags removed/sanitized
+- ✅ No JavaScript execution
+- ✅ Max 500 chars enforced
+
+---
+
+### Test: WebSocket Real-Time Notifications
+
+**Setup:** Two browser windows
+
+**Steps:**
+1. Window 1 (Player 1): Create offer to Player 2
+2. Window 2 (Player 2): Observe notification
+3. Window 2: Accept trade
+4. Window 1: Observe completion notification
+
+**Expected Results:**
+- ✅ `player_trade_offer_received` event fires
+- ✅ `player_trade_completed` event fires
+- ✅ UI updates in real-time
+- ✅ Inbox/outbox counts update
+
+---
+
+### Test: Cargo Space Validation
+
+**Steps:**
+1. Player 1 has nearly full cargo
+2. Create offer requesting large goods amount
+3. Player 2 tries to accept
+
+**Expected Results:**
+- ✅ Error: "You would exceed your cargo capacity"
+- ✅ Trade blocked
+
+---
+
+## Database Integrity Tests
+
+### Test: Database Constraints
+
+```sql
+-- Cannot create offer to yourself
+INSERT INTO player_trade_offers (
+  universe_id, initiator_player_id, recipient_player_id, sector_id,
+  initiator_offers_fuel, initiator_requests_fuel, expires_at
+) VALUES (1, 1, 1, 10, 100, 100, NOW() + INTERVAL '24 hours');
+-- Expected: ERROR - "different_players" constraint
+
+-- Must have at least one offer
+INSERT INTO player_trade_offers (
+  universe_id, initiator_player_id, recipient_player_id, sector_id,
+  initiator_requests_fuel, expires_at
+) VALUES (1, 1, 2, 10, 100, NOW() + INTERVAL '24 hours');
+-- Expected: ERROR - "has_offers" constraint
+
+-- Must have at least one request
+INSERT INTO player_trade_offers (
+  universe_id, initiator_player_id, recipient_player_id, sector_id,
+  initiator_offers_fuel, expires_at
+) VALUES (1, 1, 2, 10, 100, NOW() + INTERVAL '24 hours');
+-- Expected: ERROR - "has_requests" constraint
+```
+
+---
+
+## Test Data Cleanup
+
+```sql
+-- Clean up P2P trades
+DELETE FROM player_trade_offers WHERE universe_id = 1;
+DELETE FROM player_trade_history WHERE universe_id = 1;
+
+-- Clean up alien trades
+DELETE FROM alien_trade_offers WHERE universe_id = 1;
+DELETE FROM alien_trade_history WHERE universe_id = 1;
+
+-- Reset player inventories
+UPDATE players SET
+  credits = 10000,
+  fuel = 50,
+  organics = 50,
+  equipment = 50
+WHERE id IN (1, 2, 3);
+```
+
+---
+
+## Trading Systems Success Criteria
+
+✅ All alien trading tests pass (Phase 1)
+✅ All P2P trading tests pass (Phase 2)
+✅ Same-sector validation enforced
+✅ Corporation protection works
+✅ WebSocket notifications functional
+✅ No race conditions
+✅ Database constraints enforced
+✅ UI/UX intuitive and responsive
+✅ Error messages clear and helpful
+
+---
+
+**Trading Systems Completed:** 2025-12-12
+**Version:** Phase 1 & Phase 2 Complete
