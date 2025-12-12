@@ -4,6 +4,9 @@ import PlanetManagementPanel from './PlanetManagementPanel';
 import StarDockPanel from './StarDockPanel';
 import CombatPanel from './CombatPanel';
 import AlienTradePanel from './AlienTradePanel';
+import TradeOfferModal from './TradeOfferModal';
+import TradeInbox from './TradeInbox';
+import TradeOutbox from './TradeOutbox';
 import { API_URL } from '../config/api';
 
 interface Warp {
@@ -193,6 +196,11 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
   const [showStarDock, setShowStarDock] = useState(false);
   const [combatTarget, setCombatTarget] = useState<CombatTarget | null>(null);
   const [showAlienTrade, setShowAlienTrade] = useState<{ id: number; name: string; race: string } | null>(null);
+  const [showTradeModal, setShowTradeModal] = useState(false);
+  const [showTradeInbox, setShowTradeInbox] = useState(false);
+  const [showTradeOutbox, setShowTradeOutbox] = useState(false);
+  const [tradeTargetPlayerId, setTradeTargetPlayerId] = useState<number | null>(null);
+  const [tradeTargetName, setTradeTargetName] = useState<string>('');
   const [pickingUpCargo, setPickingUpCargo] = useState<number | null>(null);
   const [showBeaconLaunch, setShowBeaconLaunch] = useState(false);
   const [beaconMessage, setBeaconMessage] = useState('');
@@ -1953,6 +1961,40 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
               </>
             )}
 
+            {/* Player Trading Buttons */}
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => setShowTradeInbox(true)}
+                className="cyberpunk-button"
+                style={{
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  background: 'rgba(0, 255, 0, 0.2)',
+                  borderColor: '#00ff00',
+                  color: '#00ff00',
+                  cursor: 'pointer',
+                  flex: 1,
+                }}
+              >
+                📬 TRADE INBOX
+              </button>
+              <button
+                onClick={() => setShowTradeOutbox(true)}
+                className="cyberpunk-button"
+                style={{
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  background: 'rgba(255, 255, 0, 0.2)',
+                  borderColor: '#ffff00',
+                  color: '#ffff00',
+                  cursor: 'pointer',
+                  flex: 1,
+                }}
+              >
+                📤 TRADE OUTBOX
+              </button>
+            </div>
+
           </div>
         </div>
 
@@ -3115,6 +3157,60 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
             loadSectorDetails();
           }}
           onClose={() => setShowAlienTrade(null)}
+        />
+      )}
+
+      {/* Player Trade Offer Modal */}
+      {showTradeModal && tradeTargetPlayerId && (
+        <TradeOfferModal
+          playerId={currentPlayerId}
+          recipientPlayerId={tradeTargetPlayerId}
+          recipientName={tradeTargetName}
+          currentSectorId={currentSector}
+          playerCredits={player.credits}
+          playerCargo={{
+            fuel: player.fuel,
+            organics: player.organics,
+            equipment: player.equipment,
+          }}
+          token={token}
+          onTradeCreated={() => {
+            setShowTradeModal(false);
+            loadSectorDetails();
+          }}
+          onClose={() => setShowTradeModal(false)}
+        />
+      )}
+
+      {/* Player Trade Inbox */}
+      {showTradeInbox && (
+        <TradeInbox
+          playerId={currentPlayerId}
+          currentSectorId={currentSector}
+          playerCredits={player.credits}
+          playerCargo={{
+            fuel: player.fuel,
+            organics: player.organics,
+            equipment: player.equipment,
+          }}
+          token={token}
+          onTradeComplete={(updatedPlayer) => {
+            onSectorChange(updatedPlayer);
+            loadSectorDetails();
+          }}
+          onClose={() => setShowTradeInbox(false)}
+        />
+      )}
+
+      {/* Player Trade Outbox */}
+      {showTradeOutbox && (
+        <TradeOutbox
+          playerId={currentPlayerId}
+          token={token}
+          onOfferCancelled={() => {
+            loadSectorDetails();
+          }}
+          onClose={() => setShowTradeOutbox(false)}
         />
       )}
 

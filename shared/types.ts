@@ -619,3 +619,72 @@ export interface AcceptPlayerTradeRequest {
 export interface AttemptPlayerRobberyRequest {
   offerId: number;
 }
+
+// =====================================================
+// Player-to-Player Trading Types
+// =====================================================
+
+export interface PlayerTradeOffer {
+  id: number;
+  universe_id: number;
+  initiator_player_id: number;
+  recipient_player_id: number;
+  sector_id: number;
+  status: 'pending' | 'accepted' | 'expired' | 'cancelled' | 'robbed';
+
+  // What initiator offers
+  initiator_offers_fuel: number;
+  initiator_offers_organics: number;
+  initiator_offers_equipment: number;
+  initiator_offers_credits: number;
+
+  // What initiator requests
+  initiator_requests_fuel: number;
+  initiator_requests_organics: number;
+  initiator_requests_equipment: number;
+  initiator_requests_credits: number;
+
+  message?: string;
+  created_at: string;
+  expires_at: string;
+  updated_at: string;
+
+  // Populated from joins
+  initiator_name?: string;
+  recipient_name?: string;
+  sector_name?: string;
+}
+
+export interface PlayerTradeHistory {
+  id: number;
+  offer_id: number;
+  universe_id: number;
+  initiator_player_id: number;
+  recipient_player_id: number;
+  sector_id: number;
+  action: 'accepted' | 'cancelled' | 'expired' | 'robbed_success' | 'robbed_failed';
+  fuel_transferred: number;
+  organics_transferred: number;
+  equipment_transferred: number;
+  credits_transferred: number;
+  created_at: string;
+
+  // Populated from joins
+  initiator_name?: string;
+  recipient_name?: string;
+}
+
+export interface PlayerRobberyResult {
+  success: boolean;
+  outcome: 'robbery_success' | 'robbery_combat';
+  message: string;
+  stolenGoods?: {
+    fuel: number;
+    organics: number;
+    equipment: number;
+    credits: number;
+  };
+  player?: any; // Updated player state after robbery
+  combatResult?: any; // If combat was triggered
+  error?: string;
+}

@@ -22,6 +22,7 @@ import sectorFighterRoutes from './routes/sectorFighters';
 import mineRoutes from './routes/mines';
 import alienRoutes from './routes/alien';
 import alienTradingRoutes from './routes/alienTrading';
+import playerTradingRoutes from './routes/playerTrading';
 import corporationRoutes from './routes/corporation';
 import genesisRoutes from './routes/genesis';
 import leaderboardRoutes from './routes/leaderboard';
@@ -29,6 +30,7 @@ import { startPortRegeneration } from './services/portService';
 import { startFighterMaintenance } from './services/maintenanceService';
 import { startAlienShipMovement, startAlienAggression } from './services/alienService';
 import { cleanupExpiredOffers } from './services/alienTradingService';
+import { cleanupExpiredPlayerTrades } from './services/playerTradingService';
 
 dotenv.config();
 
@@ -141,6 +143,9 @@ app.use('/api/aliens', alienRoutes);
 
 // Alien trading routes (trade with aliens)
 app.use('/api/alien-trading', alienTradingRoutes);
+
+// Player trading routes (player-to-player trading)
+app.use('/api/player-trading', playerTradingRoutes);
 
 // Corporation routes (corp management)
 app.use('/api/corporations', corporationRoutes);
@@ -255,8 +260,9 @@ httpServer.listen(PORT, () => {
   setInterval(async () => {
     try {
       await cleanupExpiredOffers();
+      await cleanupExpiredPlayerTrades();
     } catch (error) {
-      console.error('[Alien Trading] Error cleaning up expired offers:', error);
+      console.error('[Trading] Error cleaning up expired offers:', error);
     }
   }, 60 * 1000); // 1 minute
 });
