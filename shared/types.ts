@@ -547,85 +547,6 @@ export interface AlienTradeHistoryResponse {
 // Player-to-Player Trading types (Phase 2)
 export interface PlayerTradeOffer {
   id: number;
-  universeId: number;
-  senderPlayerId: number;
-  receiverPlayerId: number;
-  senderOffersCredits: number;
-  senderOffersFuel: number;
-  senderOffersOrganics: number;
-  senderOffersEquipment: number;
-  senderOffersColonists: number;
-  receiverOffersCredits: number;
-  receiverOffersFuel: number;
-  receiverOffersOrganics: number;
-  receiverOffersEquipment: number;
-  receiverOffersColonists: number;
-  message?: string;
-  status: 'pending' | 'accepted' | 'rejected' | 'expired' | 'cancelled' | 'robbed';
-  createdAt: string;
-  expiresAt: string;
-  completedAt?: string;
-  // Populated player data
-  senderPlayer?: {
-    id: number;
-    corpName: string;
-    username: string;
-    currentSector: number;
-  };
-  receiverPlayer?: {
-    id: number;
-    corpName: string;
-    username: string;
-    currentSector: number;
-  };
-}
-
-export interface PlayerTradeHistory {
-  id: number;
-  universeId: number;
-  senderPlayerId: number;
-  receiverPlayerId: number;
-  creditsTraded: number;
-  fuelTraded: number;
-  organicsTraded: number;
-  equipmentTraded: number;
-  colonistsTraded: number;
-  outcome: 'completed' | 'robbery_success' | 'robbery_combat';
-  wasRobbery: boolean;
-  robberId?: number;
-  sectorNumber: number;
-  tradedAt: string;
-}
-
-export interface CreatePlayerTradeRequest {
-  receiverPlayerId: number;
-  offeredCredits: number;
-  offeredFuel: number;
-  offeredOrganics: number;
-  offeredEquipment: number;
-  offeredColonists: number;
-  requestedCredits: number;
-  requestedFuel: number;
-  requestedOrganics: number;
-  requestedEquipment: number;
-  requestedColonists: number;
-  message?: string;
-}
-
-export interface AcceptPlayerTradeRequest {
-  offerId: number;
-}
-
-export interface AttemptPlayerRobberyRequest {
-  offerId: number;
-}
-
-// =====================================================
-// Player-to-Player Trading Types
-// =====================================================
-
-export interface PlayerTradeOffer {
-  id: number;
   universe_id: number;
   initiator_player_id: number;
   recipient_player_id: number;
@@ -672,6 +593,29 @@ export interface PlayerTradeHistory {
   // Populated from joins
   initiator_name?: string;
   recipient_name?: string;
+}
+
+export interface CreatePlayerTradeRequest {
+  receiverPlayerId: number;
+  offeredCredits: number;
+  offeredFuel: number;
+  offeredOrganics: number;
+  offeredEquipment: number;
+  offeredColonists: number;
+  requestedCredits: number;
+  requestedFuel: number;
+  requestedOrganics: number;
+  requestedEquipment: number;
+  requestedColonists: number;
+  message?: string;
+}
+
+export interface AcceptPlayerTradeRequest {
+  offerId: number;
+}
+
+export interface AttemptPlayerRobberyRequest {
+  offerId: number;
 }
 
 export interface PlayerRobberyResult {

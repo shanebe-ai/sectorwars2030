@@ -10,7 +10,7 @@
  * - Auto-expiry cleanup
  */
 
-import pool from '../db';
+import { pool } from '../db/connection';
 import type { PlayerTradeOffer, PlayerTradeHistory, PlayerRobberyResult } from '../../../shared/types';
 
 // Constants
@@ -71,8 +71,8 @@ export async function createTradeOffer(
       return { success: false, error: 'One or both players not found' };
     }
 
-    const initiator = playersResult.rows.find((p) => p.id === initiatorPlayerId);
-    const recipient = playersResult.rows.find((p) => p.id === recipientPlayerId);
+    const initiator = playersResult.rows.find((p: any) => p.id === initiatorPlayerId);
+    const recipient = playersResult.rows.find((p: any) => p.id === recipientPlayerId);
 
     if (!initiator || !recipient) {
       await client.query('ROLLBACK');
@@ -299,8 +299,8 @@ export async function acceptPlayerTrade(
       return { success: false, error: 'One or both players not found' };
     }
 
-    const initiator = playersResult.rows.find((p) => p.id === offer.initiator_player_id);
-    const recipient = playersResult.rows.find((p) => p.id === offer.recipient_player_id);
+    const initiator = playersResult.rows.find((p: any) => p.id === offer.initiator_player_id);
+    const recipient = playersResult.rows.find((p: any) => p.id === offer.recipient_player_id);
 
     if (!initiator || !recipient) {
       await client.query('ROLLBACK');
@@ -436,8 +436,8 @@ export async function acceptPlayerTrade(
       [[offer.initiator_player_id, offer.recipient_player_id]]
     );
 
-    const updatedInitiator = updatedPlayersResult.rows.find((p) => p.id === offer.initiator_player_id);
-    const updatedRecipient = updatedPlayersResult.rows.find((p) => p.id === offer.recipient_player_id);
+    const updatedInitiator = updatedPlayersResult.rows.find((p: any) => p.id === offer.initiator_player_id);
+    const updatedRecipient = updatedPlayersResult.rows.find((p: any) => p.id === offer.recipient_player_id);
 
     await client.query('COMMIT');
 
@@ -563,8 +563,8 @@ export async function attemptPlayerRobbery(
       };
     }
 
-    const robber = playersResult.rows.find((p) => p.id === robberId);
-    const victim = playersResult.rows.find((p) => p.id === offer.initiator_player_id);
+    const robber = playersResult.rows.find((p: any) => p.id === robberId);
+    const victim = playersResult.rows.find((p: any) => p.id === offer.initiator_player_id);
 
     if (!robber || !victim) {
       await client.query('ROLLBACK');
@@ -755,13 +755,13 @@ export async function attemptPlayerRobbery(
       );
 
       // Import combat service
-      const { playerAttacksPlayer } = await import('./combatService');
+      const { executeAttack } = await import('./combatService');
 
-      // Execute combat with robber penalty
-      const combatResult = await playerAttacksPlayer(
+      // Execute combat (robber attacks victim)
+      // Note: Combat penalty feature would need to be added to combat service
+      const combatResult = await executeAttack(
         robberId,
-        offer.initiator_player_id,
-        ROBBER_COMBAT_PENALTY
+        offer.initiator_player_id
       );
 
       // Emit WebSocket events
