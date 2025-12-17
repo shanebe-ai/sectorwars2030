@@ -141,17 +141,43 @@ export async function cleanupTestData(): Promise<void> {
  */
 export async function createTestPlayer(userId: number, corpName: string = 'Test Corp'): Promise<number> {
   const pool = getTestPool();
-  const result = await pool.query(`
-    INSERT INTO players (
-      user_id, universe_id, corp_name, current_sector,
-      cargo_fuel, cargo_organics, cargo_equipment,
-      credits, ship_type, ship_beacons
-    )
-    VALUES ($1, 3, $2, 10, 500, 500, 500, 5000, 'Scout', 5)
-    RETURNING id
-  `, [userId, corpName]);
+  const client = await pool.connect();
 
-  return result.rows[0].id;
+  try {
+    // Ensure universe 3 exists, or create it
+    const universeCheck = await client.query('SELECT id FROM universes WHERE id = 3');
+    if (universeCheck.rows.length === 0) {
+      await client.query(`
+        INSERT INTO universes (id, name, max_sectors, max_players, turns_per_day, starting_credits, starting_ship_type)
+        VALUES (3, 'Test Universe', 100, 100, 1000, 2000, 'scout')
+        ON CONFLICT (id) DO NOTHING
+      `);
+    }
+
+    // Ensure sector 10 exists in universe 3
+    const sectorCheck = await client.query('SELECT id FROM sectors WHERE universe_id = 3 AND sector_number = 10');
+    if (sectorCheck.rows.length === 0) {
+      await client.query(`
+        INSERT INTO sectors (universe_id, sector_number, name)
+        VALUES (3, 10, 'Test Sector 10')
+        ON CONFLICT DO NOTHING
+      `);
+    }
+
+    const result = await client.query(`
+      INSERT INTO players (
+        user_id, universe_id, corp_name, current_sector,
+        cargo_fuel, cargo_organics, cargo_equipment,
+        credits, ship_type, ship_beacons, ship_holds_max
+      )
+      VALUES ($1, 3, $2, 10, 500, 500, 500, 5000, 'Scout', 5, 2000)
+      RETURNING id
+    `, [userId, corpName]);
+
+    return result.rows[0].id;
+  } finally {
+    client.release();
+  }
 }
 
 /**

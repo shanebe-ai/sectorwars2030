@@ -56,7 +56,13 @@ export async function createTradeOffer(
   try {
     await client.query('BEGIN');
 
-    // 1. Validate both players exist and get their details
+    // 1. Validate not trading with yourself
+    if (initiatorPlayerId === recipientPlayerId) {
+      await client.query('ROLLBACK');
+      return { success: false, error: 'Cannot trade with yourself' };
+    }
+
+    // 2. Validate both players exist and get their details
     const playersResult = await client.query(
       `SELECT p.id, p.corp_name as name, p.universe_id, p.current_sector, p.credits, p.cargo_fuel, p.cargo_organics, p.cargo_equipment, p.ship_holds_max
        FROM players p
@@ -252,7 +258,7 @@ export async function getPlayerTradeOffers(
     const result = await pool.query(
       `SELECT
         pto.*,
-        p.corp_name as name as ${otherPlayerAlias},
+        p.corp_name as ${otherPlayerAlias},
         s.name as sector_name
        FROM player_trade_offers pto
        JOIN players p ON p.id = pto.${otherPlayerIdColumn}
@@ -290,7 +296,7 @@ export async function acceptPlayerTrade(
 
     // 1. Lock and fetch the offer
     const offerResult = await client.query(
-      `SELECT pto.*, p1.corp_name as name as initiator_name, p2.corp_name as name as recipient_name
+      `SELECT pto.*, p1.corp_name as initiator_name, p2.corp_name as recipient_name
        FROM player_trade_offers pto
        JOIN players p1 ON p1.id = pto.initiator_player_id
        JOIN players p2 ON p2.id = pto.recipient_player_id
@@ -855,7 +861,7 @@ export async function cancelPlayerTrade(
 
     // 1. Lock and fetch the offer
     const offerResult = await client.query(
-      `SELECT pto.*, p1.corp_name as name as initiator_name, p2.corp_name as name as recipient_name
+      `SELECT pto.*, p1.corp_name as initiator_name, p2.corp_name as recipient_name
        FROM player_trade_offers pto
        JOIN players p1 ON p1.id = pto.initiator_player_id
        JOIN players p2 ON p2.id = pto.recipient_player_id
@@ -941,8 +947,8 @@ export async function getPlayerTradeHistory(
     const result = await pool.query(
       `SELECT
         pth.*,
-        p1.corp_name as name as initiator_name,
-        p2.corp_name as name as recipient_name
+        p1.corp_name as initiator_name,
+        p2.corp_name as recipient_name
        FROM player_trade_history pth
        JOIN players p1 ON p1.id = pth.initiator_player_id
        JOIN players p2 ON p2.id = pth.recipient_player_id

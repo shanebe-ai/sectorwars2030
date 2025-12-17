@@ -61,6 +61,9 @@ describe('Player-to-Player Trading System', () => {
         credits: 500
       }, 'Test trade');
 
+      if (!result.success) {
+        console.log('CREATE OFFER FAILED:', result.error);
+      }
       expect(result.success).toBe(true);
       expect(result.offer).toBeDefined();
     });
@@ -117,7 +120,7 @@ describe('Player-to-Player Trading System', () => {
       }, 'Empty offer');
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('must offer');
+      expect(result.error).toContain('Must offer');
     });
 
     it('should reject offer without any requests', async () => {
@@ -134,7 +137,7 @@ describe('Player-to-Player Trading System', () => {
       }, 'Empty request');
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('must request');
+      expect(result.error).toContain('Must request');
     });
 
     it('should reject offer if insufficient resources', async () => {
@@ -223,6 +226,9 @@ describe('Player-to-Player Trading System', () => {
 
       if (createResult.offer) {
         const acceptResult = await acceptPlayerTrade(createResult.offer.id, testPlayer2Id);
+        if (!acceptResult.success) {
+          console.log('ACCEPT FAILED:', acceptResult.error);
+        }
         expect(acceptResult.success).toBe(true);
       }
     });
