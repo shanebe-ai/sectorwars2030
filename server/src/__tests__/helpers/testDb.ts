@@ -121,6 +121,9 @@ export async function cleanupTestData(): Promise<void> {
     await client.query('DELETE FROM sector_fighters');
     await client.query('DELETE FROM sector_mines');
     await client.query('DELETE FROM planets');
+    // Handle circular dependency between players and corporations
+    await client.query('UPDATE players SET corp_id = NULL WHERE corp_id IS NOT NULL');
+    await client.query('DELETE FROM corporations');
     await client.query('DELETE FROM players');
     await client.query('DELETE FROM users WHERE username LIKE \'test_%\' OR username LIKE \'p2p_%\'');
 
@@ -223,9 +226,9 @@ export async function createWarp(
 }
 
 /**
- * Create test player and return player ID
+ * Create test player with full parameters and return player ID
  */
-export async function createTestPlayer(
+export async function createTestPlayerDetailed(
   userId: number,
   universeId: number,
   currentSector: number,

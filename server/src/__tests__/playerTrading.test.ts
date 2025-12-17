@@ -49,7 +49,7 @@ describe('Player-to-Player Trading System', () => {
 
   describe('Trade Offer Creation', () => {
     it('should create a valid trade offer', async () => {
-      const result = await createTradeOffer(testPlayer1Id, testPlayer2Id, 10, {
+      const result = await createTradeOffer(testPlayer1Id, testPlayer2Id, {
         fuel: 100,
         organics: 50,
         equipment: 25,
@@ -66,7 +66,7 @@ describe('Player-to-Player Trading System', () => {
     });
 
     it('should reject offer to yourself', async () => {
-      const result = await createTradeOffer(testPlayer1Id, testPlayer1Id, 10, {
+      const result = await createTradeOffer(testPlayer1Id, testPlayer1Id, {
         fuel: 10,
         organics: 0,
         equipment: 0,
@@ -79,7 +79,7 @@ describe('Player-to-Player Trading System', () => {
       }, 'Self trade');
 
       expect(result.success).toBe(false);
-      expect(result.message).toContain('yourself');
+      expect(result.error).toContain('yourself');
     });
 
     it('should reject offer if players in different sectors', async () => {
@@ -88,50 +88,84 @@ describe('Player-to-Player Trading System', () => {
       await pool.query('UPDATE players SET current_sector = 20 WHERE id = $1', [testPlayer2Id]);
 
       const result = await createTradeOffer(testPlayer1Id, testPlayer2Id, {
-        initiator_offers_fuel: 10,
-        message: 'Different sector trade'
-      });
+        fuel: 10,
+        organics: 0,
+        equipment: 0,
+        credits: 0
+      }, {
+        fuel: 5,
+        organics: 0,
+        equipment: 0,
+        credits: 0
+      }, 'Different sector trade');
 
       expect(result.success).toBe(false);
-      expect(result.message).toContain('same sector');
+      expect(result.error).toContain('same sector');
     });
 
     it('should reject offer without any offers', async () => {
       const result = await createTradeOffer(testPlayer1Id, testPlayer2Id, {
-        message: 'Empty offer'
-      });
+        fuel: 0,
+        organics: 0,
+        equipment: 0,
+        credits: 0
+      }, {
+        fuel: 10,
+        organics: 0,
+        equipment: 0,
+        credits: 0
+      }, 'Empty offer');
 
       expect(result.success).toBe(false);
-      expect(result.message).toContain('must offer');
+      expect(result.error).toContain('must offer');
     });
 
     it('should reject offer without any requests', async () => {
       const result = await createTradeOffer(testPlayer1Id, testPlayer2Id, {
-        initiator_offers_fuel: 10,
-        message: 'Empty request'
-      });
+        fuel: 10,
+        organics: 0,
+        equipment: 0,
+        credits: 0
+      }, {
+        fuel: 0,
+        organics: 0,
+        equipment: 0,
+        credits: 0
+      }, 'Empty request');
 
       expect(result.success).toBe(false);
-      expect(result.message).toContain('must request');
+      expect(result.error).toContain('must request');
     });
 
     it('should reject offer if insufficient resources', async () => {
       const result = await createTradeOffer(testPlayer1Id, testPlayer2Id, {
-        initiator_offers_fuel: 1000, // More than player has
-        initiator_requests_fuel: 10,
-        message: 'Insufficient resources'
-      });
+        fuel: 1000, // More than player has
+        organics: 0,
+        equipment: 0,
+        credits: 0
+      }, {
+        fuel: 10,
+        organics: 0,
+        equipment: 0,
+        credits: 0
+      }, 'Insufficient resources');
 
       expect(result.success).toBe(false);
-      expect(result.message).toContain('insufficient');
+      expect(result.error).toContain('Insufficient');
     });
 
     it('should sanitize XSS in message', async () => {
       const result = await createTradeOffer(testPlayer1Id, testPlayer2Id, {
-        initiator_offers_fuel: 10,
-        initiator_requests_fuel: 10,
-        message: '<script>alert("xss")</script>'
-      });
+        fuel: 10,
+        organics: 0,
+        equipment: 0,
+        credits: 0
+      }, {
+        fuel: 10,
+        organics: 0,
+        equipment: 0,
+        credits: 0
+      }, '<script>alert("xss")</script>');
 
       expect(result.success).toBe(true);
       expect(result.offer?.message).not.toContain('<script>');
@@ -147,10 +181,16 @@ describe('Player-to-Player Trading System', () => {
     it('should get inbox offers for recipient', async () => {
       // Create an offer first
       await createTradeOffer(testPlayer1Id, testPlayer2Id, {
-        initiator_offers_fuel: 10,
-        initiator_requests_fuel: 5,
-        message: 'Inbox test'
-      });
+        fuel: 10,
+        organics: 0,
+        equipment: 0,
+        credits: 0
+      }, {
+        fuel: 5,
+        organics: 0,
+        equipment: 0,
+        credits: 0
+      }, 'Inbox test');
 
       const offers = await getPlayerTradeOffers(testPlayer2Id, 'inbox');
       expect(offers.length).toBeGreaterThan(0);
@@ -167,16 +207,16 @@ describe('Player-to-Player Trading System', () => {
   describe('Accept Trade', () => {
     it('should successfully accept valid trade offer', async () => {
       const createResult = await createTradeOffer(testPlayer1Id, testPlayer2Id, {
-        initiator_offers_fuel: 100,
-        initiator_offers_organics: 50,
-        initiator_offers_equipment: 25,
-        initiator_offers_credits: 1000,
-        initiator_requests_fuel: 50,
-        initiator_requests_organics: 100,
-        initiator_requests_equipment: 75,
-        initiator_requests_credits: 500,
-        message: 'Accept test trade'
-      });
+        fuel: 100,
+        organics: 50,
+        equipment: 25,
+        credits: 1000
+      }, {
+        fuel: 50,
+        organics: 100,
+        equipment: 75,
+        credits: 500
+      }, 'Accept test trade');
 
       expect(createResult.success).toBe(true);
       expect(createResult.offer).toBeDefined();
@@ -189,10 +229,16 @@ describe('Player-to-Player Trading System', () => {
 
     it('should reject if acceptor is not the recipient', async () => {
       const createResult = await createTradeOffer(testPlayer1Id, testPlayer2Id, {
-        initiator_offers_fuel: 10,
-        initiator_requests_fuel: 5,
-        message: 'Wrong acceptor test'
-      });
+        fuel: 10,
+        organics: 0,
+        equipment: 0,
+        credits: 0
+      }, {
+        fuel: 5,
+        organics: 0,
+        equipment: 0,
+        credits: 0
+      }, 'Wrong acceptor test');
 
       if (createResult.offer) {
         const acceptResult = await acceptPlayerTrade(createResult.offer.id, testRobberId);
@@ -202,10 +248,16 @@ describe('Player-to-Player Trading System', () => {
 
     it('should reject if players in different sectors', async () => {
       const createResult = await createTradeOffer(testPlayer1Id, testPlayer2Id, {
-        initiator_offers_fuel: 10,
-        initiator_requests_fuel: 5,
-        message: 'Sector test'
-      });
+        fuel: 10,
+        organics: 0,
+        equipment: 0,
+        credits: 0
+      }, {
+        fuel: 5,
+        organics: 0,
+        equipment: 0,
+        credits: 0
+      }, 'Sector test');
 
       // Move player 2 to different sector
       const { pool } = await import('../db/connection');
