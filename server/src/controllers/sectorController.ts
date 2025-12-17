@@ -32,6 +32,15 @@ export const getSectorDetails = async (req: Request, res: Response) => {
     const universeId = playerResult.rows[0].universe_id;
     const currentSector = playerResult.rows[0].current_sector;
 
+    // Check for mine explosions when entering/viewing sector (before any other checks)
+    let mineResult = null;
+    try {
+      mineResult = await checkMinesOnEntry(playerId, universeId, parseInt(sectorNumber as string));
+    } catch (mineError) {
+      console.error('Error checking mines on sector entry:', mineError);
+      // Continue without blocking sector viewing if mine check fails
+    }
+
     // Get sector details
     const sectorResult = await pool.query(
       `SELECT
@@ -143,34 +152,41 @@ export const getSectorDetails = async (req: Request, res: Response) => {
       }));
     }
 
-    // Get floating cargo in sector
+    // Get floating cargo in sector (normalized structure)
     const cargoResult = await pool.query(
-      `SELECT id, fuel, organics, equipment, colonists, source_event, created_at
-       FROM sector_cargo 
-       WHERE universe_id = $1 AND sector_number = $2 
+      `SELECT id, cargo_type, quantity, created_at
+       FROM sector_cargo
+       WHERE universe_id = $1 AND sector_number = $2
        AND expires_at > NOW()
-       AND (fuel > 0 OR organics > 0 OR equipment > 0 OR colonists > 0)`,
+       AND quantity > 0`,
       [universeId, sectorNumber]
     );
 
-    const floatingCargo = cargoResult.rows.map(c => ({
-      id: c.id,
-      fuel: c.fuel,
-      organics: c.organics,
-      equipment: c.equipment,
-      colonists: c.colonists,
-      source: c.source_event,
-      createdAt: c.created_at
-    }));
+    // Convert normalized cargo data to the expected format
+    const cargoMap: { [key: string]: number } = {};
+    cargoResult.rows.forEach(c => {
+      cargoMap[c.cargo_type] = c.quantity;
+    });
+
+    const floatingCargo = cargoResult.rows.length > 0 ? [{
+      id: cargoResult.rows[0].id, // Use first row's ID for display
+      fuel: cargoMap.fuel || 0,
+      organics: cargoMap.organics || 0,
+      equipment: cargoMap.equipment || 0,
+      colonists: cargoMap.colonists || 0,
+      source: 'combat_loot', // Default source since we don't have source_event in this table
+      createdAt: cargoResult.rows[0].created_at
+    }] : [];
 
     // Get beacons in sector
     let beacons: any[] = [];
     try {
       const beaconResult = await pool.query(
-        `SELECT id, owner_id, owner_name, message, created_at
-         FROM sector_beacons
-         WHERE universe_id = $1 AND sector_number = $2
-         ORDER BY created_at DESC`,
+        `SELECT b.id, b.owner_id, u.username as owner_name, b.message, b.created_at
+         FROM sector_beacons b
+         LEFT JOIN users u ON b.owner_id = u.id
+         WHERE b.universe_id = $1 AND b.sector_number = $2
+         ORDER BY b.created_at DESC`,
         [universeId, sectorNumber]
       );
 
@@ -325,7 +341,8 @@ export const getSectorDetails = async (req: Request, res: Response) => {
           citadelLevel: alienPlanet.citadelLevel,
           fighters: alienPlanet.fighters
         } : null
-      }
+      },
+      mineResult
     });
   } catch (error: any) {
     console.error('Error getting sector details:', error);
@@ -495,7 +512,10 @@ export const scanSector = async (req: Request, res: Response) => {
     let planetInfo = null;
     if (sector.has_planet) {
       const planetResult = await pool.query(
-        `SELECT name, owner_id, owner_name FROM planets WHERE sector_id = $1`,
+        `SELECT p.name, p.owner_id, u.username as owner_name
+         FROM planets p
+         LEFT JOIN users u ON p.owner_id = u.id
+         WHERE p.sector_id = $1`,
         [sector.id]
       );
       if (planetResult.rows.length > 0) {
@@ -509,10 +529,11 @@ export const scanSector = async (req: Request, res: Response) => {
 
     // Get beacons in sector (but don't show messages in scan)
     const beaconsResult = await pool.query(
-      `SELECT id, owner_id, owner_name, created_at
-       FROM sector_beacons
-       WHERE universe_id = $1 AND sector_number = $2
-       ORDER BY created_at DESC`,
+      `SELECT b.id, b.owner_id, u.username as owner_name, b.created_at
+       FROM sector_beacons b
+       LEFT JOIN users u ON b.owner_id = u.id
+       WHERE b.universe_id = $1 AND b.sector_number = $2
+       ORDER BY b.created_at DESC`,
       [player.universe_id, targetSector]
     );
     const beacons = beaconsResult.rows.map(b => ({
@@ -522,24 +543,31 @@ export const scanSector = async (req: Request, res: Response) => {
       createdAt: b.created_at
     }));
 
-    // Get floating cargo in sector
+    // Get floating cargo in sector (normalized structure)
     const cargoResult = await pool.query(
-      `SELECT id, fuel, organics, equipment, colonists, source_event, created_at
-       FROM sector_cargo 
-       WHERE universe_id = $1 AND sector_number = $2 
+      `SELECT id, cargo_type, quantity, created_at
+       FROM sector_cargo
+       WHERE universe_id = $1 AND sector_number = $2
        AND expires_at > NOW()
-       AND (fuel > 0 OR organics > 0 OR equipment > 0 OR colonists > 0)`,
+       AND quantity > 0`,
       [player.universe_id, targetSector]
     );
-    const floatingCargo = cargoResult.rows.map(c => ({
-      id: c.id,
-      fuel: c.fuel,
-      organics: c.organics,
-      equipment: c.equipment,
-      colonists: c.colonists,
-      source: c.source_event,
-      createdAt: c.created_at
-    }));
+
+    // Convert normalized cargo data to the expected format
+    const cargoMap: { [key: string]: number } = {};
+    cargoResult.rows.forEach(c => {
+      cargoMap[c.cargo_type] = c.quantity;
+    });
+
+    const floatingCargo = cargoResult.rows.length > 0 ? [{
+      id: cargoResult.rows[0].id, // Use first row's ID for display
+      fuel: cargoMap.fuel || 0,
+      organics: cargoMap.organics || 0,
+      equipment: cargoMap.equipment || 0,
+      colonists: cargoMap.colonists || 0,
+      source: 'combat_loot', // Default source since we don't have source_event in this table
+      createdAt: cargoResult.rows[0].created_at
+    }] : [];
 
     // Deduct turn
     await pool.query(
@@ -841,8 +869,9 @@ export const moveToSector = async (req: Request, res: Response) => {
 
       // Check for beacons in destination sector and broadcast their messages
       const beaconsResult = await pool.query(
-        `SELECT owner_name, message FROM sector_beacons
-         WHERE universe_id = $1 AND sector_number = $2`,
+        `SELECT u.username as owner_name, b.message FROM sector_beacons b
+         LEFT JOIN users u ON b.owner_id = u.id
+         WHERE b.universe_id = $1 AND b.sector_number = $2`,
         [player.universe_id, actualDestination]
       );
 

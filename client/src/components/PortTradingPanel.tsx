@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { API_URL } from '../config/api';
+import { useAutoScroll } from '../hooks/useAutoScroll';
 
 interface CommodityInfo {
   action: 'buy' | 'sell';
@@ -55,6 +56,9 @@ export default function PortTradingPanel({
   });
   const [colonistQty, setColonistQty] = useState(0);
   const [buyingColonists, setBuyingColonists] = useState(false);
+
+  // Auto-scroll ref for error messages
+  const errorScrollRef = useAutoScroll([error], 'smooth', 100);
 
   useEffect(() => {
     loadPortInfo();
@@ -239,7 +243,7 @@ export default function PortTradingPanel({
       <div className="port-trading-overlay">
         <div className="port-trading-panel">
           <div className="port-header">► PORT INTERFACE</div>
-          <div className="error-message" style={{ margin: '20px' }}>
+          <div ref={errorScrollRef} className="error-message" style={{ margin: '20px' }}>
             ✗ {error}
           </div>
           <button onClick={onClose} className="cyberpunk-button" style={{ margin: '0 20px 20px' }}>
@@ -377,6 +381,7 @@ export default function PortTradingPanel({
         {/* Error */}
         {error && (
           <div
+            ref={errorScrollRef}
             style={{
               padding: '10px 20px',
               background: 'rgba(255, 20, 147, 0.1)',

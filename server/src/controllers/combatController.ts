@@ -6,6 +6,7 @@ import {
   getAttackableTargets
 } from '../services/combatService';
 import { pool } from '../db/connection';
+import { notifyCombatResult } from '../services/broadcastService';
 
 /**
  * Attack another player in the same sector
@@ -46,6 +47,23 @@ export const attackPlayer = async (req: Request, res: Response) => {
 
     // Execute the attack
     const result = await executeAttack(attackerId, targetId);
+
+    // Send WebSocket notification for combat result
+    try {
+      await notifyCombatResult(
+        playerResult.rows[0].universe_id,
+        updatedPlayer.current_sector,
+        result.message,
+        {
+          winner: result.winner,
+          damageDealt: result.attackerDestroyed ? 0 : result.defenderFightersLost,
+          lootTaken: result.creditsLooted
+        }
+      );
+    } catch (notifyError) {
+      console.error('Failed to send combat notification:', notifyError);
+      // Don't fail the request if notification fails
+    }
 
     // Get updated player stats
     const updatedPlayerResult = await pool.query(

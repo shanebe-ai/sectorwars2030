@@ -12,10 +12,11 @@ COMMENT ON COLUMN players.colonists IS 'Number of colonists in ship cargo (trans
 ALTER TABLE planets
 ADD COLUMN IF NOT EXISTS owner_name VARCHAR(100);
 
--- Update existing planets to have owner_name from player name
+-- Update existing planets to have owner_name from player username
 UPDATE planets p
-SET owner_name = pl.name
+SET owner_name = u.username
 FROM players pl
+JOIN users u ON pl.user_id = u.id
 WHERE p.owner_id = pl.id AND p.owner_name IS NULL;
 
 -- Ensure Earth has owner_name set to Terra Corp

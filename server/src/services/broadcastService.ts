@@ -57,3 +57,28 @@ export async function broadcastAlienComms(
     options.relatedShipId || options.relatedPlanetId || null
   ]);
 }
+
+/**
+ * Send a WebSocket notification for combat results
+ * Used for player vs player and player vs alien combat
+ */
+export async function notifyCombatResult(
+  universeId: number,
+  sectorNumber: number,
+  message: string,
+  combatDetails?: {
+    attacker?: string;
+    defender?: string;
+    winner?: string;
+    damageDealt?: number;
+    lootTaken?: number;
+  }
+): Promise<void> {
+  // Emit WebSocket event for real-time combat notifications
+  emitUniverseEvent(universeId, 'combat_result', {
+    sectorNumber,
+    message,
+    timestamp: new Date().toISOString(),
+    details: combatDetails
+  });
+}

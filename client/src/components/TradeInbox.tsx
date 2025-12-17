@@ -298,7 +298,7 @@ const TradeInbox: React.FC<TradeInboxProps> = ({
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             {offers.map((offer) => {
-              const sameS ector = offer.sector_id === currentSectorId;
+              const sameSector = offer.sector_id === currentSectorId;
               const canAfford =
                 offer.initiator_requests_fuel <= playerCargo.fuel &&
                 offer.initiator_requests_organics <= playerCargo.organics &&

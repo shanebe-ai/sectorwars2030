@@ -128,26 +128,20 @@ async function seedShipTypes() {
     for (const ship of shipTypes) {
       await query(
         `INSERT INTO ship_types (
-          name, display_name, holds, fighters, shields, torpedo_tubes,
-          attack_power, defense_power, max_turns_warp, fuel_efficiency,
-          cloak_capable, mines_max, genesis_max, cost_credits, unlock_level, description
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+          name, holds, fighters_max, shields_max, torpedoes_max,
+          mines_max, beacons_max, genesis_max, turns_cost, cost_credits, description, universe_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NULL)`,
         [
           ship.name,
-          ship.display_name,
           ship.holds,
           ship.fighters,
           ship.shields,
           ship.torpedo_tubes,
-          ship.attack_power,
-          ship.defense_power,
-          ship.max_turns_warp,
-          ship.fuel_efficiency,
-          ship.cloak_capable,
           ship.mines_max,
+          10, // Default beacons_max (not in seed data)
           ship.genesis_max,
+          1, // Default turns_cost (not in seed data)
           ship.cost_credits,
-          ship.unlock_level,
           ship.description,
         ]
       );

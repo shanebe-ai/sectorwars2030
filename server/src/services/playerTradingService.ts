@@ -36,7 +36,6 @@ const getEmitPlayerEvent = async () => {
 export async function createTradeOffer(
   initiatorPlayerId: number,
   recipientPlayerId: number,
-  sectorId: number,
   offers: {
     fuel: number;
     organics: number;
@@ -52,16 +51,15 @@ export async function createTradeOffer(
   message?: string
 ): Promise<{ success: boolean; offer?: PlayerTradeOffer; error?: string }> {
   const client = await pool.connect();
+  let sectorId: number;
 
   try {
     await client.query('BEGIN');
 
     // 1. Validate both players exist and get their details
     const playersResult = await client.query(
-      `SELECT p.id, p.name, p.universe_id, p.current_sector_id, p.credits, p.fuel, p.organics, p.equipment,
-              st.cargo_capacity
+      `SELECT p.id, p.corp_name as name, p.universe_id, p.current_sector, p.credits, p.cargo_fuel, p.cargo_organics, p.cargo_equipment, p.ship_holds_max
        FROM players p
-       JOIN ship_types st ON p.ship_type_id = st.id
        WHERE p.id = ANY($1::int[])`,
       [[initiatorPlayerId, recipientPlayerId]]
     );
@@ -85,19 +83,32 @@ export async function createTradeOffer(
       return { success: false, error: 'Players must be in the same universe' };
     }
 
-    // 3. Validate same sector
-    if (initiator.current_sector_id !== sectorId || recipient.current_sector_id !== sectorId) {
+    // 3. Validate same sector (by sector number, not ID)
+    if (initiator.current_sector !== recipient.current_sector) {
       await client.query('ROLLBACK');
       return { success: false, error: 'Both players must be in the same sector' };
     }
 
+    // Get sector ID from sector number
+    const sectorResult = await client.query(
+      `SELECT id FROM sectors WHERE universe_id = $1 AND sector_number = $2`,
+      [initiator.universe_id, initiator.current_sector]
+    );
+
+    if (sectorResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return { success: false, error: 'Sector not found' };
+    }
+
+    sectorId = sectorResult.rows[0].id;
+
     // 4. Validate initiator has resources they're offering
-    const currentCargo = initiator.fuel + initiator.organics + initiator.equipment;
+    const currentCargo = initiator.cargo_fuel + initiator.cargo_organics + initiator.cargo_equipment;
     if (
       offers.credits > initiator.credits ||
-      offers.fuel > initiator.fuel ||
-      offers.organics > initiator.organics ||
-      offers.equipment > initiator.equipment
+      offers.fuel > initiator.cargo_fuel ||
+      offers.organics > initiator.cargo_organics ||
+      offers.equipment > initiator.cargo_equipment
     ) {
       await client.query('ROLLBACK');
       return { success: false, error: 'Insufficient resources to create offer' };
@@ -194,13 +205,45 @@ export async function createTradeOffer(
 }
 
 /**
- * Get trade offers for a player (inbox or outbox)
+ * Get trade offers for a player (inbox, outbox, or all)
  */
 export async function getPlayerTradeOffers(
   playerId: number,
-  type: 'inbox' | 'outbox'
+  type: 'inbox' | 'outbox' | 'all'
 ): Promise<PlayerTradeOffer[]> {
   try {
+    if (type === 'all') {
+      // Get both inbox and outbox offers in a single query
+      const result = await pool.query(
+        `SELECT
+          pto.*,
+          CASE
+            WHEN pto.initiator_player_id = $1 THEN 'outbox'
+            ELSE 'inbox'
+          END as offer_type,
+          CASE
+            WHEN pto.initiator_player_id = $1 THEN p2.corp_name as name
+            ELSE p1.corp_name as name
+          END as other_player_name,
+          s.name as sector_name
+         FROM player_trade_offers pto
+         JOIN players p1 ON p1.id = pto.initiator_player_id
+         JOIN players p2 ON p2.id = pto.recipient_player_id
+         JOIN sectors s ON s.id = pto.sector_id
+         WHERE (pto.initiator_player_id = $1 OR pto.recipient_player_id = $1)
+           AND pto.status = 'pending'
+         ORDER BY pto.created_at DESC`,
+        [playerId]
+      );
+
+      // Transform the results to match the expected format
+      return result.rows.map(row => ({
+        ...row,
+        initiator_name: row.offer_type === 'outbox' ? null : row.other_player_name,
+        recipient_name: row.offer_type === 'inbox' ? null : row.other_player_name,
+      }));
+    }
+
     const isInbox = type === 'inbox';
     const playerIdColumn = isInbox ? 'recipient_player_id' : 'initiator_player_id';
     const otherPlayerIdColumn = isInbox ? 'initiator_player_id' : 'recipient_player_id';
@@ -209,7 +252,7 @@ export async function getPlayerTradeOffers(
     const result = await pool.query(
       `SELECT
         pto.*,
-        p.name as ${otherPlayerAlias},
+        p.corp_name as name as ${otherPlayerAlias},
         s.name as sector_name
        FROM player_trade_offers pto
        JOIN players p ON p.id = pto.${otherPlayerIdColumn}
@@ -247,7 +290,7 @@ export async function acceptPlayerTrade(
 
     // 1. Lock and fetch the offer
     const offerResult = await client.query(
-      `SELECT pto.*, p1.name as initiator_name, p2.name as recipient_name
+      `SELECT pto.*, p1.corp_name as name as initiator_name, p2.corp_name as name as recipient_name
        FROM player_trade_offers pto
        JOIN players p1 ON p1.id = pto.initiator_player_id
        JOIN players p2 ON p2.id = pto.recipient_player_id
@@ -285,10 +328,8 @@ export async function acceptPlayerTrade(
 
     // 5. Lock and fetch both players with current sector info
     const playersResult = await client.query(
-      `SELECT p.id, p.name, p.current_sector_id, p.credits, p.fuel, p.organics, p.equipment,
-              st.cargo_capacity
+      `SELECT p.id, p.corp_name as name, p.current_sector, p.credits, p.cargo_fuel, p.cargo_organics, p.cargo_equipment, p.ship_holds_max
        FROM players p
-       JOIN ship_types st ON p.ship_type_id = st.id
        WHERE p.id = ANY($1::int[])
        FOR UPDATE`,
       [[offer.initiator_player_id, offer.recipient_player_id]]
@@ -308,7 +349,7 @@ export async function acceptPlayerTrade(
     }
 
     // 6. CRITICAL: Validate both players still in same sector
-    if (initiator.current_sector_id !== recipient.current_sector_id) {
+    if (initiator.current_sector !== recipient.current_sector) {
       await client.query('ROLLBACK');
       return { success: false, error: 'Players must be in the same sector to complete trade' };
     }
@@ -316,9 +357,9 @@ export async function acceptPlayerTrade(
     // 7. Validate initiator still has offered resources
     if (
       offer.initiator_offers_credits > initiator.credits ||
-      offer.initiator_offers_fuel > initiator.fuel ||
-      offer.initiator_offers_organics > initiator.organics ||
-      offer.initiator_offers_equipment > initiator.equipment
+      offer.initiator_offers_fuel > initiator.cargo_fuel ||
+      offer.initiator_offers_organics > initiator.cargo_organics ||
+      offer.initiator_offers_equipment > initiator.cargo_equipment
     ) {
       await client.query('ROLLBACK');
       return { success: false, error: 'Initiator no longer has offered resources' };
@@ -327,33 +368,33 @@ export async function acceptPlayerTrade(
     // 8. Validate recipient has requested resources
     if (
       offer.initiator_requests_credits > recipient.credits ||
-      offer.initiator_requests_fuel > recipient.fuel ||
-      offer.initiator_requests_organics > recipient.organics ||
-      offer.initiator_requests_equipment > recipient.equipment
+      offer.initiator_requests_fuel > recipient.cargo_fuel ||
+      offer.initiator_requests_organics > recipient.cargo_organics ||
+      offer.initiator_requests_equipment > recipient.cargo_equipment
     ) {
       await client.query('ROLLBACK');
       return { success: false, error: 'You do not have the requested resources' };
     }
 
     // 9. Validate cargo space for both players after trade
-    const initiatorCurrentCargo = initiator.fuel + initiator.organics + initiator.equipment;
+    const initiatorCurrentCargo = initiator.cargo_fuel + initiator.cargo_organics + initiator.cargo_equipment;
     const initiatorCargoAfterTrade =
       initiatorCurrentCargo -
       (offer.initiator_offers_fuel + offer.initiator_offers_organics + offer.initiator_offers_equipment) +
       (offer.initiator_requests_fuel + offer.initiator_requests_organics + offer.initiator_requests_equipment);
 
-    const recipientCurrentCargo = recipient.fuel + recipient.organics + recipient.equipment;
+    const recipientCurrentCargo = recipient.cargo_fuel + recipient.cargo_organics + recipient.cargo_equipment;
     const recipientCargoAfterTrade =
       recipientCurrentCargo +
       (offer.initiator_offers_fuel + offer.initiator_offers_organics + offer.initiator_offers_equipment) -
       (offer.initiator_requests_fuel + offer.initiator_requests_organics + offer.initiator_requests_equipment);
 
-    if (initiatorCargoAfterTrade > initiator.cargo_capacity) {
+    if (initiatorCargoAfterTrade > initiator.ship_holds_max) {
       await client.query('ROLLBACK');
       return { success: false, error: 'Initiator would exceed cargo capacity' };
     }
 
-    if (recipientCargoAfterTrade > recipient.cargo_capacity) {
+    if (recipientCargoAfterTrade > recipient.ship_holds_max) {
       await client.query('ROLLBACK');
       return { success: false, error: 'You would exceed your cargo capacity' };
     }
@@ -364,9 +405,9 @@ export async function acceptPlayerTrade(
       `UPDATE players
        SET
          credits = credits - $1 + $2,
-         fuel = fuel - $3 + $4,
-         organics = organics - $5 + $6,
-         equipment = equipment - $7 + $8
+         cargo_fuel = cargo_fuel - $3 + $4,
+         cargo_organics = cargo_organics - $5 + $6,
+         cargo_equipment = cargo_equipment - $7 + $8
        WHERE id = $9`,
       [
         offer.initiator_offers_credits,
@@ -386,9 +427,9 @@ export async function acceptPlayerTrade(
       `UPDATE players
        SET
          credits = credits + $1 - $2,
-         fuel = fuel + $3 - $4,
-         organics = organics + $5 - $6,
-         equipment = equipment + $7 - $8
+         cargo_fuel = cargo_fuel + $3 - $4,
+         cargo_organics = cargo_organics + $5 - $6,
+         cargo_equipment = cargo_equipment + $7 - $8
        WHERE id = $9`,
       [
         offer.initiator_offers_credits,
@@ -486,7 +527,7 @@ export async function attemptPlayerRobbery(
 
     // 1. Lock and fetch the offer
     const offerResult = await client.query(
-      `SELECT pto.*, p1.name as initiator_name
+      `SELECT pto.*, p1.corp_name as initiator_name
        FROM player_trade_offers pto
        JOIN players p1 ON p1.id = pto.initiator_player_id
        WHERE pto.id = $1
@@ -544,10 +585,9 @@ export async function attemptPlayerRobbery(
 
     // 5. Lock and fetch robber and initiator (victim)
     const playersResult = await client.query(
-      `SELECT p.id, p.name, p.current_sector_id, p.credits, p.fuel, p.organics, p.equipment,
-              p.corporation_id, st.cargo_capacity
+      `SELECT p.id, p.corp_name as name, p.current_sector, p.credits, p.cargo_fuel, p.cargo_organics, p.cargo_equipment,
+              p.corp_id, p.ship_holds_max
        FROM players p
-       JOIN ship_types st ON p.ship_type_id = st.id
        WHERE p.id = ANY($1::int[])
        FOR UPDATE`,
       [[robberId, offer.initiator_player_id]]
@@ -577,7 +617,7 @@ export async function attemptPlayerRobbery(
     }
 
     // 6. CRITICAL: Validate both players in same sector
-    if (robber.current_sector_id !== victim.current_sector_id) {
+    if (robber.current_sector !== victim.current_sector) {
       await client.query('ROLLBACK');
       return {
         success: false,
@@ -588,7 +628,7 @@ export async function attemptPlayerRobbery(
     }
 
     // 7. CRITICAL: Check corporation protection
-    if (robber.corporation_id && robber.corporation_id === victim.corporation_id) {
+    if (robber.corp_id && robber.corp_id === victim.corp_id) {
       await client.query('ROLLBACK');
       return {
         success: false,
@@ -600,9 +640,9 @@ export async function attemptPlayerRobbery(
 
     // 8. Validate victim still has offered goods
     if (
-      offer.initiator_offers_fuel > victim.fuel ||
-      offer.initiator_offers_organics > victim.organics ||
-      offer.initiator_offers_equipment > victim.equipment ||
+      offer.initiator_offers_fuel > victim.cargo_fuel ||
+      offer.initiator_offers_organics > victim.cargo_organics ||
+      offer.initiator_offers_equipment > victim.cargo_equipment ||
       offer.initiator_offers_credits > victim.credits
     ) {
       await client.query('ROLLBACK');
@@ -615,11 +655,11 @@ export async function attemptPlayerRobbery(
     }
 
     // 9. Validate robber has cargo space
-    const robberCurrentCargo = robber.fuel + robber.organics + robber.equipment;
+    const robberCurrentCargo = robber.cargo_fuel + robber.cargo_organics + robber.cargo_equipment;
     const stolenCargo = offer.initiator_offers_fuel + offer.initiator_offers_organics + offer.initiator_offers_equipment;
     const robberCargoAfterRobbery = robberCurrentCargo + stolenCargo;
 
-    if (robberCargoAfterRobbery > robber.cargo_capacity) {
+    if (robberCargoAfterRobbery > robber.ship_holds_max) {
       await client.query('ROLLBACK');
       return {
         success: false,
@@ -639,9 +679,9 @@ export async function attemptPlayerRobbery(
         `UPDATE players
          SET
            credits = credits + $1,
-           fuel = fuel + $2,
-           organics = organics + $3,
-           equipment = equipment + $4
+           cargo_fuel = cargo_fuel + $2,
+           cargo_organics = cargo_organics + $3,
+           cargo_equipment = cargo_equipment + $4
          WHERE id = $5`,
         [
           offer.initiator_offers_credits,
@@ -657,9 +697,9 @@ export async function attemptPlayerRobbery(
         `UPDATE players
          SET
            credits = credits - $1,
-           fuel = fuel - $2,
-           organics = organics - $3,
-           equipment = equipment - $4
+           cargo_fuel = cargo_fuel - $2,
+           cargo_organics = cargo_organics - $3,
+           cargo_equipment = cargo_equipment - $4
          WHERE id = $5`,
         [
           offer.initiator_offers_credits,
@@ -815,7 +855,7 @@ export async function cancelPlayerTrade(
 
     // 1. Lock and fetch the offer
     const offerResult = await client.query(
-      `SELECT pto.*, p1.name as initiator_name, p2.name as recipient_name
+      `SELECT pto.*, p1.corp_name as name as initiator_name, p2.corp_name as name as recipient_name
        FROM player_trade_offers pto
        JOIN players p1 ON p1.id = pto.initiator_player_id
        JOIN players p2 ON p2.id = pto.recipient_player_id
@@ -901,8 +941,8 @@ export async function getPlayerTradeHistory(
     const result = await pool.query(
       `SELECT
         pth.*,
-        p1.name as initiator_name,
-        p2.name as recipient_name
+        p1.corp_name as name as initiator_name,
+        p2.corp_name as name as recipient_name
        FROM player_trade_history pth
        JOIN players p1 ON p1.id = pth.initiator_player_id
        JOIN players p2 ON p2.id = pth.recipient_player_id

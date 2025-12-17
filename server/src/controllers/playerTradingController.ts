@@ -5,6 +5,7 @@
  */
 
 import { Request, Response } from 'express';
+import { pool } from '../db/connection';
 import {
   createTradeOffer,
   getPlayerTradeOffers,
@@ -334,5 +335,41 @@ export const getHistory = async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Error in getHistory:', error);
     res.status(500).json({ error: error.message || 'Failed to get trade history' });
+  }
+};
+
+/**
+ * GET /api/player-trading/offers
+ * Get all trade offers (inbox + outbox) for the current player's player
+ */
+export const getAllOffers = async (req: Request, res: Response) => {
+  try {
+    // 1. Extract and validate user auth
+    const userId = (req as any).user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // 2. Get player's player ID
+    const playerResult = await pool.query(`
+      SELECT id FROM players WHERE user_id = $1
+    `, [userId]);
+
+    if (playerResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    const playerId = playerResult.rows[0].id;
+
+    // 3. Get all offers (both inbox and outbox)
+    const offers = await getPlayerTradeOffers(playerId, 'all');
+
+    res.json({
+      success: true,
+      offers,
+    });
+  } catch (error: any) {
+    console.error('Error in getAllOffers:', error);
+    res.status(500).json({ error: error.message || 'Failed to get trade offers' });
   }
 };

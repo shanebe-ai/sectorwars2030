@@ -758,7 +758,7 @@ export async function generateTradeOfferOnEntry(
     // Find trade aliens in this sector
     const result = await pool.query(
       `SELECT id FROM alien_ships
-       WHERE universe_id = $1 AND current_sector = $2 AND behavior = 'trade'`,
+       WHERE universe_id = $1 AND sector_number = $2 AND behavior = 'trade'`,
       [universeId, sectorNumber]
     );
 

@@ -59,8 +59,11 @@ async function seedDatabase() {
       }
     }
 
-    // Insert default ship types for the universe
-    if (universeId) {
+    // Insert default ship types (global ships available to all universes)
+    const existingShipCount = await client.query('SELECT COUNT(*) as count FROM ship_types WHERE universe_id IS NULL');
+    const existingCount = parseInt(existingShipCount.rows[0].count);
+
+    if (existingCount === 0) {
       const shipTypes = [
         ['Escape Pod', 5, 0, 0, 0, 0, 0, 0, 5, 0, 'Emergency transport with minimal capabilities'],
         ['Scout', 20, 10, 10, 5, 5, 10, 5, 1, 10000, 'Basic trading vessel for new captains'],
@@ -73,12 +76,13 @@ async function seedDatabase() {
       for (const ship of shipTypes) {
         await client.query(
           `INSERT INTO ship_types (universe_id, name, holds, fighters_max, shields_max, torpedoes_max, mines_max, beacons_max, genesis_max, turns_cost, cost_credits, description)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-           ON CONFLICT (universe_id, name) DO NOTHING`,
-          [universeId, ...ship]
+           VALUES (NULL, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+          ship
         );
       }
       console.log('✓ Created 6 default ship types');
+    } else {
+      console.log('✓ Ship types already exist');
     }
 
     await client.query('COMMIT');

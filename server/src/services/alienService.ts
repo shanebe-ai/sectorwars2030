@@ -136,15 +136,13 @@ export async function generateAliensForUniverse(config: AlienGenerationConfig): 
       const planetResult = await client.query(`
         INSERT INTO alien_planets (
           universe_id, sector_number, name, alien_race,
-          citadel_level, colonists, fighters,
-          fuel, organics, equipment, production_type
+          citadel_level, colonists, fighters
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING id, sector_number
       `, [
         universeId, sectorNumber, planetName, race,
-        citadelLevel, colonists, fighters,
-        10000, 10000, 10000, 'balanced'
+        citadelLevel, colonists, fighters
       ]);
 
       alienPlanets.push(planetResult.rows[0].sector_number);
@@ -204,17 +202,13 @@ export async function generateAliensForUniverse(config: AlienGenerationConfig): 
 
       await client.query(`
         INSERT INTO alien_ships (
-          universe_id, alien_race, ship_name, ship_type_id,
-          current_sector, credits, fighters, shields,
-          behavior, home_sector, alignment,
-          cargo_fuel, cargo_organics, cargo_equipment
+          universe_id, sector_number, alien_race, ship_type,
+          behavior, fighters, shields
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
       `, [
-        universeId, race, shipName, shipType.id,
-        startSector, credits, fighters, shields,
-        behavior, homeSector, alignment,
-        cargoFuel, cargoOrganics, cargoEquipment
+        universeId, startSector, race, shipType.name,
+        behavior, fighters, shields
       ]);
 
       console.log(`  ✓ Created alien ship: ${shipName} in sector ${startSector} (${behavior})`);
@@ -384,7 +378,7 @@ export async function moveAlienShips(universeId: number): Promise<void> {
       // Get current sector ID
       const sectorResult = await client.query(`
         SELECT id FROM sectors WHERE universe_id = $1 AND sector_number = $2
-      `, [universeId, ship.current_sector]);
+      `, [universeId, ship.sector_number]);
 
       if (sectorResult.rows.length === 0) continue;
       const sectorId = sectorResult.rows[0].id;
@@ -399,13 +393,13 @@ export async function moveAlienShips(universeId: number): Promise<void> {
         FROM sector_warps sw
         JOIN sectors s ON sw.sector_id = s.id
         WHERE s.universe_id = $2 AND (sw.sector_id = $1 OR sw.destination_sector_number = $3)
-      `, [sectorId, universeId, ship.current_sector]);
+      `, [sectorId, universeId, ship.sector_number]);
 
       if (warpsResult.rows.length === 0) continue;
 
       // Choose movement based on behavior
-      let nextSector = ship.current_sector;
-      const validWarps = warpsResult.rows.map(r => r.destination).filter(s => s !== ship.current_sector);
+      let nextSector = ship.sector_number;
+      const validWarps = warpsResult.rows.map(r => r.destination).filter(s => s !== ship.sector_number);
 
       if (validWarps.length === 0) continue;
 
@@ -491,8 +485,8 @@ export async function moveAlienShips(universeId: number): Promise<void> {
         if (alienStrength < fighterStrength * 0.5) {
           // Flee back to previous sector
           await client.query(`
-            UPDATE alien_ships SET current_sector = $1 WHERE id = $2
-          `, [ship.current_sector, ship.id]); // Revert to old sector
+            UPDATE alien_ships SET sector_number = $1 WHERE id = $2
+          `, [ship.sector_number, ship.id]); // Revert to old sector
 
           // Notify fighter owners of retreat
           for (const deployment of hostileFighters) {

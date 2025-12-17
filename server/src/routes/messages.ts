@@ -28,6 +28,9 @@ router.get('/corporate', messageController.getCorporateMessages);
 // Get sent messages
 router.get('/sent', messageController.getSentMessages);
 
+// Clear all broadcast messages
+router.delete('/broadcasts/clear-all', messageController.clearAllBroadcasts);
+
 // Send a message
 router.post('/', messageController.sendMessage);
 

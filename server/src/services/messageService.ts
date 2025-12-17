@@ -1,4 +1,5 @@
 import { pool } from '../db/connection';
+import { emitUniverseEvent } from '../index';
 import { Message, MessageType, KnownTrader } from '../../../shared/types';
 
 interface SendMessageParams {
@@ -81,6 +82,26 @@ export async function sendMessage(params: SendMessageParams): Promise<Message> {
   );
 
   const msg = insertResult.rows[0];
+
+  // Emit WebSocket event for real-time notifications
+  if (messageType === 'BROADCAST') {
+    // Notify all players in the universe about new broadcast
+    emitUniverseEvent(sender.universe_id, 'new_broadcast', {
+      sender: sender.corp_name,
+      subject: subject || 'Broadcast Message',
+      body,
+      timestamp: new Date().toISOString()
+    });
+  } else if (messageType === 'DIRECT' && recipientId) {
+    // For direct messages, emit to the specific recipient (if they're online)
+    // This could be enhanced to emit to specific players, but for now we'll use universe-wide
+    emitUniverseEvent(sender.universe_id, 'new_message', {
+      recipientId,
+      sender: sender.corp_name,
+      subject: subject || 'Direct Message',
+      timestamp: new Date().toISOString()
+    });
+  }
 
   return {
     id: msg.id,
@@ -499,6 +520,42 @@ export async function markBroadcastsAsRead(playerId: number): Promise<void> {
      ON CONFLICT (player_id, message_id) DO NOTHING`,
     [playerId, universe_id, player_joined_at]
   );
+}
+
+/**
+ * Clear all broadcast messages for a player (mark as deleted)
+ */
+export async function clearAllBroadcasts(playerId: number): Promise<boolean> {
+  try {
+    // Get player's universe and join time
+    const playerResult = await pool.query(
+      `SELECT universe_id, created_at FROM players WHERE id = $1`,
+      [playerId]
+    );
+
+    if (playerResult.rows.length === 0) return false;
+
+    const { universe_id, created_at: player_joined_at } = playerResult.rows[0];
+
+    // Mark all broadcasts as deleted for this player
+    await pool.query(
+      `INSERT INTO message_deletions (player_id, message_id)
+       SELECT $1, m.id FROM messages m
+       LEFT JOIN message_deletions md ON m.id = md.message_id AND md.player_id = $1
+       WHERE m.universe_id = $2
+         AND m.message_type = 'BROADCAST'
+         AND m.sent_at >= $3
+         AND md.message_id IS NULL
+         AND NOT (m.sender_id = $1 AND m.is_deleted_by_sender = TRUE)
+       ON CONFLICT (player_id, message_id) DO NOTHING`,
+      [playerId, universe_id, player_joined_at]
+    );
+
+    return true;
+  } catch (error) {
+    console.error('Error clearing all broadcasts:', error);
+    return false;
+  }
 }
 
 /**

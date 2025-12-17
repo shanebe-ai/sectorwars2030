@@ -226,7 +226,52 @@ useEffect(() => {
     });
 
     // Handle new broadcast messages (TNN, combat reports, planet claims, etc.)
-    socket.on('new_broadcast', (data: any) => {
+    socket.on('new_broadcast', (_data: any) => {
+      // Call the callback to refresh unread counts
+      if (onNewBroadcastRef.current) {
+        onNewBroadcastRef.current();
+      }
+    });
+
+    // Handle new direct messages
+    socket.on('new_message', (_data: any) => {
+      // Call the callback to refresh unread counts
+      if (onNewBroadcastRef.current) {
+        onNewBroadcastRef.current();
+      }
+    });
+
+    // Handle new ship log entries
+    socket.on('new_ship_log', (_data: any) => {
+      // Call the callback to refresh unread counts
+      if (onNewBroadcastRef.current) {
+        onNewBroadcastRef.current();
+      }
+    });
+
+    // Handle player trade events
+    socket.on('player_trade_offer_received', (_data: any) => {
+      // Call the callback to refresh unread counts
+      if (onNewBroadcastRef.current) {
+        onNewBroadcastRef.current();
+      }
+    });
+
+    socket.on('player_trade_completed', (_data: any) => {
+      // Call the callback to refresh unread counts
+      if (onNewBroadcastRef.current) {
+        onNewBroadcastRef.current();
+      }
+    });
+
+    socket.on('player_trade_cancelled', (_data: any) => {
+      // Call the callback to refresh unread counts
+      if (onNewBroadcastRef.current) {
+        onNewBroadcastRef.current();
+      }
+    });
+
+    socket.on('player_trade_robbed', (_data: any) => {
       // Call the callback to refresh unread counts
       if (onNewBroadcastRef.current) {
         onNewBroadcastRef.current();
@@ -237,6 +282,16 @@ useEffect(() => {
     socket.on('combat_notification', (data: any) => {
       console.log('[WS] Combat notification received:', data);
       setCombatNotification(data);
+    });
+
+    // Handle combat results for real-time notifications
+    socket.on('combat_result', (data: any) => {
+      console.log('[WS] Combat result received:', data);
+      addNotification({
+        type: 'combat_occurred',
+        message: `⚔️ ${data.message}`,
+        details: data
+      });
     });
 
     return () => {

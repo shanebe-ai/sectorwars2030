@@ -275,6 +275,34 @@ export const deleteMessage = async (req: Request, res: Response) => {
 };
 
 /**
+ * Clear all broadcast messages for the player
+ * DELETE /api/messages/broadcasts/clear-all
+ */
+export const clearAllBroadcasts = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const playerId = await getPlayerIdFromUser(userId);
+    if (!playerId) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    const success = await messageService.clearAllBroadcasts(playerId);
+
+    res.json({
+      message: 'All broadcast messages cleared successfully',
+      cleared: success
+    });
+  } catch (error: any) {
+    console.error('Error clearing broadcast messages:', error);
+    res.status(500).json({ error: 'Failed to clear broadcast messages' });
+  }
+};
+
+/**
  * Get unread message count (legacy - returns inbox count only)
  * GET /api/messages/unread-count
  */

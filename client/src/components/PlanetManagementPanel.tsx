@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAutoScroll } from '../hooks/useAutoScroll';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -72,6 +73,10 @@ export default function PlanetManagementPanel({
   const [depositAmount, setDepositAmount] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [selectedResource, setSelectedResource] = useState<'fuel' | 'organics' | 'equipment'>('fuel');
+
+  // Auto-scroll refs for important messages
+  const errorScrollRef = useAutoScroll([error], 'smooth', 100);
+  const successScrollRef = useAutoScroll([success], 'smooth', 100);
 
   const fetchPlanet = async () => {
     try {
@@ -484,7 +489,7 @@ export default function PlanetManagementPanel({
 
         {/* Messages */}
         {error && (
-          <div style={{
+          <div ref={errorScrollRef} style={{
             background: 'rgba(255, 0, 100, 0.2)',
             border: '1px solid var(--neon-pink)',
             padding: '10px',
@@ -496,7 +501,7 @@ export default function PlanetManagementPanel({
           </div>
         )}
         {success && (
-          <div style={{
+          <div ref={successScrollRef} style={{
             background: 'rgba(0, 255, 0, 0.2)',
             border: '1px solid var(--neon-green)',
             padding: '10px',

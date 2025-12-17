@@ -163,9 +163,9 @@ export const launchBeacon = async (
 
     // Launch the beacon
     await client.query(
-      `INSERT INTO sector_beacons (universe_id, sector_number, owner_id, owner_name, message)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [player.universe_id, player.current_sector, playerId, player.corp_name, message.trim()]
+      `INSERT INTO sector_beacons (universe_id, sector_number, owner_id, message)
+       VALUES ($1, $2, $3, $4)`,
+      [player.universe_id, player.current_sector, playerId, message.trim()]
     );
 
     // Decrement player's beacon count

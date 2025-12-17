@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { API_URL } from '../config/api';
+import { useAutoScroll } from '../hooks/useAutoScroll';
 
 interface CombatRound {
   round: number;
@@ -72,6 +73,9 @@ export default function CombatPanel({
   const [error, setError] = useState('');
   const [displayedRound, setDisplayedRound] = useState(0);
   const [animating, setAnimating] = useState(false);
+
+  // Auto-scroll ref for error messages
+  const errorScrollRef = useAutoScroll([error], 'smooth', 100);
 
   // Animate through combat rounds
   useEffect(() => {
@@ -291,7 +295,7 @@ export default function CombatPanel({
               </div>
 
               {error && (
-                <div style={{
+                <div ref={errorScrollRef} style={{
                   background: 'rgba(255, 0, 0, 0.1)',
                   border: '1px solid var(--neon-pink)',
                   padding: '15px',

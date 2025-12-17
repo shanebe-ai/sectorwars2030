@@ -55,11 +55,12 @@ export const createPlayer = async ({
       throw new Error('Player already exists in this universe');
     }
 
-    // Get ship type stats (look for universe-specific or global ship types)
+    // Get ship type stats (prefer universe-specific ships, fallback to global ships)
     const shipResult = await client.query(
       `SELECT holds, fighters_max, shields_max FROM ship_types
        WHERE LOWER(name) = LOWER($1)
        AND (universe_id = $2 OR universe_id IS NULL)
+       ORDER BY universe_id IS NULL ASC, universe_id ASC
        LIMIT 1`,
       [universe.starting_ship_type, universeId]
     );

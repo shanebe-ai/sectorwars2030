@@ -1,4 +1,5 @@
 import { pool } from '../db/connection';
+import { emitPlayerEvent } from '../index';
 
 export type LogType = 'SOL' | 'PLANET' | 'PORT' | 'DEAD_END' | 'STARDOCK' | 'MANUAL' | 'ALIEN_PLANET';
 
@@ -8,13 +9,9 @@ export interface ShipLogEntry {
   universe_id: number;
   sector_number: number;
   log_type: LogType;
-  port_type?: string;
-  planet_name?: string;
-  sector_name?: string;
-  note?: string;
-  is_manual: boolean;
-  is_read: boolean;
-  discovered_at: string;
+  description: string;
+  is_auto: boolean;
+  created_at: string;
 }
 
 /**
@@ -22,9 +19,9 @@ export interface ShipLogEntry {
  */
 export async function getShipLogs(playerId: number): Promise<ShipLogEntry[]> {
   const result = await pool.query(
-    `SELECT * FROM ship_logs 
-     WHERE player_id = $1 
-     ORDER BY discovered_at DESC`,
+    `SELECT * FROM ship_logs
+     WHERE player_id = $1
+     ORDER BY created_at DESC`,
     [playerId]
   );
   return result.rows;
@@ -67,27 +64,35 @@ export async function addLogEntry(
     portType?: string;
     planetName?: string;
     sectorName?: string;
-    note?: string;
+    description?: string;
   } = {}
 ): Promise<ShipLogEntry | null> {
   try {
     const result = await pool.query(
-      `INSERT INTO ship_logs 
-       (player_id, universe_id, sector_number, log_type, port_type, planet_name, sector_name, note, is_manual)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, FALSE)
-       ON CONFLICT (player_id, sector_number, log_type) DO NOTHING
+      `INSERT INTO ship_logs
+       (player_id, universe_id, sector_number, log_type, description, is_auto)
+       VALUES ($1, $2, $3, $4, $5, TRUE)
+       ON CONFLICT (player_id, sector_number, log_type, is_auto) DO NOTHING
        RETURNING *`,
       [
         playerId,
         universeId,
         sectorNumber,
         logType,
-        options.portType || null,
-        options.planetName || null,
-        options.sectorName || null,
-        options.note || null
+        options.description || null
       ]
     );
+
+    // If a new log entry was added (not a duplicate), emit WebSocket event
+    if (result.rows[0]) {
+      emitPlayerEvent(playerId, 'new_ship_log', {
+        logType,
+        sectorNumber,
+        description: options.description,
+        timestamp: new Date().toISOString()
+      });
+    }
+
     return result.rows[0] || null;
   } catch (error) {
     console.error('Error adding ship log entry:', error);
@@ -115,8 +120,8 @@ export async function addManualNote(
   if (existing.rows.length > 0) {
     // Update existing manual note
     const result = await pool.query(
-      `UPDATE ship_logs 
-       SET note = $1, discovered_at = CURRENT_TIMESTAMP
+      `UPDATE ship_logs
+       SET description = $1, created_at = CURRENT_TIMESTAMP
        WHERE id = $2
        RETURNING *`,
       [note, existing.rows[0].id]
@@ -125,9 +130,9 @@ export async function addManualNote(
   } else {
     // Create new manual note
     const result = await pool.query(
-      `INSERT INTO ship_logs 
-       (player_id, universe_id, sector_number, log_type, note, is_manual)
-       VALUES ($1, $2, $3, 'MANUAL', $4, TRUE)
+      `INSERT INTO ship_logs
+       (player_id, universe_id, sector_number, log_type, description, is_auto)
+       VALUES ($1, $2, $3, 'MANUAL', $4, FALSE)
        RETURNING *`,
       [playerId, universeId, sectorNumber, note]
     );
@@ -140,8 +145,8 @@ export async function addManualNote(
  */
 export async function deleteManualNote(playerId: number, logId: number): Promise<boolean> {
   const result = await pool.query(
-    `DELETE FROM ship_logs 
-     WHERE id = $1 AND player_id = $2 AND is_manual = TRUE
+    `DELETE FROM ship_logs
+     WHERE id = $1 AND player_id = $2 AND is_auto = FALSE
      RETURNING id`,
     [logId, playerId]
   );
@@ -173,7 +178,7 @@ export async function autoLogSector(
   if (sector_number === 1) {
     const entry = await addLogEntry(playerId, universeId, sector_number, 'SOL', {
       sectorName: name || 'Sol (Earth)',
-      note: 'Home sector - Earth'
+      description: 'Home sector - Earth'
     });
     if (entry) logs.push(entry);
   }
@@ -183,7 +188,7 @@ export async function autoLogSector(
     const entry = await addLogEntry(playerId, universeId, sector_number, 'STARDOCK', {
       portType: 'STARDOCK',
       sectorName: name,
-      note: 'StarDock - Ship and equipment dealer'
+      description: 'StarDock - Ship and equipment dealer'
     });
     if (entry) logs.push(entry);
   }
@@ -192,7 +197,7 @@ export async function autoLogSector(
     const entry = await addLogEntry(playerId, universeId, sector_number, 'PORT', {
       portType: port_type,
       sectorName: name,
-      note: `Trading port - Type ${port_type}`
+      description: `Trading port - Type ${port_type}`
     });
     if (entry) logs.push(entry);
   }
@@ -203,7 +208,7 @@ export async function autoLogSector(
     const entry = await addLogEntry(playerId, universeId, sector_number, 'ALIEN_PLANET', {
       planetName: alien_planet_name,
       sectorName: name,
-      note: `🛸 ALIEN PLANET: ${alien_planet_name} (${alien_planet_race} race) - Alien-controlled territory`
+      description: `🛸 ALIEN PLANET: ${alien_planet_name} (${alien_planet_race} race) - Alien-controlled territory`
     });
     if (entry) {
       console.log(`[ShipLog] Successfully logged alien planet entry: ${entry.id}`);
@@ -217,7 +222,7 @@ export async function autoLogSector(
     const entry = await addLogEntry(playerId, universeId, sector_number, 'PLANET', {
       planetName: planet_name,
       sectorName: name,
-      note: `Planet: ${planet_name}`
+      description: `Planet: ${planet_name}`
     });
     if (entry) logs.push(entry);
   }
@@ -226,7 +231,7 @@ export async function autoLogSector(
   if (warp_count !== undefined && warp_count <= 1) {
     const entry = await addLogEntry(playerId, universeId, sector_number, 'DEAD_END', {
       sectorName: name,
-      note: warp_count === 0 ? 'Dead end - No exits!' : 'Dead end - Single exit'
+      description: warp_count === 0 ? 'Dead end - No exits!' : 'Dead end - Single exit'
     });
     if (entry) logs.push(entry);
   }

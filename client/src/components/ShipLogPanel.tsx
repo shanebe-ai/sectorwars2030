@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { API_URL } from '../config/api';
+import { useAutoScroll } from '../hooks/useAutoScroll';
 
 interface ShipLogEntry {
   id: number;
@@ -7,13 +8,10 @@ interface ShipLogEntry {
   universe_id: number;
   sector_number: number;
   log_type: 'SOL' | 'PLANET' | 'PORT' | 'DEAD_END' | 'STARDOCK' | 'MANUAL' | 'ALIEN_PLANET';
-  port_type?: string;
-  planet_name?: string;
-  sector_name?: string;
-  note?: string;
-  is_manual: boolean;
+  description: string;
+  is_auto: boolean;
   is_read: boolean;
-  discovered_at: string;
+  created_at: string;
 }
 
 interface LogStats {
@@ -68,6 +66,9 @@ export const ShipLogPanel: React.FC<ShipLogPanelProps> = ({ token, onClose, onUn
   const [addingNote, setAddingNote] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [deletingNote, setDeletingNote] = useState(false);
+
+  // Auto-scroll ref for error messages
+  const errorScrollRef = useAutoScroll([error], 'smooth', 100);
 
   const loadLogs = useCallback(async () => {
     try {
@@ -185,7 +186,7 @@ export const ShipLogPanel: React.FC<ShipLogPanelProps> = ({ token, onClose, onUn
       return a.sector_number - b.sector_number;
     } else {
       // Sort by date (newest first)
-      return new Date(b.discovered_at).getTime() - new Date(a.discovered_at).getTime();
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     }
   });
 
@@ -200,24 +201,12 @@ export const ShipLogPanel: React.FC<ShipLogPanelProps> = ({ token, onClose, onUn
   };
 
   const getLogDescription = (log: ShipLogEntry): string => {
-    switch (log.log_type) {
-      case 'SOL':
-        return 'Home Sector - Earth';
-      case 'PLANET':
-        return log.planet_name || 'Unknown Planet';
-      case 'ALIEN_PLANET':
-        return log.planet_name ? `${log.planet_name} (Alien)` : 'Alien Planet';
-      case 'PORT':
-        return `Port Type: ${log.port_type}`;
-      case 'STARDOCK':
-        return 'StarDock - Ship Dealer';
-      case 'DEAD_END':
-        return 'Dead End Sector';
-      case 'MANUAL':
-        return log.note || 'Note';
-      default:
-        return log.note || '';
+    // For MANUAL entries, return the description (user note)
+    if (log.log_type === 'MANUAL') {
+      return log.description;
     }
+    // For auto-generated entries, return the description from server
+    return log.description || 'Unknown';
   };
 
   return (
@@ -467,7 +456,7 @@ export const ShipLogPanel: React.FC<ShipLogPanelProps> = ({ token, onClose, onUn
 
         {/* Error Display */}
         {error && (
-          <div style={{
+          <div ref={errorScrollRef} style={{
             padding: '10px 20px',
             backgroundColor: 'rgba(255, 0, 0, 0.1)',
             borderBottom: '1px solid var(--neon-red)',
@@ -561,9 +550,9 @@ export const ShipLogPanel: React.FC<ShipLogPanelProps> = ({ token, onClose, onUn
                       fontSize: '12px',
                       whiteSpace: 'nowrap'
                     }}>
-                      {formatDate(log.discovered_at)}
+                      {formatDate(log.created_at)}
                     </span>
-                    {log.is_manual && (
+                    {!log.is_auto && (
                       deleteConfirmId === log.id ? (
                         <div style={{
                           display: 'flex',

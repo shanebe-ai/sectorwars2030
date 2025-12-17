@@ -490,19 +490,19 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
           player={{
             id: player.id,
             credits: player.credits,
-            turnsRemaining: player.turnsRemaining,
-            shipHoldsMax: player.shipHoldsMax,
-            shipType: player.shipType,
-            shipFighters: player.shipFighters,
-            shipShields: player.shipShields,
-            shipMines: player.shipMines,
-            shipBeacons: player.shipBeacons,
-            shipGenesis: player.shipGenesis,
-            shipFightersMax: player.shipFightersMax,
-            shipShieldsMax: player.shipShieldsMax,
-            cargoFuel: player.cargoFuel || 0,
-            cargoOrganics: player.cargoOrganics || 0,
-            cargoEquipment: player.cargoEquipment || 0,
+            turnsRemaining: player.turns_remaining || player.turnsRemaining,
+            shipHoldsMax: player.ship_holds_max || player.shipHoldsMax,
+            shipType: player.ship_type || player.shipType,
+            shipFighters: player.ship_fighters || player.shipFighters,
+            shipShields: player.ship_shields || player.shipShields,
+            shipMines: player.ship_mines || player.shipMines,
+            shipBeacons: player.ship_beacons || player.shipBeacons,
+            shipGenesis: player.ship_genesis || player.shipGenesis,
+            shipFightersMax: player.ship_fighters_max || player.shipFightersMax,
+            shipShieldsMax: player.ship_shields_max || player.shipShieldsMax,
+            cargoFuel: player.cargo_fuel || player.cargoFuel || 0,
+            cargoOrganics: player.cargo_organics || player.cargoOrganics || 0,
+            cargoEquipment: player.cargo_equipment || player.cargoEquipment || 0,
             colonists: player.colonists || 0,
           }}
           onSectorChange={handleSectorChange}
@@ -514,6 +514,7 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
       {showMessaging && (
         <MessagingPanel
           token={token}
+          currentPlayerId={player.id}
           onClose={() => setShowMessaging(false)}
           onUnreadCountChange={setUnreadMessageCount}
         />

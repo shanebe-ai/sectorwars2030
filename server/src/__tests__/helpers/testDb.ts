@@ -60,7 +60,7 @@ export async function cleanupTestDb(): Promise<void> {
  * Create test user and return user ID
  */
 export async function createTestUser(
-  username: string = `test_user_${Date.now()}`,
+  username: string = `test_user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
   email?: string,
   isAdmin: boolean = false
 ): Promise<number> {
@@ -68,9 +68,11 @@ export async function createTestUser(
   const client = await pool.connect();
   
   try {
-    const result = await client.query(
+    // First try to insert, ignore conflicts
+    const insertResult = await client.query(
       `INSERT INTO users (username, email, password_hash, is_admin)
        VALUES ($1, $2, $3, $4)
+       ON CONFLICT (username) DO NOTHING
        RETURNING id`,
       [
         username,
@@ -79,11 +81,74 @@ export async function createTestUser(
         isAdmin
       ]
     );
-    
-    return result.rows[0].id;
+
+    if (insertResult.rows.length > 0) {
+      return insertResult.rows[0].id;
+    }
+
+    // User already exists, get their ID
+    const existingResult = await client.query(
+      'SELECT id FROM users WHERE username = $1',
+      [username]
+    );
+
+    if (existingResult.rows.length === 0) {
+      throw new Error(`Failed to create or find user: ${username}`);
+    }
+
+    return existingResult.rows[0].id;
   } finally {
     client.release();
   }
+}
+
+/**
+ * Clean up test data - call this at the beginning of test suites
+ */
+export async function cleanupTestData(): Promise<void> {
+  const pool = getTestPool();
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Delete in order to respect foreign key constraints
+    await client.query('DELETE FROM player_trade_history');
+    await client.query('DELETE FROM player_trade_offers');
+    await client.query('DELETE FROM alien_trade_offers');
+    await client.query('DELETE FROM alien_trade_history');
+    await client.query('DELETE FROM sector_beacons');
+    await client.query('DELETE FROM sector_fighters');
+    await client.query('DELETE FROM sector_mines');
+    await client.query('DELETE FROM planets');
+    await client.query('DELETE FROM players');
+    await client.query('DELETE FROM users WHERE username LIKE \'test_%\' OR username LIKE \'p2p_%\'');
+
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Create test player for a user
+ */
+export async function createTestPlayer(userId: number, corpName: string = 'Test Corp'): Promise<number> {
+  const pool = getTestPool();
+  const result = await pool.query(`
+    INSERT INTO players (
+      user_id, universe_id, corp_name, current_sector,
+      cargo_fuel, cargo_organics, cargo_equipment,
+      credits, ship_type, ship_beacons
+    )
+    VALUES ($1, 3, $2, 10, 500, 500, 500, 5000, 'Scout', 5)
+    RETURNING id
+  `, [userId, corpName]);
+
+  return result.rows[0].id;
 }
 
 /**

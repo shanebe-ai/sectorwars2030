@@ -5,9 +5,8 @@ import StarDockPanel from './StarDockPanel';
 import CombatPanel from './CombatPanel';
 import AlienTradePanel from './AlienTradePanel';
 import TradeOfferModal from './TradeOfferModal';
-import TradeInbox from './TradeInbox';
-import TradeOutbox from './TradeOutbox';
 import { API_URL } from '../config/api';
+import { useAutoScroll } from '../hooks/useAutoScroll';
 
 interface Warp {
   destination: number;
@@ -197,8 +196,6 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
   const [combatTarget, setCombatTarget] = useState<CombatTarget | null>(null);
   const [showAlienTrade, setShowAlienTrade] = useState<{ id: number; name: string; race: string } | null>(null);
   const [showTradeModal, setShowTradeModal] = useState(false);
-  const [showTradeInbox, setShowTradeInbox] = useState(false);
-  const [showTradeOutbox, setShowTradeOutbox] = useState(false);
   const [tradeTargetPlayerId, setTradeTargetPlayerId] = useState<number | null>(null);
   const [tradeTargetName, setTradeTargetName] = useState<string>('');
   const [pickingUpCargo, setPickingUpCargo] = useState<number | null>(null);
@@ -228,6 +225,15 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
   const [attackingAlienShip, setAttackingAlienShip] = useState<number | null>(null);
   const [attackingAlienPlanet, setAttackingAlienPlanet] = useState<number | null>(null);
   const [alienCombatResult, setAlienCombatResult] = useState<any | null>(null);
+
+  // Auto-scroll refs for important messages
+  const errorScrollRef = useAutoScroll([error], 'smooth', 100);
+  const mineExplosionScrollRef = useAutoScroll([mineExplosionResult], 'smooth', 100);
+  const plotErrorScrollRef = useAutoScroll([plotError], 'smooth', 100);
+  const successScrollRef = useAutoScroll([successMessage], 'smooth', 100);
+  const misfireScrollRef = useAutoScroll([misfireAlert], 'smooth', 100);
+  const beaconAttackScrollRef = useAutoScroll([beaconAttackResult], 'smooth', 100);
+  const fighterAttackScrollRef = useAutoScroll([fighterAttackResult], 'smooth', 100);
 
   useEffect(() => {
     loadSectorDetails();
@@ -287,6 +293,19 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
       }
 
       const data = await response.json();
+
+      // Check for mine explosions when entering sector
+      if (data.mineResult && data.mineResult.triggered) {
+        setMineExplosionResult({
+          message: data.mineResult.message,
+          shieldsLost: data.mineResult.shieldsLost || 0,
+          fightersLost: data.mineResult.fightersLost || 0
+        });
+        // Trigger player data refresh to show damage
+        if (onPlayerUpdate) {
+          onPlayerUpdate();
+        }
+      }
 
       if (data.sector) {
         setSector(data.sector);
@@ -1120,9 +1139,10 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
     }
   };
 
-  // Check for hostile fighters when sector loads
+  // Check for hostile fighters when sector loads (after mines are resolved)
   useEffect(() => {
-    if (sector && sector.hasHostileFighters && sector.deployedFighters) {
+    // Only show hostile fighter modal if there are no pending mine explosions
+    if (sector && sector.hasHostileFighters && sector.deployedFighters && !mineExplosionResult) {
       const hostileFighters = sector.deployedFighters.filter(f => !f.isOwn);
       if (hostileFighters.length > 0) {
         setHostileEncounterData({
@@ -1132,7 +1152,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
         setShowHostileEncounter(true);
       }
     }
-  }, [sector?.sectorNumber]);
+  }, [sector?.sectorNumber, mineExplosionResult]);
 
   // Auto-continue navigation when we arrive at a sector
   useEffect(() => {
@@ -1185,7 +1205,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
     return (
       <div className="cyberpunk-panel">
         <div className="panel-header">► SECTOR SCAN</div>
-        <div className="error-message" style={{ margin: '20px' }}>
+        <div ref={errorScrollRef} className="error-message" style={{ margin: '20px' }}>
           ✗ {error}
         </div>
         <button onClick={loadSectorDetails} className="cyberpunk-button" style={{ margin: '0 20px 20px' }}>
@@ -1258,7 +1278,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
 
       {/* Misfire Alert */}
       {misfireAlert && (
-        <div style={{
+        <div ref={misfireScrollRef} style={{
           margin: '20px 20px 0 20px',
           padding: '15px',
           background: 'rgba(255, 0, 0, 0.2)',
@@ -1276,7 +1296,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
 
       {/* Success Message */}
       {successMessage && (
-        <div style={{
+        <div ref={successScrollRef} style={{
           margin: '20px 20px 0 20px',
           padding: '15px',
           background: 'rgba(0, 255, 0, 0.2)',
@@ -1310,7 +1330,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
 
       {/* Beacon Attack Result */}
       {beaconAttackResult && (
-        <div style={{
+        <div ref={beaconAttackScrollRef} style={{
           margin: '20px 20px 0 20px',
           padding: '15px',
           background: 'rgba(255, 20, 147, 0.2)',
@@ -1353,7 +1373,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
 
       {/* Mine Explosion Result */}
       {mineExplosionResult && (
-        <div style={{
+        <div ref={mineExplosionScrollRef} style={{
           margin: '20px 20px 0 20px',
           padding: '15px',
           background: 'rgba(255, 100, 0, 0.2)',
@@ -1396,7 +1416,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
 
       {/* Fighter Attack Result */}
       {fighterAttackResult && (
-        <div style={{
+        <div ref={fighterAttackScrollRef} style={{
           margin: '20px 20px 0 20px',
           padding: '15px',
           background: fighterAttackResult.attackerWon 
@@ -1961,39 +1981,6 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
               </>
             )}
 
-            {/* Player Trading Buttons */}
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                onClick={() => setShowTradeInbox(true)}
-                className="cyberpunk-button"
-                style={{
-                  padding: '8px 12px',
-                  fontSize: '12px',
-                  background: 'rgba(0, 255, 0, 0.2)',
-                  borderColor: '#00ff00',
-                  color: '#00ff00',
-                  cursor: 'pointer',
-                  flex: 1,
-                }}
-              >
-                📬 TRADE INBOX
-              </button>
-              <button
-                onClick={() => setShowTradeOutbox(true)}
-                className="cyberpunk-button"
-                style={{
-                  padding: '8px 12px',
-                  fontSize: '12px',
-                  background: 'rgba(255, 255, 0, 0.2)',
-                  borderColor: '#ffff00',
-                  color: '#ffff00',
-                  cursor: 'pointer',
-                  flex: 1,
-                }}
-              >
-                📤 TRADE OUTBOX
-              </button>
-            </div>
 
           </div>
         </div>
@@ -2794,7 +2781,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
               </div>
 
               {plotError && (
-                <div style={{
+                <div ref={plotErrorScrollRef} style={{
                   padding: '10px',
                   background: 'rgba(255, 0, 0, 0.1)',
                   border: '1px solid var(--neon-pink)',
@@ -3182,37 +3169,6 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
         />
       )}
 
-      {/* Player Trade Inbox */}
-      {showTradeInbox && (
-        <TradeInbox
-          playerId={currentPlayerId}
-          currentSectorId={currentSector}
-          playerCredits={player.credits}
-          playerCargo={{
-            fuel: player.fuel,
-            organics: player.organics,
-            equipment: player.equipment,
-          }}
-          token={token}
-          onTradeComplete={(updatedPlayer) => {
-            onSectorChange(updatedPlayer);
-            loadSectorDetails();
-          }}
-          onClose={() => setShowTradeInbox(false)}
-        />
-      )}
-
-      {/* Player Trade Outbox */}
-      {showTradeOutbox && (
-        <TradeOutbox
-          playerId={currentPlayerId}
-          token={token}
-          onOfferCancelled={() => {
-            loadSectorDetails();
-          }}
-          onClose={() => setShowTradeOutbox(false)}
-        />
-      )}
 
       {/* Scan Sector Modal */}
       {showScanSector && (

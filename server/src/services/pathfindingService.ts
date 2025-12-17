@@ -117,7 +117,7 @@ export async function getPathDetails(
         SELECT 1 FROM alien_planets ap
         WHERE ap.universe_id = s.universe_id AND ap.sector_number = s.sector_number
       ) AS has_alien_planet,
-      (SELECT COUNT(*) FROM alien_ships als WHERE als.universe_id = s.universe_id AND als.current_sector = s.sector_number) AS alien_ships
+      (SELECT COUNT(*) FROM alien_ships als WHERE als.universe_id = s.universe_id AND als.sector_number = s.sector_number) AS alien_ships
     FROM sectors s
     LEFT JOIN planets p ON p.sector_id = s.id
     WHERE s.universe_id = $1 AND s.sector_number = ANY($2)

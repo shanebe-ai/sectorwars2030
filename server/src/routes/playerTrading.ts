@@ -1,5 +1,5 @@
 /**
- * Player Trading Routes
+ * Trade Routes
  * Defines API endpoints for player-to-player trading operations
  */
 
@@ -9,6 +9,7 @@ import {
   createOffer,
   getInbox,
   getOutbox,
+  getAllOffers,
   acceptTrade,
   attemptRobbery,
   cancelTrade,
@@ -20,25 +21,28 @@ const router = Router();
 // All player trading routes require authentication
 router.use(authenticateToken);
 
-// POST /api/player-trading/create - Create new trade offer
+// POST /api/trade/create - Create new trade offer
 router.post('/create', createOffer);
 
-// GET /api/player-trading/inbox/:playerId - Get received offers
+// GET /api/trade/inbox/:playerId - Get received offers
 router.get('/inbox/:playerId', getInbox);
 
-// GET /api/player-trading/outbox/:playerId - Get sent offers
+// GET /api/trade/outbox/:playerId - Get sent offers
 router.get('/outbox/:playerId', getOutbox);
 
-// POST /api/player-trading/accept/:offerId - Accept a trade offer
+// POST /api/trade/accept/:offerId - Accept a trade offer
 router.post('/accept/:offerId', acceptTrade);
 
-// POST /api/player-trading/rob/:offerId - Attempt to rob a trade
+// POST /api/trade/rob/:offerId - Attempt to rob a trade
 router.post('/rob/:offerId', attemptRobbery);
 
-// POST /api/player-trading/cancel/:offerId - Cancel a trade offer
+// POST /api/trade/cancel/:offerId - Cancel a trade offer
 router.post('/cancel/:offerId', cancelTrade);
 
-// GET /api/player-trading/history/:playerId - Get trade history
+// GET /api/trade/history/:playerId - Get trade history
 router.get('/history/:playerId', getHistory);
+
+// GET /api/trade/offers - Get all trade offers for current player
+router.get('/offers', getAllOffers);
 
 export default router;

@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import type { Message, MessageType, KnownTrader, AlienCommunication, AlienCommsResponse } from '../../../shared/types';
 import { API_URL } from '../config/api';
+import { useAutoScroll } from '../hooks/useAutoScroll';
 
 interface MessagingPanelProps {
   token: string;
+  currentPlayerId: number;
   onClose: () => void;
   onUnreadCountChange?: (count: number) => void;
 }
 
-export default function MessagingPanel({ token, onClose, onUnreadCountChange }: MessagingPanelProps) {
+export default function MessagingPanel({ token, currentPlayerId, onClose, onUnreadCountChange }: MessagingPanelProps) {
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleString(undefined, {
@@ -20,8 +22,8 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
     });
   };
 
-  const [view, setView] = useState<'inbox' | 'broadcasts' | 'corporate' | 'alien' | 'sent' | 'compose' | 'read'>('inbox');
-  const [previousView, setPreviousView] = useState<'inbox' | 'broadcasts' | 'corporate' | 'alien' | 'sent'>('inbox');
+  const [view, setView] = useState<'inbox' | 'broadcasts' | 'corporate' | 'alien' | 'trade' | 'sent' | 'compose' | 'read'>('inbox');
+  const [previousView, setPreviousView] = useState<'inbox' | 'broadcasts' | 'corporate' | 'alien' | 'trade' | 'sent'>('inbox');
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [knownTraders, setKnownTraders] = useState<KnownTrader[]>([]);
@@ -39,12 +41,20 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
   const [alienComms, setAlienComms] = useState<AlienCommunication[]>([]);
   const [alienCommsUnlocked, setAlienCommsUnlocked] = useState(false);
 
+  // Trade offers state
+  const [tradeOffers, setTradeOffers] = useState<any[]>([]);
+  const [tradeView, setTradeView] = useState<'inbox' | 'outbox'>('inbox');
+
   // Compose form state
   const [messageType, setMessageType] = useState<MessageType>('DIRECT');
   const [recipientId, setRecipientId] = useState<number | ''>('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
+
+  // Auto-scroll refs for important messages
+  const errorScrollRef = useAutoScroll([error], 'smooth', 100);
+  const successScrollRef = useAutoScroll([success], 'smooth', 100);
 
   useEffect(() => {
     loadInbox();
@@ -162,17 +172,43 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
 
   const loadAlienComms = async () => {
     try {
+      console.log('Loading alien comms...');
       setLoading(true);
       setError('');
       const response = await fetch(`${API_URL}/api/aliens/comms`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      console.log('Alien comms response status:', response.status);
       const data: AlienCommsResponse = await response.json();
+      console.log('Alien comms data:', data);
       if (response.ok) {
         setAlienCommsUnlocked(data.unlocked);
         setAlienComms(data.communications);
+        console.log('Alien comms loaded successfully');
       } else {
+        console.error('Alien comms failed:', data.error);
         setError(data.error || 'Failed to load alien communications');
+      }
+    } catch (err) {
+      console.error('Alien comms network error:', err);
+      setError('Network error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadTradeOffers = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await fetch(`${API_URL}/api/trade/offers`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setTradeOffers(data.offers || []);
+      } else {
+        setError(data.error || 'Failed to load trade offers');
       }
     } catch (err) {
       setError('Network error');
@@ -220,6 +256,8 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
       loadCorporateMessages();
     } else if (newView === 'alien') {
       loadAlienComms();
+    } else if (newView === 'trade') {
+      loadTradeOffers();
     } else if (newView === 'sent') {
       loadSentMessages();
     } else if (newView === 'compose') {
@@ -474,6 +512,12 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
             style={{ color: alienCommsUnlocked ? '#9d00ff' : '#666' }}
           />
           <TabButton
+            label="💰 TRADE"
+            active={view === 'trade'}
+            onClick={() => handleViewChange('trade')}
+            color="green"
+          />
+          <TabButton
             label="► SENT"
             active={view === 'sent'}
             onClick={() => handleViewChange('sent')}
@@ -494,12 +538,12 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
           padding: '20px'
         }}>
           {error && (
-            <div style={{ color: 'var(--neon-pink)', marginBottom: '15px', textAlign: 'center' }}>
+            <div ref={errorScrollRef} style={{ color: 'var(--neon-pink)', marginBottom: '15px', textAlign: 'center' }}>
               {error}
             </div>
           )}
           {success && (
-            <div style={{ color: 'var(--neon-green)', marginBottom: '15px', textAlign: 'center' }}>
+            <div ref={successScrollRef} style={{ color: 'var(--neon-green)', marginBottom: '15px', textAlign: 'center' }}>
               {success}
             </div>
           )}
@@ -527,10 +571,25 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
                 <button
                   className="cyberpunk-button"
                   style={{ alignSelf: 'flex-end', marginTop: '8px' }}
-                  onClick={() => {
-                    // Mark all as read by reloading (endpoint clears unread)
-                    loadBroadcasts();
-                    setMessages([]);
+                  onClick={async () => {
+                    try {
+                      const response = await fetch(`${API_URL}/api/messages/broadcasts/clear-all`, {
+                        method: 'DELETE',
+                        headers: {
+                          'Authorization': `Bearer ${token}`,
+                        },
+                      });
+
+                      if (response.ok) {
+                        // Successfully cleared all broadcasts from server
+                        loadBroadcasts();
+                        setMessages([]);
+                      } else {
+                        console.error('Failed to clear broadcasts');
+                      }
+                    } catch (error) {
+                      console.error('Error clearing broadcasts:', error);
+                    }
                   }}
                 >
                   CLEAR ALL
@@ -703,6 +762,215 @@ export default function MessagingPanel({ token, onClose, onUnreadCountChange }: 
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {view === 'trade' && (
+            <div>
+              {loading ? (
+                <div style={{ textAlign: 'center', padding: '2rem', color: '#00ff00' }}>
+                  ⟳ Loading trade offers...
+                </div>
+              ) : (
+                <div>
+                  {/* Trade sub-tabs */}
+                  <div style={{
+                    display: 'flex',
+                    gap: '10px',
+                    marginBottom: '20px',
+                    borderBottom: '1px solid #333',
+                    paddingBottom: '10px'
+                  }}>
+                    <button
+                      onClick={() => setTradeView('inbox')}
+                      className={`cyberpunk-button ${tradeView === 'inbox' ? 'active' : ''}`}
+                      style={{
+                        flex: 1,
+                        background: tradeView === 'inbox' ? 'rgba(0, 255, 0, 0.2)' : 'rgba(0, 0, 0, 0.5)',
+                        borderColor: tradeView === 'inbox' ? '#00ff00' : '#666'
+                      }}
+                    >
+                      📥 INBOX ({tradeOffers.filter((offer: any) => offer.recipient_id === currentPlayerId).length})
+                    </button>
+                    <button
+                      onClick={() => setTradeView('outbox')}
+                      className={`cyberpunk-button ${tradeView === 'outbox' ? 'active' : ''}`}
+                      style={{
+                        flex: 1,
+                        background: tradeView === 'outbox' ? 'rgba(0, 255, 0, 0.2)' : 'rgba(0, 0, 0, 0.5)',
+                        borderColor: tradeView === 'outbox' ? '#00ff00' : '#666'
+                      }}
+                    >
+                      📤 OUTBOX ({tradeOffers.filter((offer: any) => offer.initiator_id === currentPlayerId).length})
+                    </button>
+                  </div>
+
+                  {/* Trade offers list */}
+                  <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                    {tradeView === 'inbox' ? (
+                      tradeOffers.filter((offer: any) => offer.recipient_id === currentPlayerId).length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
+                          📥 No incoming trade offers
+                        </div>
+                      ) : (
+                        tradeOffers
+                          .filter((offer: any) => offer.recipient_id === currentPlayerId)
+                          .map((offer: any) => (
+                            <div
+                              key={offer.id}
+                              style={{
+                                background: 'rgba(0, 0, 0, 0.5)',
+                                border: '1px solid #00ff00',
+                                borderRadius: '4px',
+                                padding: '1rem',
+                                marginBottom: '10px'
+                              }}
+                            >
+                              <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                marginBottom: '0.5rem'
+                              }}>
+                                <span style={{ color: '#00ff00', fontWeight: 'bold' }}>
+                                  From: {offer.initiator_name}
+                                </span>
+                                <span style={{ color: '#888', fontSize: '0.8rem' }}>
+                                  {new Date(offer.created_at).toLocaleDateString()}
+                                </span>
+                              </div>
+                              <div style={{ marginBottom: '0.5rem' }}>
+                                <div style={{ color: '#ffffff', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                                  {offer.message}
+                                </div>
+                                <div style={{ display: 'flex', gap: '20px', fontSize: '0.8rem' }}>
+                                  <div>
+                                    <span style={{ color: '#ff6b00' }}>Offering:</span>
+                                    <div style={{ color: '#ffffff', marginTop: '2px' }}>
+                                      {offer.initiator_offers_fuel > 0 && `⛽ ${offer.initiator_offers_fuel} Fuel `}
+                                      {offer.initiator_offers_organics > 0 && `🌱 ${offer.initiator_offers_organics} Organics `}
+                                      {offer.initiator_offers_equipment > 0 && `🔧 ${offer.initiator_offers_equipment} Equipment `}
+                                      {offer.initiator_offers_credits > 0 && `💰 ₡${offer.initiator_offers_credits.toLocaleString()}`}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <span style={{ color: '#00ffff' }}>Requesting:</span>
+                                    <div style={{ color: '#ffffff', marginTop: '2px' }}>
+                                      {offer.initiator_requests_fuel > 0 && `⛽ ${offer.initiator_requests_fuel} Fuel `}
+                                      {offer.initiator_requests_organics > 0 && `🌱 ${offer.initiator_requests_organics} Organics `}
+                                      {offer.initiator_requests_equipment > 0 && `🔧 ${offer.initiator_requests_equipment} Equipment `}
+                                      {offer.initiator_requests_credits > 0 && `💰 ₡${offer.initiator_requests_credits.toLocaleString()}`}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                                <button
+                                  className="cyberpunk-button"
+                                  style={{
+                                    background: 'rgba(0, 255, 0, 0.2)',
+                                    borderColor: '#00ff00',
+                                    padding: '4px 12px',
+                                    fontSize: '0.8rem'
+                                  }}
+                                  onClick={() => {
+                                    // TODO: Implement accept trade
+                                    console.log('Accept trade:', offer.id);
+                                  }}
+                                >
+                                  ✓ ACCEPT
+                                </button>
+                                <button
+                                  className="cyberpunk-button"
+                                  style={{
+                                    background: 'rgba(255, 100, 0, 0.2)',
+                                    borderColor: '#ff6b00',
+                                    padding: '4px 12px',
+                                    fontSize: '0.8rem'
+                                  }}
+                                  onClick={() => {
+                                    // TODO: Implement decline trade
+                                    console.log('Decline trade:', offer.id);
+                                  }}
+                                >
+                                  ✗ DECLINE
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                      )
+                    ) : (
+                        tradeOffers.filter((offer: any) => offer.initiator_id === currentPlayerId).length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
+                          📤 No outgoing trade offers
+                        </div>
+                      ) : (
+                        tradeOffers
+                          .filter((offer: any) => offer.initiator_id === currentPlayerId)
+                          .map((offer: any) => (
+                            <div
+                              key={offer.id}
+                              style={{
+                                background: 'rgba(0, 0, 0, 0.5)',
+                                border: '1px solid #00ff00',
+                                borderRadius: '4px',
+                                padding: '1rem',
+                                marginBottom: '10px'
+                              }}
+                            >
+                              <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                marginBottom: '0.5rem'
+                              }}>
+                                <span style={{ color: '#00ff00', fontWeight: 'bold' }}>
+                                  To: {offer.recipient_name}
+                                </span>
+                                <span style={{ color: '#888', fontSize: '0.8rem' }}>
+                                  {new Date(offer.created_at).toLocaleDateString()}
+                                </span>
+                              </div>
+                              <div style={{ marginBottom: '0.5rem' }}>
+                                <div style={{ color: '#ffffff', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                                  {offer.message}
+                                </div>
+                                <div style={{ display: 'flex', gap: '20px', fontSize: '0.8rem' }}>
+                                  <div>
+                                    <span style={{ color: '#ff6b00' }}>Offering:</span>
+                                    <div style={{ color: '#ffffff', marginTop: '2px' }}>
+                                      {offer.initiator_offers_fuel > 0 && `⛽ ${offer.initiator_offers_fuel} Fuel `}
+                                      {offer.initiator_offers_organics > 0 && `🌱 ${offer.initiator_offers_organics} Organics `}
+                                      {offer.initiator_offers_equipment > 0 && `🔧 ${offer.initiator_offers_equipment} Equipment `}
+                                      {offer.initiator_offers_credits > 0 && `💰 ₡${offer.initiator_offers_credits.toLocaleString()}`}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <span style={{ color: '#00ffff' }}>Requesting:</span>
+                                    <div style={{ color: '#ffffff', marginTop: '2px' }}>
+                                      {offer.initiator_requests_fuel > 0 && `⛽ ${offer.initiator_requests_fuel} Fuel `}
+                                      {offer.initiator_requests_organics > 0 && `🌱 ${offer.initiator_requests_organics} Organics `}
+                                      {offer.initiator_requests_equipment > 0 && `🔧 ${offer.initiator_requests_equipment} Equipment `}
+                                      {offer.initiator_requests_credits > 0 && `💰 ₡${offer.initiator_requests_credits.toLocaleString()}`}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              <div style={{
+                                fontSize: '0.8rem',
+                                color: offer.status === 'pending' ? '#ffff00' :
+                                       offer.status === 'accepted' ? '#00ff00' :
+                                       offer.status === 'declined' ? '#ff6b00' : '#888'
+                              }}>
+                                Status: {offer.status.toUpperCase()}
+                              </div>
+                            </div>
+                          ))
+                      )
+                    )}
+                  </div>
                 </div>
               )}
             </div>

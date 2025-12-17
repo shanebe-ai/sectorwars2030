@@ -22,7 +22,7 @@ import sectorFighterRoutes from './routes/sectorFighters';
 import mineRoutes from './routes/mines';
 import alienRoutes from './routes/alien';
 import alienTradingRoutes from './routes/alienTrading';
-import playerTradingRoutes from './routes/playerTrading';
+import tradeRoutes from './routes/trade';
 import corporationRoutes from './routes/corporation';
 import genesisRoutes from './routes/genesis';
 import leaderboardRoutes from './routes/leaderboard';
@@ -145,7 +145,7 @@ app.use('/api/aliens', alienRoutes);
 app.use('/api/alien-trading', alienTradingRoutes);
 
 // Player trading routes (player-to-player trading)
-app.use('/api/player-trading', playerTradingRoutes);
+app.use('/api/trade', tradeRoutes);
 
 // Corporation routes (corp management)
 app.use('/api/corporations', corporationRoutes);

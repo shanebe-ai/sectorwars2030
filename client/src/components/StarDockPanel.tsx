@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { API_URL } from '../config/api';
+import { useAutoScroll } from '../hooks/useAutoScroll';
 
 interface Ship {
   id: number;
@@ -86,6 +87,10 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
   const [transferMemo, setTransferMemo] = useState('');
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);
   const [searchResults, setSearchResults] = useState<any[]>([]);
+
+  // Auto-scroll refs for important messages
+  const errorScrollRef = useAutoScroll([error], 'smooth', 100);
+  const messageScrollRef = useAutoScroll([message], 'smooth', 100);
 
   useEffect(() => {
     loadStardockInfo();
@@ -580,7 +585,7 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
     return (
       <div style={overlayStyle} onClick={onClose}>
         <div style={panelStyle} onClick={e => e.stopPropagation()}>
-          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--neon-pink)' }}>
+          <div ref={errorScrollRef} style={{ textAlign: 'center', padding: '40px', color: 'var(--neon-pink)' }}>
             {error}
           </div>
           <button onClick={onClose} className="cyberpunk-button" style={{ width: '100%', marginTop: '20px' }}>
@@ -676,7 +681,7 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
 
         {/* Messages */}
         {message && (
-          <div style={{
+          <div ref={messageScrollRef} style={{
             padding: '10px 15px',
             background: 'rgba(0, 255, 0, 0.1)',
             border: '1px solid var(--neon-green)',
@@ -688,7 +693,7 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
           </div>
         )}
         {error && (
-          <div style={{
+          <div ref={errorScrollRef} style={{
             padding: '10px 15px',
             background: 'rgba(255, 0, 100, 0.1)',
             border: '1px solid var(--neon-pink)',
