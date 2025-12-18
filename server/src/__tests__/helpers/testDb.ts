@@ -42,7 +42,9 @@ export async function cleanupTestDb(): Promise<void> {
     await client.query('DELETE FROM sector_warps');
     await client.query('DELETE FROM sectors');
     await client.query('DELETE FROM planets');
-    await client.query('DELETE FROM corporations'); // Delete corporations before players
+    // Handle circular dependency between players and corporations
+    await client.query('UPDATE players SET corp_id = NULL WHERE corp_id IS NOT NULL');
+    await client.query('DELETE FROM corporations');
     await client.query('DELETE FROM players');
     await client.query('DELETE FROM universes');
     await client.query('DELETE FROM users WHERE username LIKE \'test_%\'');

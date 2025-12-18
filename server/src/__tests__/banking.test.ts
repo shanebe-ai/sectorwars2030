@@ -77,7 +77,10 @@ describe('Banking System - Economy Fixes', () => {
       );
 
       const result = await bankingService.depositCredits(testPlayerId, 'personal', 1000);
-      
+
+      if (!result.success) {
+        console.log('Deposit failed with error:', result.error);
+      }
       expect(result.success).toBe(true);
       expect(result.error).toBeUndefined();
       

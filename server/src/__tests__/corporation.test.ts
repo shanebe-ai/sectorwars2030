@@ -9,7 +9,7 @@ import {
   createTestUser,
   createTestUniverse,
   createTestSector,
-  createTestPlayer,
+  createTestPlayerDetailed,
   closeTestPool,
 } from './helpers/testDb';
 
@@ -62,10 +62,10 @@ describe('Corporation Management System', () => {
     testCorpId = corpResult.rows[0].id;
 
     // Create players
-    founderPlayerId = await createTestPlayer(founderUserId, testUniverseId, 1);
-    officerPlayerId = await createTestPlayer(officerUserId, testUniverseId, 1);
-    memberPlayerId = await createTestPlayer(memberUserId, testUniverseId, 1);
-    outsiderPlayerId = await createTestPlayer(outsiderUserId, testUniverseId, 1);
+    founderPlayerId = await createTestPlayerDetailed(founderUserId, testUniverseId, 1);
+    officerPlayerId = await createTestPlayerDetailed(officerUserId, testUniverseId, 1);
+    memberPlayerId = await createTestPlayerDetailed(memberUserId, testUniverseId, 1);
+    outsiderPlayerId = await createTestPlayerDetailed(outsiderUserId, testUniverseId, 1);
 
     // Add founder to corp
     await testPool.query(`
@@ -189,7 +189,7 @@ describe('Corporation Management System', () => {
     it('should allow officer to invite players', async () => {
       // Create another outsider
       const newOutsiderId = await createTestUser('test_corp_outsider2');
-      const newOutsiderPlayerId = await createTestPlayer(newOutsiderId, testUniverseId, 1);
+      const newOutsiderPlayerId = await createTestPlayerDetailed(newOutsiderId, testUniverseId, 1);
 
       const result = await corpService.invitePlayer(officerPlayerId, 'test_corp_outsider2');
 
@@ -379,7 +379,7 @@ describe('Corporation Management System', () => {
     it('should reject transferring to player not in corp', async () => {
       // Create new outsider
       const newUserId = await createTestUser('test_transfer_outsider');
-      const newPlayerId = await createTestPlayer(newUserId, testUniverseId, 1);
+      const newPlayerId = await createTestPlayerDetailed(newUserId, testUniverseId, 1);
 
       await expect(
         corpService.transferOwnership(officerPlayerId, newPlayerId)

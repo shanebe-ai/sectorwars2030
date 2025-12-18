@@ -6,7 +6,7 @@ import {
   createTestUniverse,
   createTestSector,
   createWarp,
-  createTestPlayer,
+  createTestPlayerDetailed,
   getPlayer,
   closeTestPool,
 } from './helpers/testDb';
@@ -57,7 +57,7 @@ describe('Sector Navigation and Turn Consumption', () => {
     await createWarp(sector3Id, 2, true);
     
     // Create player starting in sector 1 with 50 turns
-    testPlayerId = await createTestPlayer(
+    testPlayerId = await createTestPlayerDetailed(
       testUserId,
       testUniverseId,
       1,

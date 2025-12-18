@@ -69,7 +69,6 @@ export const createOffer = async (req: Request, res: Response) => {
     const result = await createTradeOffer(
       initiatorPlayerIdNum,
       recipientPlayerIdNum,
-      sectorIdNum,
       {
         fuel: parseInt(offers.fuel) || 0,
         organics: parseInt(offers.organics) || 0,

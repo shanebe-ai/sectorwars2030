@@ -12,7 +12,7 @@ import {
   cancelAlienTrade,
   getPlayerTradeHistory
 } from '../services/alienTradingService';
-import { alienAttacksPlayer } from '../services/alienService';
+import alienService from '../services/alienService';
 
 /**
  * GET /api/alien-trading/offers/:playerId
@@ -108,27 +108,9 @@ export const attemptRobbery = async (req: Request, res: Response) => {
       return res.status(400).json(result);
     }
 
-    // If robbery triggered combat, execute it
-    if (result.outcome === 'robbery_combat' && result.combatData) {
-      try {
-        const combatResult = await alienAttacksPlayer(
-          result.combatData.alienShipId,
-          result.combatData.playerId,
-          result.combatData.robberPenalty // Apply penalty to player
-        );
-
-        return res.json({
-          success: true,
-          outcome: 'robbery_combat',
-          message: result.message,
-          combatResult
-        });
-      } catch (combatError: any) {
-        console.error('Error executing robbery combat:', combatError);
-        return res.status(500).json({
-          error: 'Robbery triggered combat but combat failed: ' + combatError.message
-        });
-      }
+    // If robbery triggered combat, it's already been handled in the service
+    if (result.outcome === 'robbery_combat') {
+      return res.json(result);
     }
 
     // Robbery succeeded

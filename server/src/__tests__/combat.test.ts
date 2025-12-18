@@ -27,6 +27,7 @@ jest.mock('../db/connection', () => {
 jest.mock('../index', () => ({
   emitSectorEvent: jest.fn(),
   emitUniverseEvent: jest.fn(),
+  emitPlayerEvent: jest.fn(),
 }));
 
 // Import services after mocking

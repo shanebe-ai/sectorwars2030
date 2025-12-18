@@ -239,10 +239,10 @@ export async function leaveCorporation(playerId: number) {
       [corpId, playerId]
     );
 
-    // Update player record
+    // Update player record (keep corp_name for NOT NULL constraint)
     await client.query(`
       UPDATE players
-      SET corp_id = NULL, corp_name = NULL
+      SET corp_id = NULL
       WHERE id = $1
     `, [playerId]);
 
@@ -317,8 +317,10 @@ export async function invitePlayer(inviterId: number, targetUsername: string) {
       throw new Error('You cannot invite yourself to your own corporation');
     }
 
-    // Note: We allow inviting players already in a corp
-    // They must leave their current corp before accepting the invitation
+    // Prevent inviting players already in a corporation
+    if (targetPlayer.corp_id) {
+      throw new Error(`${targetUsername} is already in a corporation`);
+    }
 
     // Get founder information
     const founderResult = await client.query(`
@@ -542,10 +544,10 @@ export async function kickMember(kickerId: number, targetPlayerId: number) {
       [kickerMembership.corp_id, targetPlayerId]
     );
 
-    // Update player record
+    // Update player record (keep corp_name for NOT NULL constraint)
     await client.query(`
       UPDATE players
-      SET corp_id = NULL, corp_name = NULL
+      SET corp_id = NULL
       WHERE id = $1
     `, [targetPlayerId]);
 

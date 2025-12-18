@@ -48,6 +48,19 @@ export const attackPlayer = async (req: Request, res: Response) => {
     // Execute the attack
     const result = await executeAttack(attackerId, targetId);
 
+    // Get updated player stats
+    const updatedPlayerResult = await pool.query(
+      `SELECT 
+        id, corp_name, current_sector, credits, turns_remaining,
+        ship_type, ship_holds_max, ship_fighters, ship_shields,
+        cargo_fuel, cargo_organics, cargo_equipment, 
+        kills, deaths, alignment, in_escape_pod
+       FROM players WHERE id = $1`,
+      [attackerId]
+    );
+
+    const updatedPlayer = updatedPlayerResult.rows[0];
+
     // Send WebSocket notification for combat result
     try {
       await notifyCombatResult(
@@ -64,19 +77,6 @@ export const attackPlayer = async (req: Request, res: Response) => {
       console.error('Failed to send combat notification:', notifyError);
       // Don't fail the request if notification fails
     }
-
-    // Get updated player stats
-    const updatedPlayerResult = await pool.query(
-      `SELECT 
-        id, corp_name, current_sector, credits, turns_remaining,
-        ship_type, ship_holds_max, ship_fighters, ship_shields,
-        cargo_fuel, cargo_organics, cargo_equipment, 
-        kills, deaths, alignment, in_escape_pod
-       FROM players WHERE id = $1`,
-      [attackerId]
-    );
-
-    const updatedPlayer = updatedPlayerResult.rows[0];
 
     res.json({
       success: true,

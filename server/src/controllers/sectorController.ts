@@ -152,31 +152,25 @@ export const getSectorDetails = async (req: Request, res: Response) => {
       }));
     }
 
-    // Get floating cargo in sector (normalized structure)
+    // Get floating cargo in sector (denormalized structure)
     const cargoResult = await pool.query(
-      `SELECT id, cargo_type, quantity, created_at
+      `SELECT id, fuel, organics, equipment, colonists, source_event, created_at
        FROM sector_cargo
        WHERE universe_id = $1 AND sector_number = $2
        AND expires_at > NOW()
-       AND quantity > 0`,
+       AND (fuel > 0 OR organics > 0 OR equipment > 0 OR colonists > 0)`,
       [universeId, sectorNumber]
     );
 
-    // Convert normalized cargo data to the expected format
-    const cargoMap: { [key: string]: number } = {};
-    cargoResult.rows.forEach(c => {
-      cargoMap[c.cargo_type] = c.quantity;
-    });
-
-    const floatingCargo = cargoResult.rows.length > 0 ? [{
-      id: cargoResult.rows[0].id, // Use first row's ID for display
-      fuel: cargoMap.fuel || 0,
-      organics: cargoMap.organics || 0,
-      equipment: cargoMap.equipment || 0,
-      colonists: cargoMap.colonists || 0,
-      source: 'combat_loot', // Default source since we don't have source_event in this table
-      createdAt: cargoResult.rows[0].created_at
-    }] : [];
+    const floatingCargo = cargoResult.rows.map(c => ({
+      id: c.id,
+      fuel: c.fuel || 0,
+      organics: c.organics || 0,
+      equipment: c.equipment || 0,
+      colonists: c.colonists || 0,
+      source: c.source_event || 'combat_loot',
+      createdAt: c.created_at
+    }));
 
     // Get beacons in sector
     let beacons: any[] = [];
@@ -543,31 +537,25 @@ export const scanSector = async (req: Request, res: Response) => {
       createdAt: b.created_at
     }));
 
-    // Get floating cargo in sector (normalized structure)
+    // Get floating cargo in sector (denormalized structure)
     const cargoResult = await pool.query(
-      `SELECT id, cargo_type, quantity, created_at
+      `SELECT id, fuel, organics, equipment, colonists, source_event, created_at
        FROM sector_cargo
        WHERE universe_id = $1 AND sector_number = $2
        AND expires_at > NOW()
-       AND quantity > 0`,
+       AND (fuel > 0 OR organics > 0 OR equipment > 0 OR colonists > 0)`,
       [player.universe_id, targetSector]
     );
 
-    // Convert normalized cargo data to the expected format
-    const cargoMap: { [key: string]: number } = {};
-    cargoResult.rows.forEach(c => {
-      cargoMap[c.cargo_type] = c.quantity;
-    });
-
-    const floatingCargo = cargoResult.rows.length > 0 ? [{
-      id: cargoResult.rows[0].id, // Use first row's ID for display
-      fuel: cargoMap.fuel || 0,
-      organics: cargoMap.organics || 0,
-      equipment: cargoMap.equipment || 0,
-      colonists: cargoMap.colonists || 0,
-      source: 'combat_loot', // Default source since we don't have source_event in this table
-      createdAt: cargoResult.rows[0].created_at
-    }] : [];
+    const floatingCargo = cargoResult.rows.map(c => ({
+      id: c.id,
+      fuel: c.fuel || 0,
+      organics: c.organics || 0,
+      equipment: c.equipment || 0,
+      colonists: c.colonists || 0,
+      source: c.source_event || 'combat_loot',
+      createdAt: c.created_at
+    }));
 
     // Deduct turn
     await pool.query(
