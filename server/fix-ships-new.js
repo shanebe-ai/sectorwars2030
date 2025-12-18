@@ -36,3 +36,5 @@ async function fixShips() {
 
 fixShips().catch(console.error);
 
+
+

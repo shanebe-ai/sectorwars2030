@@ -73,12 +73,13 @@ describe('Alien Trading System', () => {
     const shipTypeResult = await testPool.query(`SELECT id FROM ship_types LIMIT 1`);
     const shipTypeId = shipTypeResult.rows[0]?.id || 1;
 
-    // Create a trade alien in the same sector
+    // Create a trade alien in the same sector with cargo
     const alienResult = await testPool.query(
       `INSERT INTO alien_ships (
         universe_id, sector_number, alien_race, ship_type,
-        behavior, fighters, shields
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        behavior, fighters, shields, cargo_fuel, cargo_organics, cargo_equipment,
+        alignment, credits
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING id`,
       [
         testUniverseId,
@@ -87,7 +88,12 @@ describe('Alien Trading System', () => {
         'Scout',
         'trade',
         50,
-        50
+        50,
+        100, // cargo_fuel
+        100, // cargo_organics
+        100, // cargo_equipment
+        100, // neutral-friendly alignment
+        50000 // credits
       ]
     );
     tradeAlienId = alienResult.rows[0].id;
@@ -141,10 +147,11 @@ describe('Alien Trading System', () => {
       const unfriendlyAlien = await testPool.query(
         `INSERT INTO alien_ships (
           universe_id, sector_number, alien_race, ship_type,
-          behavior, fighters, shields
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+          behavior, fighters, shields, cargo_fuel, cargo_organics, cargo_equipment,
+          alignment, credits
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING id`,
-        [testUniverseId, 10, 'Hostile', 'Scout', 'trade', 100, 100]
+        [testUniverseId, 10, 'Hostile', 'Scout', 'trade', 100, 100, 100, 100, 100, 50, 50000]
       );
 
       const offer = await alienTradingService.generateTradeOffer(unfriendlyAlien.rows[0].id, testPlayerId);

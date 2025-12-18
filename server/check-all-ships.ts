@@ -34,3 +34,5 @@ async function checkAllShips() {
 
 checkAllShips().catch(console.error);
 
+
+

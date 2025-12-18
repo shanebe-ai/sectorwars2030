@@ -63,8 +63,9 @@ export async function generateTradeOffer(
     // Get alien ship data
     const alienResult = await client.query(
       `SELECT
-        a.id, a.universe_id, a.race, a.ship_name, a.ship_type, a.sector_number,
-        a.alignment, a.cargo_fuel, a.cargo_organics, a.cargo_equipment, a.credits
+        a.id, a.universe_id, a.alien_race, a.ship_type, a.sector_number,
+        a.fighters, a.shields, a.cargo_fuel, a.cargo_organics, a.cargo_equipment,
+        a.alignment, a.credits
       FROM alien_ships a
       WHERE a.id = $1 AND a.behavior = 'trade'`,
       [alienShipId]
@@ -171,7 +172,7 @@ export async function generateTradeOffer(
       const emit = await getEmitPlayerEvent();
       emit(playerId, 'alien_trade_offer', {
         offer,
-        message: `${alien.race} trader offers ${offerAmount} ${commodity} for ₡${totalCredits}`
+        message: `${alien.alien_race} trader offers ${offerAmount} ${commodity} for ₡${totalCredits}`
       });
     } catch (wsError) {
       console.error('Error emitting trade offer event:', wsError);
@@ -196,7 +197,7 @@ export async function getTradeOfferById(
     const result = await client.query(
       `SELECT
         ato.*,
-        a.race, a.ship_name, a.ship_type, a.sector_number, a.alignment,
+        a.alien_race as race, a.ship_name, a.ship_type, a.sector_number, a.alignment,
         a.cargo_fuel, a.cargo_organics, a.cargo_equipment
       FROM alien_trade_offers ato
       JOIN alien_ships a ON ato.alien_ship_id = a.id
@@ -226,7 +227,7 @@ export async function getPlayerTradeOffers(
     const result = await client.query(
       `SELECT
         ato.*,
-        a.race, a.ship_name, a.ship_type, a.sector_number, a.alignment,
+        a.alien_race as race, a.ship_name, a.ship_type, a.sector_number, a.alignment,
         a.cargo_fuel, a.cargo_organics, a.cargo_equipment
       FROM alien_trade_offers ato
       JOIN alien_ships a ON ato.alien_ship_id = a.id
@@ -398,7 +399,7 @@ export async function acceptAlienTrade(
         -offer.alien_requests_credits, // Negative = player paid
         'completed',
         false,
-        alien.race,
+        alien.alien_race,
         alien.alignment,
         alien.sector_number
       ]
@@ -413,7 +414,7 @@ export async function acceptAlienTrade(
         playerId,
         JSON.stringify({
           type: 'alien_trade',
-          alienRace: alien.race,
+          alienRace: alien.alien_race,
           alienShip: alien.ship_name,
           cargo: {
             fuel: offer.alien_offers_fuel,
@@ -433,7 +434,7 @@ export async function acceptAlienTrade(
       const emit = await getEmitPlayerEvent();
       emit(playerId, 'alien_trade_accepted', {
         offerId: offerId,
-        alienRace: alien.race,
+        alienRace: alien.alien_race,
         cargo: {
           fuel: offer.alien_offers_fuel,
           organics: offer.alien_offers_organics,
@@ -587,7 +588,7 @@ export async function attemptAlienRobbery(
           'robbery_success',
           true,
           playerId,
-          alien.race,
+          alien.alien_race,
           alien.alignment,
           alien.sector_number
         ]
@@ -600,7 +601,7 @@ export async function attemptAlienRobbery(
         const emit = await getEmitPlayerEvent();
         emit(playerId, 'alien_robbery_success', {
           offerId: offerId,
-          alienRace: alien.race,
+          alienRace: alien.alien_race,
           stolenCargo: {
             fuel: stolenFuel,
             organics: stolenOrganics,
@@ -642,7 +643,7 @@ export async function attemptAlienRobbery(
           'robbery_combat',
           true,
           playerId,
-          alien.race,
+          alien.alien_race,
           alien.alignment,
           alien.sector_number
         ]
@@ -655,7 +656,7 @@ export async function attemptAlienRobbery(
         const emit = await getEmitPlayerEvent();
         emit(playerId, 'alien_robbery_combat', {
           offerId: offerId,
-          alienRace: alien.race,
+          alienRace: alien.alien_race,
           alienShipId: alien.id,
           message: 'Robbery failed! The alien is attacking with advantage!'
         });
