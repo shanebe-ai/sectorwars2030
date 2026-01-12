@@ -1,4 +1,5 @@
 import { getClient, query } from '../db/connection';
+import { emitSectorEvent, emitUniverseEvent } from '../index';
 
 /**
  * Genesis Torpedo Service
@@ -233,6 +234,14 @@ export async function launchGenesis(playerId: number): Promise<GenesisLaunchResu
     );
 
     await client.query('COMMIT');
+
+    // Emit WebSocket event to sector
+    emitSectorEvent(player.universe_id, player.current_sector, 'genesis_launched', {
+      playerId,
+      planetName,
+      planetId: planet.id,
+      sectorNumber: player.current_sector
+    });
 
     // Broadcast TNN announcement
     try {

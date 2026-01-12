@@ -56,6 +56,14 @@ export async function broadcastAlienComms(
     options.relatedPlayerId || null,
     options.relatedShipId || options.relatedPlanetId || null
   ]);
+
+  // Emit WebSocket event to all players who have unlocked alien comms
+  emitUniverseEvent(universeId, 'alien_communication', {
+    alienRace: options.alienRace,
+    messageType,
+    message,
+    sectorNumber: options.sectorNumber
+  });
 }
 
 /**

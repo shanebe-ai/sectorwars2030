@@ -111,23 +111,42 @@ See [server/src/db/schema.sql](server/src/db/schema.sql) for complete schema.
 - **Turn regeneration** - Turns restore gradually over time (turns_per_day / 24 per hour)
 - **Space trading** - Buy/sell fuel, organics, equipment at ports
 - **Port types** - 8 port configurations for strategic trading routes
-- **Ship progression** - From Scout to Corporate Flagship
+- **Ship progression** - 10 ships from Escape Pod to Dreadnought
 - **Warp drive misfire** - 0.25% chance of malfunction sending you to a random sector
-- **Ship communications** - Message other ships in your sector, stored for offline players
-- **Combat system** - Attack other players and aliens (coming soon)
+- **Plot Course** - Auto-navigation with smart pause at points of interest
+- **Ship communications** - Direct messages, broadcasts, and corporate chat
+- **Combat system** - Attack players and aliens (1 turn, 75% loot, 25% death penalty)
 - **Planets** - ~30 claimable planets per universe, colonize and produce resources
-- **Alien System** - Alien planets, ships, and communications
+  - Citadel defense system (6 levels with production bonuses)
+  - Resource production based on colonist population
+  - Fighter deployment and credit treasury
+- **Banking System** - StarDock-based banking with personal and corporate accounts
+  - 5% withdrawal fee, 25% bank balance lost on death
+  - Corporate withdrawal limits by rank
+- **Alien System** - NPC adversaries with AI behaviors
   - Alien planets scale with universe size (0.3% formula for 1000+ sectors)
-  - Alien ships with different behaviors (patrol, trade, aggressive, defensive)
+  - Alien ships with balanced behavior distribution (40% trade, 30% patrol, 20% aggressive, 10% defensive)
+  - Alignment system affects alien interactions: traders are friendly, raiders are hostile
   - Alien communications channel (read-only), unlocked after visiting an alien planet
-  - Alien ships move automatically via game tick system
-  - Alien planets logged in ship log with special identification
+  - Alien ships move and attack automatically via game tick system
+  - Combat with aliens for credits and cargo (strategic choice: attack traders or build relationships)
 - **Corporations** - Form alliances with other players
+  - Ranks: Founder, Officer, Member
+  - Invite system, kick members, promote/demote
+  - Corporate chat channel for alliance coordination
 - **Territory control** - Deploy fighters and mines
+  - Fighter maintenance: ₡5/fighter/day
+  - Mines: ₡10,000 each, 75-225 damage per explosion
+  - Beacons: Personal markers with custom messages
+- **Genesis Torpedoes** - Create new planets anywhere (₡50,000 each)
+- **Ship Log** - Auto-logging of discoveries (ports, planets, StarDocks, dead-ends)
 
 ### Modern Enhancements
 - **Web-based interface** - Accessible from any browser
 - **Real-time updates** - See other players' actions via WebSockets
+  - Player movement, combat, trading, planet colonization
+  - Alien encounters and communications
+  - Genesis torpedo launches, beacon messages
 - **Cyberpunk aesthetics** - Neon colors and ASCII art
 - **Admin panel** - Configure universes without SQL
 - **Responsive design** - Play on desktop or mobile
@@ -211,24 +230,22 @@ Format: `[Fuel][Organics][Equipment]`
   - [x] No browser popups (prompt/alert/confirm) - all interactions use UI modals
   - [x] Real-time ship status updates (fighters update immediately on deploy/retrieve)
   - [x] Fighter maintenance cost warnings in deployment UI
-- [x] **Alien System (2025-12-02)**
+- [x] **Alien System (2025-12-02, updated 2026-01-12)**
   - [x] Alien planet generation with scaling formula (0.3% for 1000+ sectors)
   - [x] Alien ship generation with multiple races and ship types
   - [x] Alien communications channel (read-only)
   - [x] Auto-unlock alien comms when entering alien planet sector
   - [x] Alien comms integrated into MessagingPanel as separate tab
   - [x] Alien ship AI movement system (game tick every 5 minutes)
-  - [x] Alien ship behaviors (patrol, trade, aggressive, defensive)
-  - [x] Alien alignment system (traders: neutral/friendly, others: hostile)
+  - [x] Alien ship behaviors with balanced distribution (40% trade, 30% patrol, 20% aggressive, 10% defensive)
+  - [x] Alien alignment system: traders friendly (+50 to +150), patrol neutral (-50 to +50), raiders hostile (-300 to -150), guards territorial (-100)
   - [x] Alien planet detection and logging in ship log
   - [x] Admin panel configuration for alien planet count
 
 ### In Progress 🚧
-- [x] Combat system (attack, defend, loot) ✅
-- [x] Planet colonization (claim, colonists, production) ✅
-- [ ] Ship upgrade system
-- [x] Corporation/alliance system ✅
-- [x] Real-time WebSocket events ✅
+- [ ] Player rankings and leaderboards
+- [ ] Mobile responsive design improvements
+- [ ] Advanced admin tools (player management, universe editing)
 
 ## Running Tests
 

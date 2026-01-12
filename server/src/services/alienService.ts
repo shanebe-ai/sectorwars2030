@@ -168,11 +168,19 @@ export async function generateAliensForUniverse(config: AlienGenerationConfig): 
         startSector = Math.floor(Math.random() * (sectorCount - 10)) + 11;
       }
 
-      // Choose behavior
-      const behaviors: Array<'patrol' | 'trade' | 'aggressive' | 'defensive'> = [
-        'patrol', 'aggressive', 'patrol', 'defensive', 'trade'
-      ];
-      const behavior = behaviors[Math.floor(Math.random() * behaviors.length)];
+      // Choose behavior with weighted distribution
+      // 40% trade, 30% patrol, 20% aggressive, 10% defensive
+      const roll = Math.random();
+      let behavior: 'patrol' | 'trade' | 'aggressive' | 'defensive';
+      if (roll < 0.40) {
+        behavior = 'trade';
+      } else if (roll < 0.70) {
+        behavior = 'patrol';
+      } else if (roll < 0.90) {
+        behavior = 'aggressive';
+      } else {
+        behavior = 'defensive';
+      }
 
       // Alien ships are well-equipped (65-90% of max for better challenge)
       const fighters = Math.floor(shipType.fighters_max * (0.65 + Math.random() * 0.25));
@@ -182,10 +190,17 @@ export async function generateAliensForUniverse(config: AlienGenerationConfig): 
       // Home sector for patrol (if near alien planet)
       const homeSector = alienPlanets.includes(startSector) ? startSector : null;
 
-      // Alignment based on behavior: traders are neutral/friendly, others are hostile
-      const alignment = behavior === 'trade'
-        ? Math.floor(Math.random() * 100) + 50 // Neutral to friendly (50-150)
-        : -200; // Hostile for aggressive/patrol/defensive
+      // Alignment based on behavior for better game balance
+      let alignment: number;
+      if (behavior === 'trade') {
+        alignment = Math.floor(Math.random() * 100) + 50; // Friendly: +50 to +150
+      } else if (behavior === 'patrol') {
+        alignment = Math.floor(Math.random() * 100) - 50; // Cautious: -50 to +50
+      } else if (behavior === 'defensive') {
+        alignment = -100; // Territorial: -100
+      } else {
+        alignment = Math.floor(Math.random() * 150) - 300; // Hostile: -300 to -150
+      }
 
       // Generate cargo for trade aliens
       let cargoFuel = 0;
@@ -232,11 +247,9 @@ export async function getAlienShipsInSector(universeId: number, sectorNumber: nu
     const result = await pool.query(`
       SELECT
         a.id, a.universe_id, a.alien_race, a.ship_name,
-        a.ship_type_id, a.current_sector, a.credits,
-        a.fighters, a.shields, a.behavior, a.home_sector,
-        st.name as ship_type_name
+        a.ship_type, a.current_sector, a.credits,
+        a.fighters, a.shields, a.behavior, a.home_sector
       FROM alien_ships a
-      LEFT JOIN ship_types st ON a.ship_type_id = st.id
       WHERE a.universe_id = $1 AND a.current_sector = $2
     `, [universeId, sectorNumber]);
 
@@ -245,8 +258,8 @@ export async function getAlienShipsInSector(universeId: number, sectorNumber: nu
       universeId: row.universe_id,
       alienRace: row.alien_race,
       shipName: row.ship_name,
-      shipTypeId: row.ship_type_id,
-      shipTypeName: row.ship_type_name || 'Unknown',
+      shipTypeId: row.ship_type,
+      shipTypeName: row.ship_type,
       currentSector: row.current_sector,
       credits: row.credits,
       fighters: row.fighters,
@@ -369,7 +382,7 @@ export async function moveAlienShips(universeId: number): Promise<void> {
     const shipsResult = await client.query(`
       SELECT a.*, st.fighters_max, st.shields_max
       FROM alien_ships a
-      JOIN ship_types st ON a.ship_type_id = st.id
+      JOIN ship_types st ON a.ship_type = st.name
       WHERE a.universe_id = $1
         AND (a.last_move_at IS NULL OR a.last_move_at < NOW() - INTERVAL '5 minutes')
     `, [universeId]);
@@ -627,7 +640,7 @@ export async function processAlienAggression(universeId: number): Promise<void> 
     const aggressiveShipsResult = await client.query(`
       SELECT a.*, st.fighters_max, st.shields_max
       FROM alien_ships a
-      JOIN ship_types st ON a.ship_type_id = st.id
+      JOIN ship_types st ON a.ship_type = st.name
       WHERE a.universe_id = $1
         AND a.behavior = 'aggressive'
         AND a.fighters > 0
@@ -795,7 +808,7 @@ export async function attackAlienShip(
     const alienResult = await client.query(`
       SELECT a.*, st.fighters_max, st.shields_max, st.holds as holds_max
       FROM alien_ships a
-      JOIN ship_types st ON a.ship_type_id = st.id
+      JOIN ship_types st ON a.ship_type = st.name
       WHERE a.id = $1
       FOR UPDATE OF a SKIP LOCKED
     `, [alienShipId]);
@@ -1092,7 +1105,7 @@ async function alienAttacksPlayer(
     const alienResult = await client.query(`
       SELECT a.*, st.fighters_max, st.shields_max
       FROM alien_ships a
-      JOIN ship_types st ON a.ship_type_id = st.id
+      JOIN ship_types st ON a.ship_type = st.name
       WHERE a.id = $1
       FOR UPDATE OF a
     `, [alienShipId]);

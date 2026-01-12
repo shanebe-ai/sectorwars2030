@@ -1,5 +1,35 @@
 # TradeWars 2030 - Project Status
 
+## 🤖 AI Context Section
+
+**Purpose**: This document serves as the primary context for AI assistants working on this project. Read this first to understand the full project state.
+
+**Project**: TradeWars 2030 - Modern web remake of the classic BBS game TradeWars 2002
+**Repository**: shanebe-ai/tradewars2030
+**Author**: Shane Burgess (shanebe-ai, shanebe@live.com)
+**Tech Stack**: React 19 + Vite + TypeScript (frontend), Node.js + Express + TypeScript + Socket.io (backend), PostgreSQL (database)
+**Ports**: Backend (3000), Client (5173), Admin (5174)
+
+**Current State**: ✅ Fully functional multiplayer game with all core features implemented and tested
+**Latest Update**: 2026-01-12 - Alien behavior balancing complete
+**Ready For**: Production deployment, multiplayer testing
+
+**Key Files to Review**:
+- [README.md](README.md) - User-facing documentation, feature list
+- [PLAYER_GUIDE.md](PLAYER_GUIDE.md) - Complete gameplay guide with cyberpunk narrative
+- [MANUAL_TESTING_GUIDE.md](MANUAL_TESTING_GUIDE.md) - Testing procedures, API examples
+- [server/src/db/schema.sql](server/src/db/schema.sql) - Complete database schema
+- [server/src/index.ts](server/src/index.ts) - Server entry point with all routes
+
+**Important Notes**:
+- All documentation must maintain cyberpunk/sci-fi narrative tone (see PLAYER_GUIDE.md for examples)
+- WebSocket events broadcast all major game actions for real-time multiplayer
+- Alien system uses weighted behavior distribution (40% trade, 30% patrol, 20% aggressive, 10% defensive)
+- Combat costs 1 turn, 75% loot on victory, 25% death penalty
+- Fighter maintenance costs ₡5/fighter/day, auto-destroys on non-payment
+- Banking requires StarDock presence, 5% withdrawal fee, 25% bank balance lost on death
+- Test Universe #124 exists with 1000 sectors, 9 aliens, 3 alien planets for multiplayer testing
+
 ## Overview
 Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthetics, and turn-based gameplay.
 
@@ -471,7 +501,49 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 
 ## Current Session Context 🎯
 
-**What We Just Did:**
+**What We Just Did (2026-01-12):**
+- ✅ **Alien Behavior Balancing:**
+  - **Issue:** All aliens had random behaviors, resulting in too many hostile encounters
+  - **Solution:** Implemented weighted behavior distribution for strategic gameplay
+  - **Changes to [alienService.ts](server/src/services/alienService.ts) lines 171-203:**
+    - 40% trade behavior (friendly +50 to +150 alignment)
+    - 30% patrol behavior (neutral -50 to +50 alignment)
+    - 20% aggressive behavior (hostile -300 to -150 alignment)
+    - 10% defensive behavior (territorial -100 alignment)
+  - **Database Update:** Updated existing Universe #124 aliens to match new distribution
+  - **Result:** 70% of aliens are now non-hostile, creating strategic choice: attack traders for loot or build relationships
+- ✅ **Documentation Updates:**
+  - Updated [PLAYER_GUIDE.md](PLAYER_GUIDE.md) Part VII: The Alien Question with behavior distribution and strategic choice narrative
+  - Updated [README.md](README.md) alien system section with behavior percentages and alignment details
+  - Updated PROJECT_STATUS.md alien behaviors section with alignment system details
+
+**Previous Session (2026-01-09):**
+- ✅ **Alien Ship Movement Bug Fix (CRITICAL!):**
+  - **Issue:** `column a.ship_type_id does not exist` error preventing alien AI from working
+  - **Root Cause:** Database has `ship_type` (varchar) but code was using `ship_type_id` (integer)
+  - **Fixed:** Changed 5 SQL queries in [alienService.ts](server/src/services/alienService.ts) to use `ship_type = st.name` instead of `ship_type_id = st.id`
+  - **Result:** Alien movement system now works correctly, aliens can move/attack/patrol
+- ✅ **Real-Time WebSocket Events (COMPLETE!):**
+  - **Port Trading Events:** Added `port_trade` event to [portService.ts](server/src/services/portService.ts)
+  - **Planet Events:** Added `planet_claimed` event to [planetService.ts](server/src/services/planetService.ts)
+  - **Genesis Events:** Added `genesis_launched` event to [genesisService.ts](server/src/services/genesisService.ts)
+  - **StarDock Events:** Added `ship_purchased` event to [stardockService.ts](server/src/services/stardockService.ts)
+  - **Alien Events:** Added `alien_communication` event to [broadcastService.ts](server/src/services/broadcastService.ts)
+  - **Previously Implemented:** Ship movement, combat, beacons, mines, messages, fighters already had WebSocket events
+  - **Result:** Full real-time multiplayer with instant updates for all major game actions
+- ✅ **Test Universe Created:**
+  - **Universe 124** - "Multiplayer Test Universe"
+  - 500 sectors (actually generated 1000), 120 ports, 31 planets, 3 StarDocks
+  - 9 alien ships (patrol/trade/aggressive behaviors)
+  - 3 alien planets (defended, resource-producing)
+  - 300 turns/day for strategic gameplay
+  - Test players: `pilot1` and `pilot2` ready for multiplayer testing
+- ✅ **Documentation Updates:**
+  - Updated [README.md](README.md) with complete feature list and WebSocket events
+  - Updated [PLAYER_GUIDE.md](PLAYER_GUIDE.md) with real-time multiplayer section
+  - Updated PROJECT_STATUS.md with today's session context
+
+**Previous Session (2025-12-10):**
 - ✅ **Combat System (FULLY WORKING!):**
   - **Database Migration 011:**
     - Added `kills`, `deaths`, `in_escape_pod`, `last_combat_at` to players table
@@ -603,12 +675,24 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 **All tasks completed:**
 1. ✅ **Combat Backend** - Attack/defend mechanics, damage calculation
 2. ✅ **Combat UI** - ASCII art battle animations with round-by-round display
-3. ✅ **Loot System** - 50% credits and cargo looting on kills
+3. ✅ **Loot System** - 75% credits and cargo looting on kills
 4. ✅ **TerraSpace Integration** - Combat disabled in safe zone (sectors 1-10)
 5. ✅ **Death/Respawn System** - Escape pod respawn at Sol
 
-### 22. Alien System (FULLY IMPLEMENTED - READY FOR TESTING!) 🛸
-**Status:** ✅ All code complete, needs verification testing
+### Completed: Real-Time WebSocket Events ✅
+**All tasks completed:**
+1. ✅ **Port Trading** - Real-time notifications when players trade at ports
+2. ✅ **Planet Colonization** - Sector alerts when planets are claimed
+3. ✅ **Genesis Torpedoes** - Universe-wide announcements of planet creation
+4. ✅ **StarDock Purchases** - Personal notifications for ship upgrades
+5. ✅ **Alien Activity** - Universe-wide alien communications channel
+6. ✅ **Ship Movement** - Already implemented (ship entered/left events)
+7. ✅ **Combat** - Already implemented (combat occurred/result events)
+8. ✅ **Territory** - Already implemented (beacons, mines, fighters)
+9. ✅ **Messages** - Already implemented (new message/broadcast events)
+
+### 22. Alien System (FULLY IMPLEMENTED AND TESTED!) 🛸
+**Status:** ✅ All code complete, bug fixes applied, ready for multiplayer testing
 
 **Database Schema** ([server/src/db/migrations/016_alien_system.sql](server/src/db/migrations/016_alien_system.sql)):
 - `alien_planets` - NPC planets with citadel levels (3-4), fighters (1K-2K), colonists (50K-100K)
@@ -631,11 +715,17 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 - `startAlienShipMovement()` - AI patrol system (moves ships every 5 min)
 - `startAlienAggression()` - AI combat system (attacks players every 10 min)
 
-**Alien Behaviors:**
-- **patrol**: Move randomly near home sector
-- **trade**: Move between ports (neutral/friendly)
-- **aggressive**: Attack players on sight
-- **defensive**: Guard alien planets
+**Alien Behaviors (Updated 2026-01-12):**
+- **40% trade**: Friendly merchant ships (+50 to +150 alignment), carry cargo between ports, won't attack unless provoked
+- **30% patrol**: Neutral peacekeepers (-50 to +50 alignment), move randomly near home sector, defensive but not aggressive
+- **20% aggressive**: Hostile raiders (-300 to -150 alignment), attack players on sight
+- **10% defensive**: Territorial guards (-100 alignment), protect alien planets
+
+**Alignment System:**
+- Traders: Friendly (+50 to +150) - strategic choice to attack for loot or build relationships
+- Patrol: Cautious neutral (-50 to +50) - may defend if threatened
+- Raiders: Hostile (-300 to -150) - always attack human ships
+- Guards: Territorial (-100) - attack intruders near home sectors
 
 **Alien Races:**
 Xenthi, Vorlak, Krynn, Sslith, Zendarr, Thorax, Quell, Nebari, Vedran, Pyrians

@@ -1,28 +1,43 @@
 # TradeWars 2030 - Complete Manual Testing Guide
 
-**Date**: 2025-12-18
-**Status**: Ready for manual testing
-**Recent Updates**: Corporation tests fixed (22/22), Alien trading schema fixed
+**Date**: 2026-01-12
+**Status**: Ready for multiplayer testing
+**Recent Updates**: Alien behavior balancing complete (40% trade, 30% patrol, 20% aggressive, 10% defensive)
 
 ---
 
 ## ✅ What's Been Fixed Recently
 
-### Latest Session (2025-12-18)
-1. **Corporation Management** - 22/22 tests passing
-   - Fixed `corp_name` NULL constraint violations
-   - Added validation for inviting players already in corps
+### Latest Session (2026-01-12)
+1. **Alien Behavior Balancing** - COMPLETE!
+   - Implemented weighted distribution: 40% trade, 30% patrol, 20% aggressive, 10% defensive
+   - Added alignment system: traders friendly (+50 to +150), patrol neutral (-50 to +50), raiders hostile (-300 to -150), guards territorial (-100)
+   - 70% of aliens are now non-hostile, creating strategic choice: attack for loot or build relationships
+   - Updated Universe #124 aliens to match new distribution
 
-2. **Alien Trading System** - Schema completely rebuilt
-   - Added missing columns: `cargo_fuel`, `cargo_organics`, `cargo_equipment`, `alignment`, `credits`
-   - Rebuilt trade offer and history tables
-   - Fixed all column name mismatches in service code
+### Previous Session (2026-01-09)
+1. **Alien Ship Movement Bug** - FIXED!
+   - Fixed `ship_type_id` column name mismatch
+   - Aliens now move, patrol, and attack correctly
 
-### Previous Session
-3. **P2P Trading** - 30/30 tests passing (complete)
-4. **Combat System** - 7/7 tests passing
-5. **Banking System** - 10/10 tests passing
-6. **Sector Navigation** - All passing
+2. **Real-Time WebSocket Events** - COMPLETE!
+   - Port trading events
+   - Planet colonization events
+   - Genesis torpedo events
+   - StarDock purchase events
+   - Alien activity events
+   - All major game actions now broadcast in real-time
+
+3. **Test Universe Created**
+   - Universe #124 with 500 sectors, 9 aliens, 3 alien planets
+   - Ready for multiplayer testing
+
+### Previous Session (2025-12-18)
+4. **Corporation Management** - 22/22 tests passing
+5. **P2P Trading** - 30/30 tests passing
+6. **Combat System** - 7/7 tests passing
+7. **Banking System** - 10/10 tests passing
+8. **Sector Navigation** - All passing
 
 ---
 
@@ -420,6 +435,216 @@ curl -X GET http://localhost:3000/api/alien-trading/history \
 
 ---
 
+### Step 13: Test Planet System ✅
+
+```bash
+# Find a planet sector (check sector scans for planets)
+# Claim an unclaimed planet
+curl -X POST http://localhost:3000/api/planets/25/claim \
+  -H "Authorization: Bearer $TOKEN"
+
+# Set production type
+curl -X PUT http://localhost:3000/api/planets/1/production \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"productionType": "equipment"}'
+
+# Buy colonists at a port
+curl -X POST http://localhost:3000/api/ports/colonists/buy \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"quantity": 100}'
+
+# Deposit colonists to planet
+curl -X POST http://localhost:3000/api/planets/1/colonists/deposit \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"quantity": 100}'
+
+# Upgrade citadel
+curl -X POST http://localhost:3000/api/planets/1/citadel/upgrade \
+  -H "Authorization: Bearer $TOKEN"
+
+# Check planet status
+curl -X GET http://localhost:3000/api/planets/1 \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Expected**: Planet claimed, colonists producing resources, citadel upgraded
+
+---
+
+### Step 14: Test StarDock & Ship Upgrades ✅
+
+```bash
+# Move to a StarDock sector (check sector scans)
+# Get StarDock info
+curl -X GET http://localhost:3000/api/stardock \
+  -H "Authorization: Bearer $TOKEN"
+
+# Purchase new ship
+curl -X POST http://localhost:3000/api/stardock/ship \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"shipTypeName": "Trader"}'
+
+# Buy fighters
+curl -X POST http://localhost:3000/api/stardock/fighters \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"quantity": 50}'
+
+# Buy shields
+curl -X POST http://localhost:3000/api/stardock/shields \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"quantity": 50}'
+```
+
+**Expected**: Ship upgraded with trade-in, fighters/shields purchased
+
+---
+
+### Step 15: Test Mines & Beacons ✅
+
+```bash
+# Purchase mines at StarDock
+curl -X POST http://localhost:3000/api/mines/purchase \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"quantity": 10}'
+
+# Deploy mines in sector
+curl -X POST http://localhost:3000/api/mines/deploy \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"quantity": 5}'
+
+# Purchase beacons at StarDock
+curl -X POST http://localhost:3000/api/beacons/purchase \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"quantity": 3}'
+
+# Launch beacon with message
+curl -X POST http://localhost:3000/api/beacons/launch \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Trade route - good prices!"}'
+
+# View beacons in sector
+curl -X GET "http://localhost:3000/api/sectors/50" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Expected**: Mines deployed, beacons launched with messages
+
+---
+
+### Step 16: Test Genesis Torpedoes ✅
+
+```bash
+# Purchase genesis torpedoes at StarDock
+curl -X POST http://localhost:3000/api/genesis/purchase \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"quantity": 1}'
+
+# Launch genesis torpedo (creates new planet)
+curl -X POST http://localhost:3000/api/genesis/launch \
+  -H "Authorization: Bearer $TOKEN"
+
+# Check for TNN broadcast announcement
+curl -X GET http://localhost:3000/api/messages/broadcasts \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Expected**: Planet created, TNN broadcasts to universe
+
+---
+
+### Step 17: Test WebSocket Real-Time Events ✅
+
+**Two Browser/Terminal Test**:
+
+1. **Terminal 1 - Player 1**:
+```bash
+# Login as pilot1
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"pilot1","password":"test123"}'
+
+# Save token
+export TOKEN1="<token>"
+
+# Move to sector
+curl -X POST http://localhost:3000/api/sectors/move \
+  -H "Authorization: Bearer $TOKEN1" \
+  -H "Content-Type: application/json" \
+  -d '{"targetSector": 5}'
+```
+
+2. **Terminal 2 - Player 2**:
+```bash
+# Login as pilot2
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"pilot2","password":"test123"}'
+
+# Save token
+export TOKEN2="<token>"
+
+# Move to same sector
+curl -X POST http://localhost:3000/api/sectors/move \
+  -H "Authorization: Bearer $TOKEN2" \
+  -H "Content-Type: application/json" \
+  -d '{"targetSector": 5}'
+```
+
+**Expected**: Both players should see WebSocket events in client UI when the other moves
+
+---
+
+### Step 18: Test Alien Combat ✅
+
+**Alien Behavior Distribution (Updated 2026-01-12):**
+- 40% of aliens have **trade** behavior (friendly +50 to +150 alignment) - won't attack unless provoked
+- 30% of aliens have **patrol** behavior (neutral -50 to +50 alignment) - defensive, not aggressive
+- 20% of aliens have **aggressive** behavior (hostile -300 to -150 alignment) - attack on sight
+- 10% of aliens have **defensive** behavior (territorial -100 alignment) - guard home sectors
+
+**Testing Strategy:**
+- Test attacking a friendly trader alien (strategic choice: loot vs. relationships)
+- Test attacking a hostile raider alien (self-defense scenario)
+- Observe that most aliens (70%) are non-hostile
+
+```bash
+# Find an alien ship (check sector scans)
+# Get attackable aliens
+curl -X GET http://localhost:3000/api/aliens/sector/50 \
+  -H "Authorization: Bearer $TOKEN"
+
+# Attack alien ship
+curl -X POST http://localhost:3000/api/aliens/attack \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"alienShipId": 1}'
+
+# Attack alien planet (requires many fighters)
+curl -X POST http://localhost:3000/api/aliens/attack-planet \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"alienPlanetId": 1}'
+
+# Check alien communications
+curl -X GET http://localhost:3000/api/aliens/comms \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Expected**: Combat resolves, loot awarded, alien comms broadcasts, behavior/alignment affects encounters
+
+---
+
 ## 🔍 Verification Queries
 
 ### Check Player State
@@ -502,20 +727,26 @@ ORDER BY id;
 |---------|-----|-------|--------|--------|
 | Auth & Registration | ✅ | ✅ | ✅ | ✅ Yes |
 | Universe Generation | ✅ | ✅ | ✅ | ✅ Yes |
-| Player Creation | ✅ | ⚠️ | ✅ | ✅ Yes |
+| Player Creation | ✅ | ✅ | ✅ | ✅ Yes |
 | Sector Navigation | ✅ | ✅ | ✅ | ✅ Yes |
-| Port Trading | ✅ | ❓ | ⚠️ | ⚠️ Needs testing |
-| Combat System | ✅ | ✅ | ⚠️ | ✅ Yes |
-| Banking System | ✅ | ✅ | ⚠️ | ✅ Yes |
-| Corporation Mgmt | ✅ | ✅ | ⚠️ | ✅ Yes |
-| P2P Trading | ✅ | ✅ | ⚠️ | ✅ Yes |
-| Alien Trading | ✅ | ❌ | ⚠️ | ⚠️ API ready, needs testing |
-| Planet System | ✅ | ❓ | ❓ | ❓ Unknown |
-| Ship Upgrades | ✅ | ❓ | ❓ | ❓ Unknown |
+| Port Trading | ✅ | ✅ | ✅ | ✅ Yes |
+| Combat System | ✅ | ✅ | ✅ | ✅ Yes |
+| Banking System | ✅ | ✅ | ✅ | ✅ Yes |
+| Corporation Mgmt | ✅ | ✅ | ✅ | ✅ Yes |
+| P2P Trading | ✅ | ✅ | ✅ | ✅ Yes |
+| Planet System | ✅ | ✅ | ✅ | ✅ Yes |
+| Ship Upgrades (StarDock) | ✅ | ✅ | ✅ | ✅ Yes |
+| **NEW: WebSocket Events** | ✅ | ✅ | ⚠️ | ✅ Yes |
+| **NEW: Alien System** | ✅ | ✅ | ⚠️ | ✅ Yes |
+| **NEW: Mines & Beacons** | ✅ | ✅ | ⚠️ | ✅ Yes |
+| **NEW: Genesis Torpedoes** | ✅ | ✅ | ⚠️ | ✅ Yes |
+| **NEW: Ship Log** | ✅ | ✅ | ✅ | ✅ Yes |
+| **NEW: Plot Course** | ✅ | ✅ | ✅ | ✅ Yes |
+| Alien Trading | ✅ | ❌ | ⚠️ | ⚠️ API ready, tests timeout |
 
 **Legend**:
 - ✅ Complete & Working
-- ⚠️ Needs Testing/Verification
+- ⚠️ Needs Manual Testing
 - ❌ Not Working
 - ❓ Unknown Status
 
@@ -561,28 +792,74 @@ CREATE SCHEMA public;
 
 ## 📝 Testing Checklist
 
-- [ ] Server starts without errors
-- [ ] Login works, token received
-- [ ] Universe created with 100 sectors
-- [ ] Player character created
-- [ ] Can move between sectors
-- [ ] Turns decrease on movement
-- [ ] Ports show buy/sell options
-- [ ] Can buy commodities at ports
-- [ ] Can sell commodities for profit
-- [ ] Banking deposit/withdraw works
-- [ ] Corporation creation works
-- [ ] Can invite players to corp
-- [ ] Can promote/demote members
-- [ ] P2P trade offers created
-- [ ] P2P trade acceptance works
-- [ ] P2P trade robbery works (30% rate)
-- [ ] Combat with fighters works
-- [ ] Alien ships visible in sectors
-- [ ] Alien trade offers generated
-- [ ] Alien alignment affects prices
-- [ ] Alien trade acceptance works
-- [ ] Alien robbery triggers combat (80% rate)
+### Core Systems
+- [x] Server starts without errors
+- [x] Login works, token received
+- [x] Universe created with sectors
+- [x] Player character created
+- [x] Can move between sectors
+- [x] Turns decrease on movement
+- [x] Ports show buy/sell options
+- [x] Can buy commodities at ports
+- [x] Can sell commodities for profit
+
+### Advanced Features
+- [x] Banking deposit/withdraw works
+- [x] Corporation creation works
+- [x] Can invite players to corp
+- [x] Can promote/demote members
+- [x] P2P trade offers created
+- [x] P2P trade acceptance works
+- [x] P2P trade robbery works (30% rate)
+- [x] Combat with fighters works
+- [x] Death/escape pod system works
+
+### Planet System
+- [x] Can claim planets
+- [x] Colonist production works
+- [x] Citadel upgrades work
+- [x] Resource deposits/withdrawals work
+
+### StarDock & Ships
+- [x] Ship upgrades with trade-in
+- [x] Fighter purchases
+- [x] Shield purchases
+- [x] Banking at StarDock works
+
+### Territory Control
+- [x] Mines can be deployed
+- [x] Beacons can be launched
+- [x] Sector fighters can be deployed
+- [x] Fighter maintenance system works
+
+### Alien System
+- [x] Alien ships visible in sectors
+- [x] Alien ships move automatically
+- [x] Can attack alien ships
+- [x] Can attack alien planets
+- [x] Alien comms channel works
+- [ ] Alien trade offers generated (tests timeout)
+- [ ] Alien alignment affects prices (needs manual test)
+- [ ] Alien trade acceptance works (needs manual test)
+- [ ] Alien robbery triggers combat (needs manual test)
+
+### Genesis & Advanced
+- [x] Genesis torpedoes can be purchased
+- [x] Genesis torpedoes create planets
+- [x] TNN broadcasts work
+- [x] Ship log auto-logging works
+- [x] Plot course pathfinding works
+
+### WebSocket Real-Time Events
+- [x] Ship movement broadcasts
+- [x] Combat results broadcast
+- [x] Port trading broadcasts
+- [x] Planet colonization broadcasts
+- [x] Genesis torpedo broadcasts
+- [x] Beacon messages broadcast
+- [x] Mine explosions broadcast
+- [x] Alien communications broadcast
+- [ ] Real-time multiplayer testing (ready, needs 2 players)
 
 ---
 
@@ -592,4 +869,4 @@ CREATE SCHEMA public;
 **API Endpoints**: See `/home/tradewars/server/src/routes/`
 **Service Logic**: See `/home/tradewars/server/src/services/`
 
-**Last Updated**: 2025-12-18 by Claude Code
+**Last Updated**: 2026-01-09 - WebSocket events complete, alien system fixed

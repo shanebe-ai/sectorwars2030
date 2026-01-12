@@ -1,4 +1,5 @@
 import { pool } from '../db/connection';
+import { emitSectorEvent } from '../index';
 
 // Base prices for commodities (mid-point prices)
 const BASE_PRICES = {
@@ -382,6 +383,15 @@ export const executeTrade = async (
 
     const updatedPlayer = updatedPlayerResult.rows[0];
     const newCargoTotal = updatedPlayer.cargo_fuel + updatedPlayer.cargo_organics + updatedPlayer.cargo_equipment;
+
+    // Emit WebSocket event to notify other players in the sector
+    emitSectorEvent(player.universe_id, player.current_sector, 'port_trade', {
+      playerId: player.id,
+      commodity,
+      action,
+      quantity: actualQuantity,
+      totalCost
+    });
 
     return {
       success: true,

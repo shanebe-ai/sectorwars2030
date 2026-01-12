@@ -53,6 +53,25 @@ Your entire existence runs through one terminal. Green phosphor glow, cascading 
 - **Communications Array** - Messages, broadcasts, intel
 - **Ship's Log** - Your discoveries, your notes, your legacy
 
+### Real-Time Multiplayer
+
+This isn't some turn-based email game from 1991. Your ship computer maintains an **active quantum-entangled link** to every other ship in your universe. When something happens, *everyone knows*.
+
+**What You'll See in Real-Time:**
+- **Ship arrivals/departures** - Notification when pilots enter your sector
+- **Combat results** - TNN broadcasts of battles and destructions
+- **Port activity** - Watch traders buy/sell at your current port
+- **Planet colonization** - Sector alerts when planets are claimed
+- **Genesis events** - Universe-wide announcements of new planet creation
+- **Alien activity** - Alien comms channel broadcasts encounters and attacks
+- **Beacon messages** - Instant delivery when entering sectors with beacons
+- **Mine explosions** - Real-time combat feedback when hitting minefields
+
+**Why This Matters:**
+You're not alone out here. Every action you take creates ripples. Deploy mines, and nearby pilots get warned. Attack someone, and the news spreads. Claim a planet, and suddenly you have a target on your back.
+
+The void is watching. Always.
+
 ---
 
 ## 🚀 Part II: Your First Flight
@@ -321,12 +340,25 @@ Ten distinct species, each with their own ships, behaviors, and apparent motives
 
 ### Alien Encounters
 
+After years of observation, xeno-intelligence has categorized alien ship behaviors. The distribution isn't random—it reflects their civilization's structure:
+
+**Alien Behavior Distribution:**
+- **40% Traders** - Merchant ships carrying cargo between alien ports, friendly (+50 to +150 alignment)
+- **30% Patrol** - Defense forces maintaining order, cautious neutral (-50 to +50 alignment)
+- **20% Raiders** - Hostile warships attacking human vessels on sight (-300 to -150 alignment)
+- **10% Guards** - Territorial defenders protecting key sectors (-100 alignment)
+
+**The Strategic Choice:**
+Most aliens (70%) won't attack you unprovoked. That Xenthi trader hauling equipment? You could blast them for easy loot—but is it worth making enemies of an entire trade network? Or do you escort them, hoping they'll remember your ship's signature when you need safe passage through hostile space?
+
 **Alien Ships:**
 - Found in sectors, marked with race name and ship type
 - Carry 65-90% of ship type's max fighters/shields
-- Behaviors: **patrol**, **trade**, **aggressive**, **defensive**
-- Aggressive aliens will attack you on sight
-- Loot credits + cargo when destroyed
+- **Trade behavior**: Friendly merchants, won't attack unless provoked, carry valuable cargo
+- **Patrol behavior**: Neutral peacekeepers, defensive but not aggressive
+- **Aggressive behavior**: Hostile raiders, attack human ships on sight
+- **Defensive behavior**: Territorial guards, attack if you approach their home sectors
+- Loot credits + cargo when destroyed (but consider the diplomatic consequences)
 
 **Alien Planets:**
 - ~3 per 1000 sectors (0.3% generation rate)

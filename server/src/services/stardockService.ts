@@ -1,4 +1,5 @@
 import { pool } from '../db/connection';
+import { emitPlayerEvent } from '../index';
 
 // Fighter and shield prices (balanced so full loadout = ~2-3 trade runs)
 const FIGHTER_PRICE = 200;   // 200 credits per fighter
@@ -287,6 +288,13 @@ export async function purchaseShip(userId: number, shipName: string): Promise<Pu
     const cargoLost = currentCargo - (newFuel + newOrganics + newEquipment + newColonists);
     const fightersLost = (player.ship_fighters || 0) - newFighters;
     const shieldsLost = (player.ship_shields || 0) - newShields;
+
+    // Emit WebSocket event for ship purchase
+    emitPlayerEvent(player.id, 'ship_purchased', {
+      oldShipType: player.ship_type,
+      newShipType: newShip.name,
+      netCost
+    });
 
     let message = `Traded in your ship for ${tradeInValue.toLocaleString()} credits and purchased ${newShip.name} for ${newShipCost.toLocaleString()} credits (net cost: ${netCost.toLocaleString()})!`;
     if (cargoLost > 0 || fightersLost > 0 || shieldsLost > 0) {

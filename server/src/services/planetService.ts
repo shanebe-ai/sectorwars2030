@@ -1,4 +1,5 @@
 import { pool } from '../db/connection';
+import { emitSectorEvent, emitPlayerEvent } from '../index';
 
 // ============================================================================
 // TYPES
@@ -203,10 +204,18 @@ export async function claimPlanet(planetId: number, playerId: number): Promise<{
     );
     
     await client.query('COMMIT');
-    
+
     // Get updated planet info
     const updatedPlanet = await getPlanetById(planetId);
-    
+
+    // Emit WebSocket event to notify players in the sector
+    emitSectorEvent(planet.universe_id, planet.sector_number, 'planet_claimed', {
+      planetId,
+      planetName: planet.name,
+      ownerName: player.corp_name,
+      playerId
+    });
+
     return { success: true, planet: updatedPlanet! };
   } catch (error) {
     await client.query('ROLLBACK');
