@@ -1704,7 +1704,7 @@ async function findEscapeSector(client: any, universeId: number, currentSector: 
 
     // Get all adjacent sectors (ORDER BY RANDOM() to pick a random one)
     const adjacentResult = await client.query(
-      `SELECT DISTINCT destination_sector_number as sector
+      `SELECT destination_sector_number as sector
        FROM sector_warps
        WHERE sector_id = $1
        ORDER BY RANDOM()
