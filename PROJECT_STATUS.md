@@ -6,7 +6,7 @@
 
 **Project**: TradeWars 2030 - Modern web remake of the classic BBS game TradeWars 2002
 **Repository**: shanebe-ai/tradewars2030
-**Author**: Shane Burgess (shanebe-ai, shanebe@live.com)
+**Author**: Shane Bennett (shanebe-ai, shanebe@live.com)
 **Tech Stack**: React 19 + Vite + TypeScript (frontend), Node.js + Express + TypeScript + Socket.io (backend), PostgreSQL (database)
 **Ports**: Backend (3000), Client (5173), Admin (5174)
 
