@@ -39,13 +39,13 @@ This isn't a simulation. Your ship computer just pinged—**you've entered the g
 
 ---
 
-## 📡 Part I: Your Ship Computer
+## 📡 Your Ship Computer
 
 ### The Interface
 
 Your entire existence runs through one terminal. Green phosphor glow, cascading data streams, and a constant hum of cooling fans that keeps the quantum processors from melting. This is your **Ship Computer**—part navigator, part accountant, part therapist when the loneliness hits.
 
-**Key Systems:**
+**Your Command Center:**
 - **Sector Scanner** - Where you are, who else is here, what you can do
 - **Navigation Matrix** - Warp points to other sectors
 - **Cargo Manifest** - What you're hauling (and what it's worth)
@@ -53,613 +53,484 @@ Your entire existence runs through one terminal. Green phosphor glow, cascading 
 - **Communications Array** - Messages, broadcasts, intel
 - **Ship's Log** - Your discoveries, your notes, your legacy
 
-### Real-Time Multiplayer
+### The Live Universe
 
-This isn't some turn-based email game from 1991. Your ship computer maintains an **active quantum-entangled link** to every other ship in your universe. When something happens, *everyone knows*.
+This isn't some turn-based email game from the '90s. Your ship computer maintains an **active quantum-entangled link** to every other ship in your universe. When something happens, *everyone knows*.
 
-**What You'll See in Real-Time:**
-- **Ship arrivals/departures** - Notification when pilots enter your sector
-- **Combat results** - TNN broadcasts of battles and destructions
-- **Port activity** - Watch traders buy/sell at your current port
-- **Planet colonization** - Sector alerts when planets are claimed
-- **Genesis events** - Universe-wide announcements of new planet creation
-- **Alien activity** - Alien comms channel broadcasts encounters and attacks
-- **Beacon messages** - Instant delivery when entering sectors with beacons
-- **Mine explosions** - Real-time combat feedback when hitting minefields
+Watch in real-time as:
+- Ships warp into your sector with an alert ping
+- Combat broadcasts flash across the TNN network
+- Planets get claimed across the galaxy
+- Genesis torpedoes create new worlds
+- Alien comms chatter with hostile encounters
+- Your deployed mines obliterate an unsuspecting raider
 
-**Why This Matters:**
-You're not alone out here. Every action you take creates ripples. Deploy mines, and nearby pilots get warned. Attack someone, and the news spreads. Claim a planet, and suddenly you have a target on your back.
-
-The void is watching. Always.
+**The void is watching. Always.**
 
 ---
 
-## 🚀 Part II: Your First Flight
+## 🚀 Your First Flight
 
 ### TerraSpace: The Safe Zone
 
 You start in **Sector 1 - Sol System**. Home. Earth. Terra. Whatever you want to call the blue marble that birthed humanity and then sold it to the highest bidder.
 
-**TerraSpace** is a protected zone that scales with your universe size (2% of total sectors, minimum 10). These are the *safe lanes*—aggressive aliens cannot enter here, enforced by automated defense satellites that'll turn their ships to slag. TerraCorp maintains this bubble of civilization:
-- **Sector 1 (Sol)**: Earth. Terra Corp owns it. 20,000 colonists. You don't.
-- **Sector 5**: StarDock Alpha-1. Buy ships, upgrade gear, access banking.
-- **Last TerraSpace Sector** (e.g., Sector 10 in small universes, Sector 20 in 1000-sector universes): Mars. Terra Corp's frontier colony. 15,000 colonists. Still not yours.
-- **Sectors 5+**: Have warp exits to the wider universe. Sectors 1-4 only connect within TerraSpace.
+**TerraSpace** is TerraCorp's protected bubble—a safe zone that scales with your universe. These are the *safe lanes* where aggressive aliens can't follow, enforced by automated defense satellites that'll turn hostile ships to slag.
 
-**Important:** While aggressive aliens can't enter TerraSpace, *trade aliens* can—and they're generally friendly. You'll see them passing through, but they won't attack unprovoked.
+Here's what you'll find:
+- **Sol (Sector 1)**: Earth. Terra Corp's crown jewel. You don't own it.
+- **Exit Sectors**: Your gateway to the wild frontier
+- **Mars**: Terra Corp's frontier colony at the edge of safety
+- **StarDocks**: Where you buy ships, upgrade gear, and access banking
 
-The real credits are made **beyond TerraSpace**. Out where the law is whatever you make it.
+Trade aliens might pass through—they're generally friendly. But the real credits are made **beyond TerraSpace**. Out where the law is whatever you make it.
 
-### Your First Run: Understanding the Turn Economy
+### Time is Turns
 
-Time is money. No—*time is turns*, and turns are the most valuable resource in the universe.
+In the void, time isn't measured in hours—it's measured in **turns**. And turns are the most valuable resource in the universe.
 
-**Turn Basics:**
-- You get **300 turns per day** (that's ~12.5 turns per hour)
-- Moving between sectors costs **1 turn**
-- Trading costs **1 turn per transaction**
-- Attacking someone costs **1 turn**
-- Turns regenerate automatically—but they're never enough
+You get a fresh supply every day, regenerating slowly while you sleep. Moving costs a turn. Trading costs a turn. Attacking someone costs a turn. Every decision matters.
 
-Every decision matters. Waste your turns exploring dead-ends, and you'll watch richer pilots laugh as they dock their Merchant Cruisers.
+Waste your turns exploring dead-ends, and you'll watch richer pilots dock their Merchant Cruisers while you're still scraping by.
 
-### Navigation 101: The Warp Drive
+### Navigation: The Warp Drive
 
-Your ship's warp drive lets you jump between sectors through **warp points**. Think of space as a web—each sector connects to 2-6 others. No straight lines. No predictability. Just a tangled mesh of possibilities.
+Your ship's warp drive lets you jump between sectors through **warp points**. Think of space as a web—each sector connects to a handful of others nearby. No straight lines. No predictability. Just a tangled mesh of possibilities.
 
-**Warp Mechanics (TW2002-Style):**
-Unlike old FTL drives that could jump anywhere, modern warp technology is *constrained by local space-time topology*. Sectors can only connect to destinations **50-200 sectors away** (forward or backward). This means:
-- **No instant cross-universe jumps** - Getting from Sector 1 to Sector 1000 requires multiple hops
-- **Natural trade routes emerge** - Some sectors become natural chokepoints and hubs
-- **Strategic territory** - Controlling key junction sectors matters
-- **Distance feels real** - The universe is big, and travel takes time
-
-**How to Move:**
-1. Scan your current sector (free, no turn cost)
-2. Review available warp points (each 50-200 sectors away from your current position)
-3. Pick a destination
-4. **Hit WARP** - Costs 1 turn
+**Modern warp technology is constrained by local space-time**—you can only jump to sectors within range. This means:
+- Getting across the universe requires multiple hops through the web
+- Some sectors become natural chokepoints and trade hubs
+- Distance feels *real*—the galaxy is vast
+- Trade routes emerge organically as pilots find profitable paths
 
 **⚠️ WARP DRIVE MALFUNCTION WARNING:**
-Your Scout's warp drive is cheap. Like *really* cheap. There's a 0.25% chance it misfires and sends you to a **random sector** instead of your destination. You'll know when it happens—the screen shakes, alarms blare, and you arrive somewhere you didn't plan to be. It's not a bug. It's feature of buying second-hand military surplus.
+Your Scout's warp drive is cheap. Like *really* cheap. Sometimes it misfires and sends you to a random sector instead of your destination. The screen shakes, alarms blare, and you arrive somewhere you didn't plan to be. It's not a bug—it's a feature of buying second-hand military surplus.
 
 ---
 
-## 💰 Part III: The Economics of Survival
+## 💰 The Economics of Survival
 
 ### Port Trading: Your Bread & Butter
 
-**Ports** are automated trading stations. No human crew, just algorithms that buy and sell commodities based on local demand. TerraCorp licenses them. You exploit them.
+**Ports** are automated trading stations scattered across the galaxy. No human crew, just algorithms that buy and sell commodities based on local demand. TerraCorp licenses them. You exploit them.
 
 **Three Commodities:**
-- **Fuel Ore** (orange icons) - Ships run on it. Stations burn it.
-- **Organics** (green icons) - Food, medicine, biological materials.
-- **Equipment** (blue icons) - Tech, weapons, ship parts.
+- **Fuel Ore** (orange) - Ships run on it. Stations burn it.
+- **Organics** (green) - Food, medicine, biological materials.
+- **Equipment** (blue) - Tech, weapons, ship parts.
 
-**Port Types** (this is critical—memorize it):
+**The Port Code:**
 
-Each port has a 3-letter code: **[Fuel][Organics][Equipment]**
-- **B** = Buying (they buy from you at HIGH prices)
-- **S** = Selling (they sell to you at LOW prices)
+Each port has a 3-letter signature that tells you what they do:
+- **B** = Buying (they'll pay you top dollar)
+- **S** = Selling (they're giving it away cheap)
 
-| Port Type | Fuel | Organics | Equipment | Strategy |
-|-----------|------|----------|-----------|----------|
-| **BBS** | Buy | Buy | Sell | Buy equipment here, sell at SBB/BSB |
-| **SBB** | Sell | Buy | Buy | Buy fuel here, sell at BBS/BSS |
-| **BSB** | Buy | Sell | Buy | Buy organics here, sell at SBB/BSS |
-| **SSS** | Sell | Sell | Sell | **RARE** - Load up on everything |
-| **BBB** | Buy | Buy | Buy | **RARE** - Dump all cargo for max profit |
+Format: **[Fuel][Organics][Equipment]**
 
-**Basic Trade Route:**
-1. Find an **SBB** port (sells fuel cheap)
-2. Load up on fuel (₡10/unit)
-3. Jump to a **BSS** port (buys fuel expensive)
-4. Sell fuel (₡34/unit)
-5. **Profit: ₡24/unit** × your cargo capacity
+**The Money Makers:**
+- **SBB** ports sell fuel cheap
+- **BSS** ports buy fuel expensive
+- Load up at SBB, sell at BSS, get rich
 
-Rinse. Repeat. Get rich. Buy bigger ship. Repeat with more cargo.
+**The Unicorns:**
+- **SSS** ports sell *everything* cheap (jackpot!)
+- **BBB** ports buy *everything* expensive (your payday!)
 
-**Example Starting Run (Scout ship - 20 cargo holds):**
-- Buy 20 fuel at SBB: -₡200
-- Sell 20 fuel at BSS: +₡680
-- **Net profit: ₡480** (minus 2 turns for trading + travel)
+**Your First Trade Run:**
 
-Do this 20 times and you've earned ₡9,600—halfway to your first ship upgrade.
+Find an SBB port. Fill your cargo holds with cheap fuel. Jump to a BSS port. Sell it for triple the price. Repeat until you can afford something better than a Scout.
 
-### Colonists: The Secret Commodity
+Twenty cargo holds × triple markup = enough profit to start building an empire.
 
-Some ports sell **colonists** (₡100 each). They're not cargo—they're *future workers* for your future empire. Buy them. Store them. When you claim a planet, you'll need thousands of colonists to make it profitable.
+### Colonists: The Secret Investment
+
+Some ports sell **colonists**—living, breathing people looking for a new home. They're expensive, but they're not cargo. They're *future workers* for your future empire.
+
+Buy them. Store them. When you claim a planet, you'll need thousands to make it profitable. Smart pilots start stockpiling early.
 
 ---
 
-## 🏴‍☠️ Part IV: Combat & Survival
+## 🏴‍☠️ Combat & Survival
 
 ### The Rules of Engagement
 
 Out beyond TerraSpace, there are no rules. If another pilot wants your cargo, they'll take it. If you want their ship, you'll take *that*.
 
-**Combat Basics:**
-- **Costs 1 turn** to initiate attack
-- **Fighters deal damage** - Each fighter you have attacks
-- **Shields absorb damage** - Shields protect your fighters
-- **Winner takes 75%** of loser's credits + cargo
-- **Loser respawns in Escape Pod** at a random nearby sector
+**Combat is quick and brutal:**
+- You initiate. Your fighters attack. Their shields break. They die.
+- Or their shields hold. Your fighters die. You respawn in an Escape Pod somewhere random.
 
-**Death Penalty:**
-- Lose **25% of your credits** (on-hand + bank balance)
-- Lose **all fighters, shields, cargo, colonists**
-- Respawn in Escape Pod with 5 cargo holds and zero weapons
+**Winner takes most of the loser's wealth.** Loser respawns naked in an Escape Pod with nothing but regrets.
 
-**Combat Strategy:**
-- Don't fight unless you **outnumber** your opponent 2:1
-- Always have shields—they absorb damage before fighters
-- If you're carrying valuable cargo, **avoid populated sectors**
-- Corporate Flagship (₡500K) has 300 fighters + 1000 shields = nearly invincible
+**Death hurts:**
+- You lose your ship, your cargo, your fighters, your dreams
+- A chunk of your credits vanishes—even from your bank account
+- You respawn in the void with a 5-hold Escape Pod
 
-### Defensive Tactics
+**Combat Strategy 101:**
+- Don't fight unless you have the firepower
+- Shields protect your fighters—always buy shields
+- If you're hauling valuable cargo, avoid sectors with other ships
+- The Corporate Flagship is a flying fortress—nearly unstoppable
 
-**Deployed Fighters:**
-Station fighters in a sector (max 500) to guard territory. Anyone entering has to fight through them or retreat. Costs **₡5 per fighter per day** in maintenance—if you can't pay, they're auto-destroyed.
+### Defensive Warfare
 
-**Mines:**
-Deploy mines in sectors (₡10,000 each). When enemies warp in:
-- 20-90% chance each mine explodes
-- 75-225 damage per mine
-- **Your corporation members are SAFE** from your mines
+**Deploy fighters in sectors** to guard your territory. Anyone entering has to fight through them or retreat. But deployed fighters cost daily maintenance—if you can't pay, they're auto-destroyed.
 
-**Beacons:**
-₡500 each. Plant them in sectors with a message (255 chars). Every ship that enters sees your message broadcast. Great for:
-- Territory warnings: *"This sector belongs to NovaCorp. Leave now."*
-- Trap warnings: *"50 mines deployed. Your funeral."*
-- Memes: *"You just lost the game."*
+**Mines** are the galaxy's favorite trap. Drop them in sectors and wait. When enemies warp in, the mines explode with devastating force. **Your corporation is immune**—only outsiders trigger them.
 
-Enemies can attack your beacons (lose 0-5 fighters) to destroy them.
+**Beacons** let you send a message to every ship that enters a sector:
+- *"This sector belongs to NovaCorp. Leave now."*
+- *"50 mines deployed. Your funeral."*
+- *"You just lost the game."*
+
+Enemies can destroy your beacons, but they'll lose fighters trying.
 
 ---
 
-## 🌍 Part V: Planetary Empire
+## 🌍 Planetary Empire
 
 ### Finding & Claiming Planets
 
-About **3% of sectors** have unclaimed planets floating in the void. They're not on any map. You find them by exploring.
+Hidden throughout the galaxy are **unclaimed planets**—virgin worlds waiting for someone bold enough to claim them. They're not on any map. You find them by exploring.
 
-**How to Claim:**
-1. Enter sector with planet
-2. **CLAIM** button appears (free!)
-3. Planet is now yours forever (until someone destroys it)
+When you stumble into a sector with a planet, your ship computer lights up with opportunity. **Claim it.** It's free. It's yours forever (until someone destroys it).
 
-**Planet Names:**
-The galaxy's full of colonies with names like "Alpha Prime," "Nexus Outpost," "Vega Colony." Your ship computer assigns a random name. Live with it or role-play harder.
+### Building Your Colony
 
-### Colonization: The Long Game
+**Phase 1: Bring Colonists**
 
-**Phase 1: Transport Colonists**
-- Buy colonists at ports (₡100 each, max 1000/transaction)
-- Fly to your planet
-- **Deposit colonists** (they live there now)
+Buy colonists at ports. Fly them to your planet. Drop them off. They live there now.
 
-**Phase 2: Set Production Type**
-Choose what your planet produces:
-- **Fuel Production**: 50 fuel + 10 org + 10 equip per 1000 colonists/hour
-- **Organics Production**: 10 fuel + 50 org + 10 equip per 1000 colonists/hour
-- **Equipment Production**: 10 fuel + 10 org + 50 equip per 1000 colonists/hour
-- **Balanced**: 25 of each (safe but inefficient)
+**Phase 2: Choose Production**
 
-**Phase 3: Build Citadel**
-Citadels defend your planet AND boost production:
+Tell your colonists what to make:
+- **Fuel Production** - They mine fuel ore from the planet's crust
+- **Organics Production** - They farm, harvest, process biological materials
+- **Equipment Production** - They manufacture tech and weapons
+- **Balanced** - A bit of everything (safe but inefficient)
 
-| Level | Cost | Defense | Production Bonus |
-|-------|------|---------|------------------|
-| 0 | Free | Colonist militia only | +0% |
-| 1 | ₡50,000 | Basic Quasar Cannon | +10% |
-| 2 | ₡150,000 | Enhanced Shields | +20% |
-| 3 | ₡400,000 | Atmospheric Defense | +30% |
-| 4 | ₡900,000 | Transporter Beam | +40% |
-| 5 | ₡1,900,000 | Interdictor Generator | +50% |
+**Phase 3: Build Defenses**
+
+Construct a **Citadel** to defend your planet from raiders. Higher-level citadels not only repel attacks but also boost production efficiency. The strongest citadels are nearly impregnable.
 
 **Phase 4: Profit**
-- Visit planet periodically
-- **Withdraw resources** (fuel/org/equip)
-- Sell at ports
-- **ROI: ~1 day** with 10K colonists + Level 5 citadel
 
-**Example Profit Calculation:**
-- 10,000 colonists on Equipment planet with Level 5 citadel
-- Production: 50 equip/hour × 1.5 (citadel bonus) = 75 equip/hour
-- 24 hours = 1,800 equipment
-- Sell at BBS port (₡94/unit) = **₡169,200 per day**
-- Citadel cost (₡1.9M) paid off in 11 days
+Visit your planet. Withdraw resources. Sell them at ports. Watch the credits roll in.
 
-### Genesis Torpedoes: Create Your Own Planets
+A well-developed planet with thousands of colonists can generate more passive income than you'll make trading manually.
+
+### Genesis Torpedoes: Play God
 
 Can't find a planet? **Make one.**
 
-**Genesis Torpedo Mechanics:**
-- Buy at StarDock: **₡50,000 each**
-- Carry capacity varies by ship (Scout: 5, Corporate Flagship: 25)
-- Launch in any sector (costs 1 turn)
-- **Restrictions:** Can't launch in TerraSpace (1-10), port sectors, or sectors with existing planets
-- Creates unclaimed planet with random name
-- **TNN Broadcast**: Entire universe is notified of your planet creation
+Buy Genesis Torpedoes at StarDock for a small fortune. Launch one in any empty sector. Watch as a new planet materializes from the void. The entire universe gets notified of your creation.
 
-**Strategic Uses:**
-- Create planets in remote sectors (harder for pirates to find)
-- Create planets near your corporation's territory
-- Create planets as trade hubs between port clusters
+**Strategic uses:**
+- Create planets in remote sectors where pirates won't find them
+- Build trade hubs between profitable port clusters
+- Establish territory for your corporation
+
+Every pilot in the galaxy will see the TNN broadcast when you create a world. Make it count.
 
 ---
 
-## 🏦 Part VI: Banking & Finance
+## 🏦 Banking & Finance
 
-### StarDock Banking System
+### The StarDock Banking System
 
-TerraCorp's **StarDock Banking System** lets you store credits safely. Safer than carrying cash, anyway.
+TerraCorp's **banking system** lets you store credits somewhat safely. Safer than carrying cash, anyway.
 
-**Banking Basics:**
-- **Personal Account** - Your private vault (auto-created)
-- **Corporate Account** - Shared with your corporation
-- **Deposit**: Free, unlimited
-- **Withdraw**: **5% fee** (₡5 per ₡100 withdrawn)
-- **Transfer**: Free, send to any player
+**How it works:**
+- **Personal vault** - Your private account
+- **Corporate vault** - Shared with your corporation
+- Deposits are free
+- Withdrawals cost a small fee (TerraCorp always gets their cut)
+- Transfers to other pilots are free
 
-**Death Penalty:**
-- Lose **25% of bank balance** when killed
-- Your attacker doesn't get this—it just vanishes (TerraCorp insurance fraud)
+**Death still hurts your bank balance**, but not as much as losing everything in your cargo hold.
 
-**Why Use Banking?**
-- Keep credits safe from pirates (they only loot on-hand credits at 75% rate)
-- Fund corporation operations (shared corporate account)
+**Why use banking?**
+- Keep your fortune safe from pirates
+- Fund corporate operations through shared accounts
 - Transfer credits to allies
 
-**Why NOT Use Banking?**
-- 5% withdrawal fee hurts
-- 25% bank balance lost on death
-- If you're confident you won't die, carry credits on-hand
+**Why NOT use banking?**
+- Withdrawal fees add up
+- You still lose a chunk on death
+- If you're confident you won't die, carry credits on-hand for better margins
 
-### Corporate Banking Permissions
+### Corporate Banking Hierarchy
 
-| Rank | Deposit | Withdraw Limit |
-|------|---------|----------------|
-| **Founder** | ✅ Unlimited | ✅ Unlimited |
-| **Officer** | ✅ Unlimited | ⚠️ ₡100,000 max per transaction |
-| **Member** | ✅ Unlimited | ⚠️ ₡10,000 max per transaction |
+In a corporation, not everyone gets full access to the vault:
+- **Founders** control everything
+- **Officers** can withdraw limited amounts
+- **Members** can deposit but barely withdraw
 
-Trust your officers. Or don't.
+Trust your officers. Or don't. The choice shapes your empire.
 
 ---
 
-## 🛸 Part VII: The Alien Question
+## 🛸 The Alien Question
 
 ### They Came Back
 
 In 2028, long-range scanners picked up energy signatures that didn't match any known technology. At first, TerraCorp dismissed them as sensor ghosts. Then a supply convoy disappeared near the Outer Rim. Then another. Then an entire mining colony went dark.
 
-They're not ghosts. They're **aliens**—species that humanity thought were myths or extinct. And they're back with a vengeance.
+They're not ghosts. They're **aliens**—species that humanity thought were myths or extinct. And they're back.
 
 ### The Alien Races
 
-Ten distinct species, each with their own ships, behaviors, and apparent motives:
+Ten distinct species roam the void, each with their own ships and apparent motives:
 
 **Known Species:**
 - **Xenthi** - Crystalline bio-ships, mostly neutral traders
 - **Vorlak** - Aggressive warships, attack on sight
 - **Krynn** - Defensive, guard their territory fiercely
 - **Sslith** - Patrol routes, avoid confrontation
-- **Zendarr** - Unknown motives, erratic behavior
-- **Thorax**, **Quell**, **Nebari**, **Vedran**, **Pyrians** - Still under observation
+- **Zendarr**, **Thorax**, **Quell**, **Nebari**, **Vedran**, **Pyrians** - Still under observation
 
-### Alien Encounters
+### Encounters in the Void
 
-After years of observation, xeno-intelligence has categorized alien ship behaviors. The distribution isn't random—it reflects their civilization's structure:
+After years of observation, xeno-intelligence has learned that most aliens aren't monsters—they're *civilizations* with traders, guards, and military forces just like humanity.
 
-**Alien Behavior Distribution:**
-- **40% Traders** - Merchant ships carrying cargo between alien ports, friendly (+50 to +150 alignment)
-- **30% Patrol** - Defense forces maintaining order, cautious neutral (-50 to +50 alignment)
-- **20% Raiders** - Hostile warships attacking human vessels on sight (-300 to -150 alignment)
-- **10% Guards** - Territorial defenders protecting key sectors (-100 alignment)
+**The majority are merchants and peacekeepers.** They won't attack unless provoked.
 
-**The Strategic Choice:**
-Most aliens (70%) won't attack you unprovoked. That Xenthi trader hauling equipment? You could blast them for easy loot—but is it worth making enemies of an entire trade network? Or do you escort them, hoping they'll remember your ship's signature when you need safe passage through hostile space?
+**A dangerous minority are raiders.** They attack human ships on sight.
 
-**Alien Ships:**
-- Found in sectors, marked with race name and ship type
-- Carry 65-90% of ship type's max fighters/shields
-- **Trade behavior**: Friendly merchants, won't attack unless provoked, carry valuable cargo
-- **Patrol behavior**: Neutral peacekeepers, defensive but not aggressive
-- **Aggressive behavior**: Hostile raiders, attack human ships on sight
-- **Defensive behavior**: Territorial guards, attack if you approach their home sectors
-- Loot credits + cargo when destroyed (but consider the diplomatic consequences)
-
-**Alien Planets:**
-- ~3 per 1000 sectors (0.3% generation rate)
-- Heavily defended (Citadel Level 3-4, 1,000-2,000 fighters, 50K-100K colonists)
-- Attacking alien planets is **extremely dangerous**
-- High-risk, high-reward targets for endgame players
+**The strategic choice is yours:** That Xenthi trader hauling equipment? You could blast them for easy loot. But is it worth making enemies of an entire species? Or do you escort them, hoping they'll remember your ship when you need safe passage through hostile space?
 
 ### The Alien Communications Network
 
-When you first enter a sector with an **alien planet**, your ship computer intercepts something—encrypted transmissions on frequencies humanity doesn't use. You shouldn't understand it. But your AI does.
+When you first visit a sector with an **alien planet**, your ship computer intercepts something—encrypted transmissions on frequencies humanity doesn't use. Your AI cracks the code.
 
-**Alien Comms Channel:**
-- **Read-only** - You can't send messages (they wouldn't listen anyway)
-- **Auto-unlocks** when you visit an alien planet sector
-- **Real-time intel** on alien activity:
-  - Alien ship movements (30% chance to broadcast)
-  - Combat between aliens and players
-  - Alien ships destroyed by mines/fighters
-  - Alien encounters with human ships
-
-**Why Monitor Alien Comms?**
-- Track aggressive alien movements
+**You can't send messages** (they wouldn't listen anyway), but you can **monitor their network** for intel:
+- Track alien ship movements
 - Learn patrol patterns
 - Avoid ambushes
 - Find weakened targets
 
+Knowledge is survival.
+
 ---
 
-## 🏢 Part VIII: Corporations & Alliances
+## 🏢 Corporations & Alliances
 
 ### The Corporation System
 
-You started alone. One pilot, one ship, one corporation (yourself). That's... sad.
+You started alone. One pilot, one ship, one personal corporation. That's... sad.
 
-**Corporation Basics:**
-- Everyone starts with their own personal corporation
-- **Leave** your corp and join another (or create new one)
-- **Invite** other players to join your corporation
-- **Ranks**: Founder → Officer → Member
+**You can do better:**
+- Leave your personal corp and join another
+- Create a new corporation and invite others
+- Build an empire through numbers
 
 **Corporation Benefits:**
-- **Corporate Chat Channel** - Private communication
-- **Corporate Banking** - Shared funds
-- **Territory Defense** - Your mines/fighters won't hurt corpmates
-- **Reputation** - Strength in numbers
+- **Private chat channel** for coordination
+- **Shared banking** for pooled resources
+- **Territory immunity** - your mines won't hurt corpmates
+- **Reputation** - strength in numbers scares off pirates
 
-### Corporate Hierarchy
+### The Hierarchy
 
-| Rank | Invite Players | Kick Members | Promote/Demote | Transfer Ownership | Leave Corp |
-|------|----------------|--------------|----------------|-------------------|------------|
-| **Founder** | ✅ | ✅ Anyone | ✅ | ✅ | ⚠️ Must transfer first |
-| **Officer** | ✅ | ✅ Members only | ❌ | ❌ | ✅ |
-| **Member** | ❌ | ❌ | ❌ | ❌ | ✅ |
+Every corporation has ranks:
+- **Founders** run the show
+- **Officers** help manage operations
+- **Members** contribute to the empire
+
+The rank structure determines who can invite, kick, promote, and access the corporate vault.
 
 **Corporate Strategy:**
 - Recruit traders to pool resources
 - Recruit fighters to control territory
-- Control port clusters with deployed fighters
 - Share banking for emergency funds
 - Coordinate attacks on high-value targets
 
+Alone, you're prey. Together, you're a force.
+
 ---
 
-## 🗺️ Part IX: Advanced Strategies
+## 🗺️ Advanced Pilot Tools
 
-### Plot Course: The Smart Pilot's Tool
+### Plot Course: Navigation Done Right
 
-Your ship computer has a **pathfinding algorithm**. Use it.
+Your ship computer has a **pathfinding algorithm** that'll calculate the shortest route to any sector. It auto-navigates, saves you time, and smartly pauses at points of interest so you don't fly past ports or planets.
 
-**How It Works:**
-1. Enter destination sector number
-2. Computer calculates shortest path
-3. **Auto-Navigation** - Automatically jumps through route
-4. **Smart Pause** - Stops at ports, planets, StarDocks, other ships, aliens
-
-**Why Use It:**
-- Save time on long trips
-- Avoid getting lost in deep space
-- Auto-pauses at points of interest (you won't miss ports!)
-
-**Turn Cost Warning:**
-- Shows total turns needed
-- Warns if you don't have enough turns
-- Prevents you from getting stranded mid-journey
+Pilots who manually jump sector-by-sector waste time. Smart pilots use Plot Course and focus on strategy.
 
 ### Ship's Log: Your Memory
 
-The galaxy is huge (1000+ sectors). You can't remember everything. Your **Ship's Log** does it for you.
+The galaxy is vast. You can't remember where everything is. Your **Ship's Log** does it for you.
 
-**Auto-Logged Events:**
-- **SOL** - Home sector (Sector 1)
-- **PORT** - Trading ports (with port type)
-- **STARDOCK** - Ship dealers
-- **PLANET** - Planets (with names)
-- **DEAD END** - Sectors with 0-1 exits (avoid unless hiding)
+Your computer automatically logs:
+- **Ports** with their trading types
+- **StarDocks** for ship upgrades
+- **Planets** you discover
+- **Dead ends** to avoid
 
-**Manual Notes:**
-- Add notes to any sector
-- Mark good trade routes
-- Flag dangerous sectors
-- Remember where you left that planet you claimed
+You can also add manual notes to flag good trade routes, dangerous sectors, or that planet you claimed three jumps from nowhere.
 
-**Filter Tabs:**
-- All logs
-- Ports only
-- Planets only
-- StarDocks only
-- Dead Ends only
-- Your notes only
+**Filter by type** to quickly find what you need. Your Ship's Log is your map of the galaxy.
 
 ### Deep Sector Scan
 
 Don't want to waste a turn moving into an unknown sector? **Scan it first.**
 
-**How It Works:**
-- Costs **1 turn**
-- Shows detailed info without moving:
-  - Ships in sector (names, corps, ship types, fighters/shields)
-  - Ports (type, buy/sell status)
-  - Planets (name, owner)
-  - Deployed fighters (owner, count)
-  - Beacons (owner, encrypted message preview)
-  - Floating cargo
-  - Warps
-  - Sector defenses (mines, hostile fighters)
+For the cost of one turn, you get complete intel without moving:
+- Who's in the sector (ships, fighters, defenses)
+- What's there (ports, planets, StarDocks)
+- Hazards (mines, hostile forces)
 
-**When to Use:**
+**When to use it:**
 - Scouting before combat
-- Checking if trade route port is still there
+- Checking if your trade route is clear
 - Avoiding ambushes
 - Finding empty sectors to hide in
 
 ---
 
-## 🎯 Part X: Ship Progression Guide
+## 🎯 Ship Progression: From Scraps to Flagship
 
-### The Fleet Hierarchy
+### The Fleet
 
-| Ship | Cost | Holds | Fighters | Shields | Best For |
-|------|------|-------|----------|---------|----------|
-| **Escape Pod** | ₡0 | 5 | 0 | 0 | Dying |
-| **Scout** | ₡10,000 | 20 | 10 | 10 | Exploration |
-| **Trader** | ₡50,000 | 60 | 20 | 20 | Early trading |
-| **Interceptor** | ₡75,000 | 30 | 40 | 30 | Fast combat |
-| **Freighter** | ₡125,000 | 125 | 75 | 75 | Mid-game trading |
-| **Transport** | ₡200,000 | 400 | 50 | 80 | Massive cargo runs |
-| **Merchant Cruiser** | ₡250,000 | 250 | 150 | 150 | Balanced late-game |
-| **Battlecruiser** | ₡350,000 | 100 | 200 | 200 | Pure combat |
-| **Corporate Flagship** | ₡500,000 | 500 | 300 | 1000 | Endgame god mode |
+You start in a **Scout**—barely a ship, more like a coffin with an engine. It's slow, fragile, and worth less than the fuel in its tanks.
 
-### Ship Trade-In System
+But every pilot starts somewhere.
 
-**Trade-in value: 70% of purchase price**
+**Your progression:**
+1. **Scout** → **Trader** - Triple your cargo capacity, start making real money
+2. **Trader** → **Freighter** - Massive holds, serious trade runs
+3. **Freighter** → **Merchant Cruiser** - Balanced combat and cargo
+4. **Merchant Cruiser** → **Corporate Flagship** - The endgame ship. Flying fortress.
 
-When you buy a new ship at StarDock:
-- Your current ship is sold for **70% of original cost**
-- Net cost = New ship price - Trade-in value
-- **Fighters, shields, cargo transfer** to new ship (up to new ship's capacity)
-- Excess is discarded (no refunds)
+### The Trade-In System
+
+When you buy a new ship, you don't lose your old one—you trade it in for a discount. Your fighters, shields, and cargo transfer automatically (up to new ship limits).
 
 **Example:**
-- You have a Trader (₡50,000)
-- Trade-in value: ₡35,000
-- Want a Freighter (₡125,000)
-- **Net cost: ₡90,000**
+- You own a Trader
+- Trade-in value covers most of the Freighter cost
+- Net price is much cheaper than buying from scratch
+- Your fighters and cargo move to the new ship
 
-### Progression Strategy
+Smart pilots upgrade gradually, using trade-ins to minimize costs.
 
-**Phase 1: Scout → Trader (₡40,000 net)**
-- 20 turns of fuel trading (₡480/run) = ₡9,600
-- 5 runs = ₡48,000 (enough for upgrade + buffer)
+### The Progression Path
 
-**Phase 2: Trader → Freighter (₡90,000 net)**
-- 60-hold cargo runs (₡1,440/run)
-- 63 runs = ₡90,720
-- Or claim a planet and wait 1 day
+**Early Game:** Grind trade runs. Fill your Scout, sell, repeat. Upgrade to Trader as soon as possible.
 
-**Phase 3: Freighter → Merchant Cruiser (₡162,500 net)**
-- 125-hold cargo runs (₡3,000/run)
-- 55 runs = ₡165,000
-- Or planet passive income
+**Mid Game:** Claim a planet. Set up production. Let passive income supplement your trading.
 
-**Phase 4: Merchant Cruiser → Corporate Flagship (₡325,000 net)**
-- 250-hold cargo runs (₡6,000/run)
-- 55 runs = ₡330,000
-- Or multiple planets producing for days
-- Or piracy (75% loot rate makes it profitable)
+**Late Game:** Merchant Cruiser or Flagship. Multiple planets. Corporate banking. Territory control.
+
+**Endgame:** You don't trade anymore. Your empire generates income while you fight, explore, or build political power.
 
 ---
 
-## 📊 Part XI: Economy Quick Reference
+## 💎 The Economics of Getting Rich
 
-### Commodity Prices
+### Commodity Trading Basics
 
-| Commodity | Buy From Port (S) | Sell To Port (B) | Profit Margin |
-|-----------|-------------------|------------------|---------------|
-| Fuel | ₡10 | ₡34 | +₡24 (3.4x) |
-| Organics | ₡17 | ₡60 | +₡43 (3.5x) |
-| Equipment | ₡28 | ₡94 | +₡66 (3.4x) |
+Ports buy high, sell low (from their perspective). You do the opposite.
 
-### StarDock Prices
+**Find an SBB port** (sells fuel cheap) → **Load up on fuel** → **Jump to BSS port** (buys fuel expensive) → **Sell** → **Profit**
 
-| Item | Price | Notes |
-|------|-------|-------|
-| Fighters | ₡200 each | Combat offense |
-| Shields | ₡100 each | Combat defense |
-| Colonists | ₡100 each | At ports, not StarDock |
-| Mines | ₡10,000 each | Territory control |
-| Beacons | ₡500 each | Communication / warning |
-| Genesis Torpedoes | ₡50,000 each | Create planets |
+Scale this with larger ships and you'll print money.
 
-### Turn Economy
+### The Rare Ports
 
-- **Daily Turns**: 300
-- **Regen Rate**: ~12.5 turns/hour (1 turn every 4.8 minutes)
-- **Movement**: 1 turn/sector
-- **Trading**: 1 turn/transaction
-- **Combat**: 1 turn/attack
-- **Scanning**: 1 turn/deep scan
+**SSS ports sell everything cheap.** When you find one, fill your entire ship. Every hold. Max capacity.
 
-### Combat Economics
+**BBB ports buy everything expensive.** When you find one, sell everything. Take the payday.
 
-- **Turn Cost**: 1 turn to attack
-- **Loot**: 75% of victim's credits + cargo
-- **Death Penalty**: 25% of your credits + bank balance
-- **Banking Fee**: 5% withdrawal fee
-- **Fighter Maintenance**: ₡5/fighter/day for deployed fighters
+These rare ports are goldmines. Mark them in your Ship's Log.
+
+### StarDock Equipment
+
+Beyond ships, StarDocks sell:
+- **Fighters** - Offense in combat
+- **Shields** - Defense in combat
+- **Mines** - Territory traps
+- **Beacons** - Communication markers
+- **Genesis Torpedoes** - Planet creation
+
+Each has strategic value depending on your playstyle.
+
+### Combat as Income
+
+Pirates don't just steal cargo—they *are* a business model. A successful attack nets you most of the victim's wealth.
+
+**Risk vs reward:**
+- Attacking traders is profitable but makes enemies
+- Attacking fighters is dangerous but removes threats
+- Attacking weak targets is safe but yields less loot
+
+Some pilots build empires through trade. Others build them through conquest.
 
 ---
 
-## ⚠️ Part XII: Survival Tips
+## ⚠️ Survival Guide
 
 ### Things That Will Kill You
 
-1. **Warp Misfires** - 0.25% chance. Can't prevent it. Just pray.
-2. **Pirates** - Other players who want your cargo. Avoid populated sectors.
-3. **Aggressive Aliens** - They attack on sight. Check Alien Comms before exploring.
-4. **Deployed Fighters** - Enter sector, get option to retreat or fight. Choose wisely.
-5. **Mines** - 20-90% explosion chance. If you see "⚠️ MINES DETECTED", run.
-6. **Overconfidence** - Corporate Flagship isn't invincible. 10 players with Scouts will still wreck you.
+1. **Warp Misfires** - Random, rare, unavoidable. Pray it doesn't send you into a minefield.
+2. **Pirates** - Other players who want your cargo. Stay alert.
+3. **Aggressive Aliens** - They attack on sight. Monitor Alien Comms.
+4. **Deployed Fighters** - You get a warning. Choose retreat or die.
+5. **Mines** - If you see "⚠️ MINES DETECTED", retreat immediately.
+6. **Overconfidence** - Even a Corporate Flagship can fall to coordinated attacks.
 
 ### Things That Will Save You
 
-1. **TerraSpace** - Sectors 1-10 are combat-free. Retreat here when wounded.
-2. **Ship's Log** - Remember where safe routes are.
-3. **Banking** - Keep most credits in bank (only lose 25% on death vs 75% on-hand loot).
-4. **Corporation** - Allies won't trigger your mines/fighters. Numbers = safety.
-5. **Plot Course** - Don't wander aimlessly. Plan your routes.
-6. **Alien Comms** - Monitor alien movements. Avoid aggressive aliens.
+1. **TerraSpace** - The safe zone. Retreat here when wounded.
+2. **Ship's Log** - Know your safe routes.
+3. **Banking** - Protect your wealth from total loss.
+4. **Corporation** - Allies are insurance. Numbers = survival.
+5. **Plot Course** - Don't wander aimlessly into danger.
+6. **Alien Comms** - Intel saves lives.
 
-### Etiquette & Unwritten Rules
+### The Unwritten Rules
 
 - **Don't camp Sol** - Newbie hunting is pathetic
 - **Honor ransoms** - If someone pays, let them go
-- **Don't spam Corporate Chat** - Your corpmates will kick you
-- **Respect beacons** - If a sector is claimed, maybe don't mine it
-- **TNN is public** - Don't whine about deaths in broadcast messages
+- **Respect territory** - If a sector is claimed, think twice before mining it
+- **TNN is public** - Don't whine about deaths in broadcasts
+
+The void has no laws, but it has *culture*. Violate it at your own risk.
 
 ---
 
-## 🌌 Part XIII: The Endgame
+## 🌌 The Endgame
 
 ### What Victory Looks Like
 
-There's no "win condition" in TradeWars 2030. No credits high score that ends the game. No final boss. Just you, your ship, and the void.
+There's no "win condition" in TradeWars 2030. No final boss. No credits threshold that ends the game. Just you, your ship, and the infinite void.
 
 **But here's what the best pilots achieve:**
 
-**Economic Victory:**
-- Corporate Flagship ship
-- 10+ colonized planets producing 24/7
-- Millions in credits across personal + corporate bank
-- Control of multiple SSS/BBB rare ports via territory defense
+**Economic Dominance:**
+- Corporate Flagship with maxed fighters and shields
+- Multiple planets producing resources 24/7
+- Millions in credits across personal and corporate banks
+- Control of rare ports through deployed defenses
 
-**Military Victory:**
-- 100+ kills in combat log
-- Feared corporation name that makes pilots flee on sight
-- Control of strategic sectors with layered mine/fighter defenses
-- Successful alien planet raids
+**Military Supremacy:**
+- Feared reputation that makes pilots flee on sight
+- Control of strategic sectors with layered defenses
+- Successful raids on alien planets
+- A kill count that makes veterans nervous
 
-**Exploration Victory:**
-- 90%+ of universe mapped in Ship's Log
-- All alien planets discovered and logged
-- Every StarDock located and cataloged
+**Exploration Mastery:**
+- The entire galaxy mapped in your Ship's Log
+- Every alien planet discovered and cataloged
 - Deep-space routes that bypass main shipping lanes
+- Knowledge that makes you invaluable to corporations
 
-**Political Victory:**
-- 50+ member corporation
-- Alliance network spanning multiple corps
-- Corporate banking used to fund universe-wide operations
-- Diplomatic immunity through sheer economic power
+**Political Power:**
+- A massive corporation with dozens of members
+- Alliance networks spanning multiple corps
+- Economic influence that shapes the universe
+- Diplomatic immunity through sheer power
 
 ### The Final Transmission
 
