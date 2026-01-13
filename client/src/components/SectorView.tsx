@@ -2539,35 +2539,55 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                     </div>
                   </div>
                   {p.id !== currentPlayerId && (
-                    <button
-                      onClick={() => setCombatTarget({
-                        id: p.id,
-                        corpName: p.corpName,
-                        username: p.username,
-                        shipType: p.shipType,
-                        fighters: p.fighters,
-                        shields: p.shields,
-                        alignment: p.alignment,
-                        inSafeZone: sector.region === 'TerraSpace'
-                      })}
-                      className="cyberpunk-button"
-                      style={{
-                        padding: '6px 12px',
-                        fontSize: '11px',
-                        background: sector.region === 'TerraSpace' 
-                          ? 'rgba(100, 100, 100, 0.2)' 
-                          : 'rgba(255, 20, 147, 0.2)',
-                        borderColor: sector.region === 'TerraSpace' 
-                          ? 'gray' 
-                          : 'var(--neon-pink)',
-                        color: sector.region === 'TerraSpace' 
-                          ? 'gray' 
-                          : 'var(--neon-pink)'
-                      }}
-                      title={sector.region === 'TerraSpace' ? 'Combat disabled in TerraSpace' : 'Attack this ship'}
-                    >
-                      ⚔ ATTACK
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => {
+                          setTradeTargetPlayerId(p.id);
+                          setTradeTargetName(p.corpName);
+                          setShowTradeModal(true);
+                        }}
+                        className="cyberpunk-button"
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '11px',
+                          background: 'rgba(0, 255, 255, 0.2)',
+                          borderColor: 'var(--neon-cyan)',
+                          color: 'var(--neon-cyan)'
+                        }}
+                        title="Offer trade to this player"
+                      >
+                        💱 TRADE
+                      </button>
+                      <button
+                        onClick={() => setCombatTarget({
+                          id: p.id,
+                          corpName: p.corpName,
+                          username: p.username,
+                          shipType: p.shipType,
+                          fighters: p.fighters,
+                          shields: p.shields,
+                          alignment: p.alignment,
+                          inSafeZone: sector.region === 'TerraSpace'
+                        })}
+                        className="cyberpunk-button"
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '11px',
+                          background: sector.region === 'TerraSpace'
+                            ? 'rgba(100, 100, 100, 0.2)'
+                            : 'rgba(255, 20, 147, 0.2)',
+                          borderColor: sector.region === 'TerraSpace'
+                            ? 'gray'
+                            : 'var(--neon-pink)',
+                          color: sector.region === 'TerraSpace'
+                            ? 'gray'
+                            : 'var(--neon-pink)'
+                        }}
+                        title={sector.region === 'TerraSpace' ? 'Combat disabled in TerraSpace' : 'Attack this ship'}
+                      >
+                        ⚔ ATTACK
+                      </button>
+                    </div>
                   )}
                 </div>
               ))}
@@ -3156,9 +3176,9 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
           currentSectorId={currentSector}
           playerCredits={player.credits}
           playerCargo={{
-            fuel: player.fuel,
-            organics: player.organics,
-            equipment: player.equipment,
+            fuel: player.cargoFuel,
+            organics: player.cargoOrganics,
+            equipment: player.cargoEquipment,
           }}
           token={token}
           onTradeCreated={() => {

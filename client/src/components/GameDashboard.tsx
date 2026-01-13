@@ -4,6 +4,7 @@ import MessagingPanel from './MessagingPanel';
 import ShipLogPanel from './ShipLogPanel';
 import CorporationPanel from './CorporationPanel';
 import LeaderboardPanel from './LeaderboardPanel';
+import UniverseInfoPanel from './UniverseInfoPanel';
 import CombatNotification from './CombatNotification';
 import { API_URL } from '../config/api';
 import { useSocketNotifications } from '../hooks/useSocketNotifications';
@@ -20,6 +21,7 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
   const [showShipLog, setShowShipLog] = useState(false);
   const [showCorporation, setShowCorporation] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showUniverseInfo, setShowUniverseInfo] = useState(false);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [unreadLogCount, setUnreadLogCount] = useState(0);
   const [loginNotification, setLoginNotification] = useState<any>(null);
@@ -405,6 +407,17 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
             >
               🏆 RANKINGS
             </button>
+            <button
+              onClick={() => setShowUniverseInfo(true)}
+              className="cyberpunk-button"
+              style={{
+                background: 'rgba(147, 51, 234, 0.1)',
+                borderColor: 'var(--neon-purple)',
+                color: 'var(--neon-purple)'
+              }}
+            >
+              ℹ INFO
+            </button>
             <button onClick={onLogout} className="cyberpunk-button" style={{
               background: 'rgba(255, 20, 147, 0.1)',
               borderColor: 'var(--neon-pink)',
@@ -544,6 +557,14 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
           universeId={player.universeId}
           token={token}
           onClose={() => setShowLeaderboard(false)}
+        />
+      )}
+
+      {showUniverseInfo && (
+        <UniverseInfoPanel
+          universeId={player.universeId}
+          token={token}
+          onClose={() => setShowUniverseInfo(false)}
         />
       )}
 

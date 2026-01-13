@@ -30,6 +30,33 @@
 - Banking requires StarDock presence, 5% withdrawal fee, 25% bank balance lost on death
 - Test Universe #124 exists with 1000 sectors, 9 aliens, 3 alien planets for multiplayer testing
 
+## 📋 Feature Audit (2026-01-13)
+
+### ✅ FULLY IMPLEMENTED & ACCESSIBLE
+**Game UI**: Leaderboard (RANKINGS button), Ship Log (LOG button), Messaging (COMMS button), Corporation (CORP button), Plot Course, Port Trading, StarDock, Planet Management, Combat System, Alien Trading, Beacon System, Fighter/Mine Deployment, Genesis Torpedoes, Cargo Pickup
+
+**Categories**: All 4 leaderboard categories (Net Worth, Experience, Kills, Planets) functional with top 50 rankings
+
+### ⚠️ IMPLEMENTED BUT NOT ACCESSIBLE
+**Player-to-Player Trading**: 100% backend complete (`/api/trade/*` routes), but frontend has TODO comments in accept/decline functions. TradeOfferModal exists but not wired up. No trade button on players in SectorView. **CRITICAL FIX NEEDED** (~2 hours work).
+
+**Universe Info**: Backend API exists (`GET /api/universes`), but NO UI display anywhere in game. Players cannot see universe name, sector count, turns/day, or player count once in game. **PRIORITY FIX** (~30 min work).
+
+**Player Search**: Backend route exists (`GET /api/players/search`), no frontend search UI. Players can only message known traders (met in sectors).
+
+**Trade Robbery**: API endpoint exists (`POST /api/trade/rob/:offerId`), no UI to attempt robbery.
+
+### ❌ NEEDS IMPROVEMENT
+**Mobile Responsiveness**: Desktop-focused, needs mobile optimization
+**Player Profiles**: No dedicated profile view for other players
+**Remote Banking**: Banking locked to StarDock location only
+
+### 📊 PRIORITY QUEUE
+1. **Add Universe Info Panel** (30 min) - Show universe context in header/info button
+2. **Fix Trade Accept/Decline** (1 hour) - Wire up existing TradeOfferModal, remove TODO comments
+3. **Add Trade Offer Button** (30 min) - Add "TRADE" button next to "ATTACK" on players
+4. **Player Search UI** (2 hours) - Connect to existing `/api/players/search` endpoint
+
 ## Overview
 Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthetics, and turn-based gameplay.
 

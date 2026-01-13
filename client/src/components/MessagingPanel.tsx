@@ -217,6 +217,48 @@ export default function MessagingPanel({ token, currentPlayerId, onClose, onUnre
     }
   };
 
+  const acceptTradeOffer = async (offerId: number) => {
+    try {
+      setError('');
+      setSuccess('');
+      const response = await fetch(`${API_URL}/api/trade/accept/${offerId}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setSuccess('Trade accepted successfully!');
+        // Reload trade offers to update the list
+        await loadTradeOffers();
+      } else {
+        setError(data.error || 'Failed to accept trade');
+      }
+    } catch (err) {
+      setError('Network error');
+    }
+  };
+
+  const declineTradeOffer = async (offerId: number) => {
+    try {
+      setError('');
+      setSuccess('');
+      const response = await fetch(`${API_URL}/api/trade/cancel/${offerId}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setSuccess('Trade offer declined');
+        // Reload trade offers to update the list
+        await loadTradeOffers();
+      } else {
+        setError(data.error || 'Failed to decline trade');
+      }
+    } catch (err) {
+      setError('Network error');
+    }
+  };
+
   const loadCorporateMessages = async () => {
     try {
       setLoading(true);
@@ -875,10 +917,7 @@ export default function MessagingPanel({ token, currentPlayerId, onClose, onUnre
                                     padding: '4px 12px',
                                     fontSize: '0.8rem'
                                   }}
-                                  onClick={() => {
-                                    // TODO: Implement accept trade
-                                    console.log('Accept trade:', offer.id);
-                                  }}
+                                  onClick={() => acceptTradeOffer(offer.id)}
                                 >
                                   ✓ ACCEPT
                                 </button>
@@ -890,10 +929,7 @@ export default function MessagingPanel({ token, currentPlayerId, onClose, onUnre
                                     padding: '4px 12px',
                                     fontSize: '0.8rem'
                                   }}
-                                  onClick={() => {
-                                    // TODO: Implement decline trade
-                                    console.log('Decline trade:', offer.id);
-                                  }}
+                                  onClick={() => declineTradeOffer(offer.id)}
                                 >
                                   ✗ DECLINE
                                 </button>
