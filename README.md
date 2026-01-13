@@ -112,11 +112,14 @@ See [server/src/db/schema.sql](server/src/db/schema.sql) for complete schema.
 - **Space trading** - Buy/sell fuel, organics, equipment at ports
 - **Port types** - 8 port configurations for strategic trading routes
 - **Ship progression** - 10 ships from Escape Pod to Dreadnought
+- **TW2002-style warp ranges** - Constrained warp destinations (±50-200 sectors) create natural trade routes and strategic territory
 - **Warp drive misfire** - 0.25% chance of malfunction sending you to a random sector
+- **TerraSpace safe zone** - Protected starting area (2% of universe, minimum 10 sectors) where aggressive aliens cannot enter
 - **Plot Course** - Auto-navigation with smart pause at points of interest
 - **Ship communications** - Direct messages, broadcasts, and corporate chat
 - **Combat system** - Attack players and aliens (1 turn, 75% loot, 25% death penalty)
 - **Planets** - ~30 claimable planets per universe, colonize and produce resources
+  - Earth (Sol, Sector 1) and Mars (last TerraSpace sector) owned by Terra Corp
   - Citadel defense system (6 levels with production bonuses)
   - Resource production based on colonist population
   - Fighter deployment and credit treasury
@@ -127,6 +130,7 @@ See [server/src/db/schema.sql](server/src/db/schema.sql) for complete schema.
   - Alien planets scale with universe size (0.3% formula for 1000+ sectors)
   - Alien ships with balanced behavior distribution (40% trade, 30% patrol, 20% aggressive, 10% defensive)
   - Alignment system affects alien interactions: traders are friendly, raiders are hostile
+  - TerraSpace protection: aggressive/patrol/defensive aliens cannot enter, but trade aliens can
   - Alien communications channel (read-only), unlocked after visiting an alien planet
   - Alien ships move and attack automatically via game tick system
   - Combat with aliens for credits and cargo (strategic choice: attack traders or build relationships)
@@ -241,6 +245,16 @@ Format: `[Fuel][Organics][Equipment]`
   - [x] Alien alignment system: traders friendly (+50 to +150), patrol neutral (-50 to +50), raiders hostile (-300 to -150), guards territorial (-100)
   - [x] Alien planet detection and logging in ship log
   - [x] Admin panel configuration for alien planet count
+- [x] **TW2002-Style Universe Generation (2026-01-12, updated 2026-01-13)**
+  - [x] Constrained warp ranges (±50-200 sectors) instead of fully random
+  - [x] Dynamic TerraSpace sizing (2% of universe, minimum 10 sectors)
+  - [x] TerraSpace exit sectors use constrained ranges (no long-distance teleports)
+  - [x] Mars planet at last TerraSpace sector (owned by Terra Corp)
+  - [x] Alien TerraSpace restrictions (trade aliens can enter, aggressive/patrol/defensive cannot)
+  - [x] Alien spawning respects dynamic TerraSpace boundaries
+  - [x] Dynamic connection limits: edge sectors max 6, middle sectors max 8 (allows natural hub formation)
+  - [x] Connectivity verification from actual inserted warps (prevents isolated sectors)
+  - [x] Automatic connection of unreachable sectors during universe generation
 
 ### In Progress 🚧
 - [ ] Player rankings and leaderboards

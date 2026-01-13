@@ -80,10 +80,13 @@ The void is watching. Always.
 
 You start in **Sector 1 - Sol System**. Home. Earth. Terra. Whatever you want to call the blue marble that birthed humanity and then sold it to the highest bidder.
 
-**TerraSpace** is sectors 1-10. These are the *safe lanes*—combat is illegal here, enforced by automated defense satellites that'll turn your ship to slag faster than you can scream. TerraCorp maintains this bubble of civilization:
-- **Sector 1 (Sol)**: Earth. Terra Corp owns it. You don't.
+**TerraSpace** is a protected zone that scales with your universe size (2% of total sectors, minimum 10). These are the *safe lanes*—aggressive aliens cannot enter here, enforced by automated defense satellites that'll turn their ships to slag. TerraCorp maintains this bubble of civilization:
+- **Sector 1 (Sol)**: Earth. Terra Corp owns it. 20,000 colonists. You don't.
 - **Sector 5**: StarDock Alpha-1. Buy ships, upgrade gear, access banking.
-- **Sectors 2-10**: Charted territory. No surprises. Also no fortunes.
+- **Last TerraSpace Sector** (e.g., Sector 10 in small universes, Sector 20 in 1000-sector universes): Mars. Terra Corp's frontier colony. 15,000 colonists. Still not yours.
+- **Sectors 5+**: Have warp exits to the wider universe. Sectors 1-4 only connect within TerraSpace.
+
+**Important:** While aggressive aliens can't enter TerraSpace, *trade aliens* can—and they're generally friendly. You'll see them passing through, but they won't attack unprovoked.
 
 The real credits are made **beyond TerraSpace**. Out where the law is whatever you make it.
 
@@ -104,9 +107,16 @@ Every decision matters. Waste your turns exploring dead-ends, and you'll watch r
 
 Your ship's warp drive lets you jump between sectors through **warp points**. Think of space as a web—each sector connects to 2-6 others. No straight lines. No predictability. Just a tangled mesh of possibilities.
 
+**Warp Mechanics (TW2002-Style):**
+Unlike old FTL drives that could jump anywhere, modern warp technology is *constrained by local space-time topology*. Sectors can only connect to destinations **50-200 sectors away** (forward or backward). This means:
+- **No instant cross-universe jumps** - Getting from Sector 1 to Sector 1000 requires multiple hops
+- **Natural trade routes emerge** - Some sectors become natural chokepoints and hubs
+- **Strategic territory** - Controlling key junction sectors matters
+- **Distance feels real** - The universe is big, and travel takes time
+
 **How to Move:**
 1. Scan your current sector (free, no turn cost)
-2. Review available warp points
+2. Review available warp points (each 50-200 sectors away from your current position)
 3. Pick a destination
 4. **Hit WARP** - Costs 1 turn
 

@@ -891,7 +891,12 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
                   }}
                 />
                 <button
-                  onClick={() => setFighterQty(Math.min(maxFighters, Math.floor(stardock.player.credits / stardock.fighterPrice)))}
+                  onClick={() => {
+                    const affordable = Math.floor(stardock.player.credits / stardock.fighterPrice);
+                    const maxQty = Math.min(maxFighters, affordable);
+                    console.log('[StarDock] Max Fighters clicked:', { maxFighters, affordable, maxQty, credits: stardock.player.credits, price: stardock.fighterPrice });
+                    setFighterQty(maxQty);
+                  }}
                   style={{
                     padding: '10px 15px',
                     background: 'rgba(255, 20, 147, 0.2)',
@@ -972,7 +977,12 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
                   }}
                 />
                 <button
-                  onClick={() => setShieldQty(Math.min(maxShields, Math.floor(stardock.player.credits / stardock.shieldPrice)))}
+                  onClick={() => {
+                    const affordable = Math.floor(stardock.player.credits / stardock.shieldPrice);
+                    const maxQty = Math.min(maxShields, affordable);
+                    console.log('[StarDock] Max Shields clicked:', { maxShields, affordable, maxQty, credits: stardock.player.credits, price: stardock.shieldPrice });
+                    setShieldQty(maxQty);
+                  }}
                   style={{
                     padding: '10px 15px',
                     background: 'rgba(0, 255, 0, 0.2)',

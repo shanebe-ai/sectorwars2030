@@ -209,6 +209,7 @@ export default function PortTradingPanel({
       // Max we can buy: min(cargo space, port stock, what we can afford)
       const affordable = Math.floor(player.credits / info.price);
       maxQty = Math.min(cargoSpace, info.quantity, affordable);
+      console.log(`[Port] Max ${commodity} (buy):`, { cargoSpace, portStock: info.quantity, affordable, maxQty, price: info.price, credits: player.credits });
     } else {
       // Max we can sell: our cargo of this type
       const playerCargo =
@@ -218,6 +219,7 @@ export default function PortTradingPanel({
             ? player.cargoOrganics
             : player.cargoEquipment;
       maxQty = playerCargo;
+      console.log(`[Port] Max ${commodity} (sell):`, { playerCargo: maxQty });
     }
 
     setQuantities((prev) => ({ ...prev, [commodity]: Math.max(0, maxQty) }));

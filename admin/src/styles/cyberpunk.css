@@ -177,6 +177,7 @@ body {
   margin: 10px 0;
 }
 
+
 .cyberpunk-input:focus {
   outline: none;
   box-shadow: var(--glow-intense);

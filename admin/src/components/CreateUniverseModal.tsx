@@ -120,13 +120,13 @@ export default function CreateUniverseModal({ token, onClose, onSuccess }: Creat
             <div className="form-group">
               <label className="form-label">Sectors</label>
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 name="maxSectors"
                 className="cyberpunk-input"
                 value={formData.maxSectors}
                 onChange={handleChange}
-                min={100}
-                max={10000}
                 required
               />
               <div className="form-hint">Recommended: 1000</div>
@@ -135,13 +135,13 @@ export default function CreateUniverseModal({ token, onClose, onSuccess }: Creat
             <div className="form-group">
               <label className="form-label">Port Distribution %</label>
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 name="portPercentage"
                 className="cyberpunk-input"
                 value={formData.portPercentage}
                 onChange={handleChange}
-                min={1}
-                max={50}
                 required
               />
               <div className="form-hint">Recommended: 12%</div>
@@ -150,13 +150,13 @@ export default function CreateUniverseModal({ token, onClose, onSuccess }: Creat
             <div className="form-group">
               <label className="form-label">StarDocks</label>
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 name="stardockCount"
                 className="cyberpunk-input"
                 value={formData.stardockCount}
                 onChange={handleChange}
-                min={0}
-                max={100}
                 required
               />
               <div className="form-hint">Default: 1 per 500 sectors (min 1)</div>
@@ -165,13 +165,13 @@ export default function CreateUniverseModal({ token, onClose, onSuccess }: Creat
             <div className="form-group">
               <label className="form-label">👽 Alien Planets</label>
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 name="alienPlanetCount"
                 className="cyberpunk-input"
                 value={formData.alienPlanetCount}
                 onChange={handleChange}
-                min={0}
-                max={1000}
                 required
               />
               <div className="form-hint">Default: 0.3% of sectors (3 per 1000)</div>
@@ -182,13 +182,13 @@ export default function CreateUniverseModal({ token, onClose, onSuccess }: Creat
             <div className="form-group">
               <label className="form-label">Max Players</label>
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 name="maxPlayers"
                 className="cyberpunk-input"
                 value={formData.maxPlayers}
                 onChange={handleChange}
-                min={1}
-                max={1000}
                 required
               />
               <div className="form-hint">Recommended: 100</div>
@@ -197,13 +197,13 @@ export default function CreateUniverseModal({ token, onClose, onSuccess }: Creat
             <div className="form-group">
               <label className="form-label">Turns Per Day</label>
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 name="turnsPerDay"
                 className="cyberpunk-input"
                 value={formData.turnsPerDay}
                 onChange={handleChange}
-                min={100}
-                max={10000}
                 required
               />
               <div className="form-hint">Recommended: 1000</div>
@@ -214,12 +214,13 @@ export default function CreateUniverseModal({ token, onClose, onSuccess }: Creat
             <div className="form-group">
               <label className="form-label">Starting Credits</label>
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 name="startingCredits"
                 className="cyberpunk-input"
                 value={formData.startingCredits}
                 onChange={handleChange}
-                min={1000}
                 required
               />
               <div className="form-hint">Default: 2000</div>

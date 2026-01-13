@@ -33,6 +33,10 @@ const RARE_PORT_TYPES: PortType[] = ['SSS', 'BBB'];
 const STARDOCK_SECTORS_PER_DOCK = 500; // 1 StarDock per 500 sectors
 const STARDOCK_MIN_FOR_LARGE_UNIVERSE = 1; // Minimum 1 for 1000+ sector universes
 
+// Warp range configuration (TW2002-style)
+const WARP_MIN_RANGE = 50;   // Minimum sectors between warps
+const WARP_MAX_RANGE = 200;  // Maximum sectors between warps
+
 /**
  * Generate a random port type with rarity weighting
  * SSS and BBB are rare (5% chance each)
@@ -50,10 +54,10 @@ function generatePortType(): PortType | null {
 }
 
 /**
- * Generate warp connections for TerraSpace sectors
- * Creates a linear/branching path through sectors 1-10
- * Only sectors 5-10 have exits to the wider universe (sectors 11+)
- * Sectors 5-10: 1-2 warps out of TerraSpace + 1-2 warps within TerraSpace (2-4 total outgoing)
+ * Generate warp connections for TerraSpace sectors (dynamic sizing: 2% of universe, minimum 10)
+ * Creates a linear/branching path through TerraSpace
+ * Only sectors 5+ have exits to the wider universe
+ * Sectors 5+: 1-2 warps out of TerraSpace + 1-2 warps within TerraSpace (2-4 total outgoing)
  * Sectors 1-4: Only intra-TerraSpace warps
  */
 function generateTerraSpaceWarps(
@@ -81,12 +85,21 @@ function generateTerraSpaceWarps(
       }
     }
   } else {
-    // Sectors 5-10: Mix of intra-TerraSpace and out-of-TerraSpace warps
-    // REDUCED: 1-2 warps out of TerraSpace (was 1-3)
+    // Sectors 5+: Mix of intra-TerraSpace and out-of-TerraSpace warps
+    // Exit warps use TW2002-style constrained ranges (±50-200 sectors) from the EXIT sector
     const outOfTerraSpaceCount = Math.floor(Math.random() * 2) + 1; // 1-2 exits
     for (let i = 0; i < outOfTerraSpaceCount; i++) {
-      const exitSector = Math.floor(Math.random() * (totalSectors - terraSpaceEnd)) + terraSpaceEnd + 1;
-      warps.add(exitSector);
+      // Use constrained range from current sector position (not random across entire universe)
+      const range = WARP_MIN_RANGE + Math.floor(Math.random() * (WARP_MAX_RANGE - WARP_MIN_RANGE + 1));
+      const direction = Math.random() < 0.5 ? 1 : -1;
+      const exitSector = sectorNumber + (direction * range);
+
+      // Clamp to valid range OUTSIDE TerraSpace
+      const validExit = Math.max(terraSpaceEnd + 1, Math.min(totalSectors, exitSector));
+
+      if (validExit > terraSpaceEnd && validExit !== sectorNumber) {
+        warps.add(validExit);
+      }
     }
 
     // REDUCED: 1-2 warps within TerraSpace (was 2-4)
@@ -104,33 +117,43 @@ function generateTerraSpaceWarps(
 
 /**
  * Generate warp connections for a sector
- * TW2002-style: Ensures strong connectivity with 1-3 outgoing warps per sector
- * After bidirectional creation, most sectors will have 2-5 total warps
- * Distribution: 2 (most common ~65%), 1 (common ~25%), 3 (less common ~10%)
- * Dead-ends are very rare (~0.25%) when allowDeadEnds is true, otherwise guaranteed 1+ warps
+ * TW2002-style: Constrained warp ranges (±50-200 sectors) for local connectivity
+ * Creates 1-2 outgoing warps per sector (80% = 1, 20% = 2)
+ * After bidirectional processing, most sectors will have 2-6 total connections
+ * Note: Edge sectors may have more connections due to asymmetric reachability
+ * Dead-ends are very rare (~0.25%) when allowDeadEnds is true
  */
 function generateWarps(sectorNumber: number, totalSectors: number, allowDeadEnds: boolean = false): number[] {
-  // Weighted random: 1-2 warps most common, 3 max to avoid over-connected sectors
+  // Reduced warp counts to account for bidirectional connections
+  // Most sectors will end up with 2-6 total connections after all sectors are processed
   const rand = Math.random();
   let warpCount: number;
 
   if (allowDeadEnds && rand < 0.0025) {
     warpCount = 0; // 0.25% chance - dead-end (only if explicitly allowed)
-  } else if (rand < 0.65) {
-    warpCount = 2; // 65% chance - most common (good connectivity)
-  } else if (rand < 0.90) {
-    warpCount = 1; // 25% chance - common (will get bidirectional warps from others)
+  } else if (rand < 0.80) {
+    warpCount = 1; // 80% chance - will end up with 2-4 total connections
   } else {
-    warpCount = 3; // 10% chance - less common (junction sectors)
+    warpCount = 2; // 20% chance - will end up with 4-6 total connections
   }
 
   const warps = new Set<number>();
 
-  // Generate random destinations
+  // Generate constrained-range destinations (TW2002-style: ±50-200 sectors)
   while (warps.size < warpCount) {
-    const destination = Math.floor(Math.random() * totalSectors) + 1;
-    if (destination !== sectorNumber) {
-      warps.add(destination);
+    // Calculate warp range: ±50 to ±200 sectors
+    const range = WARP_MIN_RANGE + Math.floor(Math.random() * (WARP_MAX_RANGE - WARP_MIN_RANGE + 1));
+
+    // Randomly choose forward or backward
+    const direction = Math.random() < 0.5 ? 1 : -1;
+    const destination = sectorNumber + (direction * range);
+
+    // Clamp to valid sector range [1, totalSectors]
+    const validDestination = Math.max(1, Math.min(totalSectors, destination));
+
+    // Avoid self-warps and duplicates
+    if (validDestination !== sectorNumber) {
+      warps.add(validDestination);
     }
   }
 
@@ -177,10 +200,11 @@ export async function generateUniverse(config: UniverseConfig) {
     // 2. Generate sectors
     const sectors: GeneratedSector[] = [];
 
-    // TerraSpace constants (safe starting zone)
+    // TerraSpace dynamic sizing (safe starting zone - 2% of universe, minimum 10 sectors)
     const TERRASPACE_START = 1;
-    const TERRASPACE_END = 10;
-    const TERRASPACE_EXIT_START = 5; // Sectors 5-10 have exits to the wider universe
+    const terraSpaceSize = Math.max(10, Math.floor(maxSectors * 0.02)); // 2% minimum 10
+    const TERRASPACE_END = terraSpaceSize;
+    const TERRASPACE_EXIT_START = 5; // Sectors 5+ have exits to the wider universe
 
     // Calculate port count with minimum 5% enforcement
     const effectivePortPercentage = Math.max(portPercentage, 5); // Minimum 5% ports
@@ -191,10 +215,10 @@ export async function generateUniverse(config: UniverseConfig) {
 
     const portSectors = new Set<number>();
 
-    // Randomly select which sectors will have ports (excluding TerraSpace sectors 1-10)
+    // Randomly select which sectors will have ports (excluding TerraSpace)
     while (portSectors.size < portCount) {
       const sectorNum = Math.floor(Math.random() * maxSectors) + 1;
-      // Don't put ports in TerraSpace (sectors 1-10) - keep it as a safe zone
+      // Don't put ports in TerraSpace - keep it as a safe zone
       if (sectorNum > TERRASPACE_END) {
         portSectors.add(sectorNum);
       }
@@ -260,11 +284,27 @@ export async function generateUniverse(config: UniverseConfig) {
 
     console.log(`Inserted ${sectorResults.length} sectors into database`);
 
-    // 4. Insert warp connections in batch
-    // Note: Warps are two-way, so we only insert once per connection
-    // The sector controller handles bidirectional lookups
-    // IMPORTANT: Filter out invalid warps that violate TerraSpace rules
+    // 4. Insert warp connections with connection limit enforcement
+    // Track connections per sector to prevent over-connectivity
+    // Dynamic connection limits based on sector position:
+    // - Edge sectors (first/last 100): 6 max connections (less hub potential)
+    // - Middle sectors: 8 max connections (can become natural hubs/strategic chokepoints)
+    // This preserves TW2002's strategic gameplay where important sectors had 8-12 connections
+    const EDGE_ZONE_SIZE = 100;
+    const getMaxConnections = (sectorNum: number): number => {
+      const isEdge = sectorNum <= EDGE_ZONE_SIZE || sectorNum > maxSectors - EDGE_ZONE_SIZE;
+      return isEdge ? 6 : 8;
+    };
+
+    const sectorConnectionCount = new Map<number, number>();
+
+    // Initialize connection counts
+    for (let i = 1; i <= maxSectors; i++) {
+      sectorConnectionCount.set(i, 0);
+    }
+
     const warpInsertPromises: Promise<any>[] = [];
+    const warpPairs = new Set<string>(); // Track inserted pairs to avoid duplicates
 
     for (const sector of sectors) {
       const sectorId = sectorIdMap.get(sector.sectorNumber);
@@ -273,21 +313,44 @@ export async function generateUniverse(config: UniverseConfig) {
       const isTerraSpace1to4 = sector.sectorNumber >= TERRASPACE_START && sector.sectorNumber < TERRASPACE_EXIT_START;
 
       for (const destNumber of sector.warps) {
-        // Enforce TerraSpace rules: sectors 1-4 can only warp to TerraSpace sectors (1-10)
+        // Enforce TerraSpace rules: sectors 1-4 can only warp to TerraSpace sectors
         if (isTerraSpace1to4 && destNumber > TERRASPACE_END) {
-          console.warn(`Skipping invalid warp: Sector ${sector.sectorNumber} (TerraSpace 1-4) cannot warp to Sector ${destNumber} (outside TerraSpace)`);
           continue;
         }
 
         const destSectorId = sectorIdMap.get(destNumber);
         if (!destSectorId) continue;
 
-        // Create warp: sector → destination (two-way)
+        // Check connection limits for both sectors (bidirectional, using dynamic limits)
+        const sourceConnections = sectorConnectionCount.get(sector.sectorNumber) || 0;
+        const destConnections = sectorConnectionCount.get(destNumber) || 0;
+        const sourceMaxConnections = getMaxConnections(sector.sectorNumber);
+        const destMaxConnections = getMaxConnections(destNumber);
+
+        if (sourceConnections >= sourceMaxConnections || destConnections >= destMaxConnections) {
+          continue; // Skip this warp, one or both sectors are at capacity
+        }
+
+        // Create unique pair key (smaller number first to avoid duplicates)
+        const pairKey = sector.sectorNumber < destNumber
+          ? `${sector.sectorNumber}-${destNumber}`
+          : `${destNumber}-${sector.sectorNumber}`;
+
+        if (warpPairs.has(pairKey)) {
+          continue; // Already added this connection
+        }
+
+        warpPairs.add(pairKey);
+
+        // Update connection counts for both sectors
+        sectorConnectionCount.set(sector.sectorNumber, sourceConnections + 1);
+        sectorConnectionCount.set(destNumber, destConnections + 1);
+
+        // Create warp: sector → destination (bidirectional)
         warpInsertPromises.push(
           client.query(
             `INSERT INTO sector_warps (sector_id, destination_sector_number, is_two_way)
-             VALUES ($1, $2, TRUE)
-             ON CONFLICT DO NOTHING`,
+             VALUES ($1, $2, TRUE)`,
             [sectorId, destNumber]
           )
         );
@@ -295,21 +358,29 @@ export async function generateUniverse(config: UniverseConfig) {
     }
 
     await Promise.all(warpInsertPromises);
-    console.log(`Inserted ${warpInsertPromises.length} warp connections`);
+    console.log(`Inserted ${warpInsertPromises.length} warp connections (edge sectors: max 6, middle sectors: max 8)`);
 
     // 4.5. Ensure all sectors are reachable from Sol (sector 1)
-    // Build adjacency list for connectivity check
+    // Build adjacency list for connectivity check from ACTUAL inserted warps
     const adjacencyList = new Map<number, Set<number>>();
     for (let i = 1; i <= maxSectors; i++) {
       adjacencyList.set(i, new Set<number>());
     }
 
-    // Populate adjacency list from generated warps (bidirectional)
-    for (const sector of sectors) {
-      for (const dest of sector.warps) {
-        adjacencyList.get(sector.sectorNumber)?.add(dest);
-        adjacencyList.get(dest)?.add(sector.sectorNumber);
-      }
+    // Populate adjacency list from ACTUALLY INSERTED warps (query database)
+    // This ensures we check connectivity based on what was actually inserted, not what was generated
+    const insertedWarpsResult = await client.query(`
+      SELECT s.sector_number, sw.destination_sector_number
+      FROM sector_warps sw
+      JOIN sectors s ON sw.sector_id = s.id
+      WHERE s.universe_id = $1
+    `, [universeId]);
+
+    for (const row of insertedWarpsResult.rows) {
+      const from = row.sector_number;
+      const to = row.destination_sector_number;
+      adjacencyList.get(from)?.add(to);
+      adjacencyList.get(to)?.add(from); // Bidirectional
     }
 
     // BFS to find all reachable sectors from Sol (sector 1)
@@ -415,6 +486,30 @@ export async function generateUniverse(config: UniverseConfig) {
       console.log(`Created Earth planet in Sector 1 (Sol) - owned by Terra Corp`);
     }
 
+    // Create Mars planet at last TerraSpace sector (unclaimable - owned by Terra Corp)
+    const lastTerraSpaceSector = TERRASPACE_END;
+    const marsSectorId = sectorIdMap.get(lastTerraSpaceSector);
+    if (marsSectorId) {
+      // Create Mars planet (unclaimable - owned by Terra Corp with 15,000 colonists)
+      const marsPlanetResult = await client.query(
+        `INSERT INTO planets (universe_id, sector_id, name, owner_id, owner_name, ore, fuel, organics, equipment,
+          colonists, fighters, citadel_level, is_claimable, created_at)
+         VALUES ($1, $2, $3, NULL, 'Terra Corp', 0, 0, 0, 0, 15000, 0, 2, FALSE, CURRENT_TIMESTAMP)
+         RETURNING id`,
+        [universeId, marsSectorId, 'Mars']
+      );
+
+      const marsPlanetId = marsPlanetResult.rows[0].id;
+
+      // Update sector to mark it has a planet
+      await client.query(
+        `UPDATE sectors SET has_planet = TRUE, planet_id = $1 WHERE id = $2`,
+        [marsPlanetId, marsSectorId]
+      );
+
+      console.log(`Created Mars planet in Sector ${lastTerraSpaceSector} (last TerraSpace sector) - owned by Terra Corp`);
+    }
+
     // 6. Generate claimable planets (~3% of sectors, excluding TerraSpace and port sectors)
     const planetPercentage = 3;
     const planetCount = Math.max(1, Math.floor(maxSectors * (planetPercentage / 100)));
@@ -431,7 +526,7 @@ export async function generateUniverse(config: UniverseConfig) {
     // Select random sectors for planets (excluding TerraSpace and port sectors)
     while (planetSectors.size < planetCount) {
       const sectorNum = Math.floor(Math.random() * maxSectors) + 1;
-      // Don't place planets in TerraSpace (sectors 1-10) or sectors with ports
+      // Don't place planets in TerraSpace or sectors with ports
       if (sectorNum > TERRASPACE_END && !portSectors.has(sectorNum)) {
         planetSectors.add(sectorNum);
       }
@@ -558,7 +653,7 @@ export async function generateUniverse(config: UniverseConfig) {
         totalSectors: maxSectors,
         portsCreated: portCount,
         warpsCreated: warpInsertPromises.length,
-        planetsCreated: planetsCreated + 1, // +1 for Earth
+        planetsCreated: planetsCreated + 2, // +2 for Earth and Mars
         stardocksCreated,
       },
     };

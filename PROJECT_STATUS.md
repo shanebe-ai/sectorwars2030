@@ -11,7 +11,7 @@
 **Ports**: Backend (3000), Client (5173), Admin (5174)
 
 **Current State**: ✅ Fully functional multiplayer game with all core features implemented and tested
-**Latest Update**: 2026-01-12 - Alien behavior balancing complete
+**Latest Update**: 2026-01-12 - TW2002-style universe generation with constrained warp ranges
 **Ready For**: Production deployment, multiplayer testing
 
 **Key Files to Review**:
@@ -502,20 +502,43 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 ## Current Session Context 🎯
 
 **What We Just Did (2026-01-12):**
-- ✅ **Alien Behavior Balancing:**
-  - **Issue:** All aliens had random behaviors, resulting in too many hostile encounters
-  - **Solution:** Implemented weighted behavior distribution for strategic gameplay
-  - **Changes to [alienService.ts](server/src/services/alienService.ts) lines 171-203:**
-    - 40% trade behavior (friendly +50 to +150 alignment)
-    - 30% patrol behavior (neutral -50 to +50 alignment)
-    - 20% aggressive behavior (hostile -300 to -150 alignment)
-    - 10% defensive behavior (territorial -100 alignment)
-  - **Database Update:** Updated existing Universe #124 aliens to match new distribution
-  - **Result:** 70% of aliens are now non-hostile, creating strategic choice: attack traders for loot or build relationships
-- ✅ **Documentation Updates:**
-  - Updated [PLAYER_GUIDE.md](PLAYER_GUIDE.md) Part VII: The Alien Question with behavior distribution and strategic choice narrative
-  - Updated [README.md](README.md) alien system section with behavior percentages and alignment details
-  - Updated PROJECT_STATUS.md alien behaviors section with alignment system details
+- ✅ **TW2002-Style Universe Generation (COMPLETE!):**
+  - **Goal:** Match TradeWars 2002's warp range mechanics and improve TerraSpace sizing
+  - **Phase 1 - Constrained Warp Ranges:**
+    - Changed from fully random warps (any sector to any) to TW2002-style ±50-200 sector ranges
+    - Modified [universeService.ts](server/src/services/universeService.ts) `generateWarps()` function (lines 116-152)
+    - Added `WARP_MIN_RANGE = 50` and `WARP_MAX_RANGE = 200` constants
+    - Creates natural trade routes, chokepoints, and strategic territory
+    - Multi-hop travel required for long distances (Sector 1 → 1000 requires ~5-15 hops)
+  - **Phase 2 - Dynamic TerraSpace Sizing:**
+    - Changed from fixed 10 sectors to 2% of universe (minimum 10)
+    - Formula: `Math.max(10, Math.floor(maxSectors * 0.02))`
+    - 1000-sector universe = 20 TerraSpace sectors
+    - 500-sector universe = 10 TerraSpace sectors (minimum)
+    - Updated all references to dynamic `TERRASPACE_END` variable
+  - **Phase 3 - Mars Planet:**
+    - Added Mars at last TerraSpace sector (e.g., Sector 20 for 20-sector TerraSpace)
+    - Owned by Terra Corp, 15,000 colonists, Citadel Level 2
+    - Not claimable by players
+    - Code added after Earth creation in [universeService.ts](server/src/services/universeService.ts) lines 433-455
+  - **Phase 4 - Alien TerraSpace Restrictions:**
+    - Aggressive, patrol, and defensive aliens now **cannot enter TerraSpace**
+    - Trade aliens **can enter** TerraSpace (friendly economy link)
+    - Added `isInTerraSpace()` helper function to [alienService.ts](server/src/services/alienService.ts) lines 8-17
+    - Modified `moveAlienShips()` to filter TerraSpace warps for non-trade aliens (lines 428-446)
+    - Updated aggressive alien player targeting to exclude TerraSpace (lines 453-461)
+  - **Phase 5 - Documentation:**
+    - Updated [README.md](README.md) with warp mechanics, dynamic TerraSpace, Mars, alien restrictions
+    - Updated [PLAYER_GUIDE.md](PLAYER_GUIDE.md) TerraSpace section with scaling info, Mars, alien details
+    - Updated [PLAYER_GUIDE.md](PLAYER_GUIDE.md) Navigation 101 with TW2002-style warp range explanation
+    - Updated PROJECT_STATUS.md with complete implementation details
+  - **Result:** Universe generation now matches TW2002 gameplay feel with locality-based navigation
+  - **Important:** Only affects NEW universe generation—existing universes (like #124) unchanged
+
+- ✅ **Previous Session - Alien Behavior Balancing:**
+  - Implemented weighted behavior distribution (40% trade, 30% patrol, 20% aggressive, 10% defensive)
+  - Added alignment system to alien generation
+  - Updated Universe #124 aliens to match new distribution
 
 **Previous Session (2026-01-09):**
 - ✅ **Alien Ship Movement Bug Fix (CRITICAL!):**

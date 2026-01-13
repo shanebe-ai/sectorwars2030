@@ -5,6 +5,17 @@
 
 import { pool } from '../db/connection';
 
+/**
+ * Check if a sector is in TerraSpace by querying the database
+ */
+async function isInTerraSpace(client: any, universeId: number, sectorNumber: number): Promise<boolean> {
+  const result = await client.query(
+    `SELECT region FROM sectors WHERE universe_id = $1 AND sector_number = $2`,
+    [universeId, sectorNumber]
+  );
+  return result.rows.length > 0 && result.rows[0].region === 'TerraSpace';
+}
+
 // Alien race names
 const ALIEN_RACES = [
   'Xenthi', 'Vorlak', 'Krynn', 'Sslith', 'Zendarr',
@@ -92,17 +103,24 @@ export async function generateAliensForUniverse(config: AlienGenerationConfig): 
       shipCount = planetCount * 3 + Math.floor(Math.random() * planetCount * 2); // 2-5 ships per planet
     }
 
-    // Get available sectors (exclude TerraSpace 1-10, and sectors with ports/planets)
+    // Get TerraSpace size from universe config (2% of sectors, minimum 10)
+    const universeResult = await client.query(`
+      SELECT max_sectors FROM universes WHERE id = $1
+    `, [universeId]);
+    const maxSectors = universeResult.rows[0].max_sectors;
+    const terraSpaceSize = Math.max(10, Math.floor(maxSectors * 0.02));
+
+    // Get available sectors (exclude TerraSpace, and sectors with ports/planets)
     const sectorsResult = await client.query(`
       SELECT sector_number
       FROM sectors
       WHERE universe_id = $1
-        AND sector_number > 10
+        AND sector_number > $2
         AND port_type IS NULL
         AND has_planet = FALSE
       ORDER BY RANDOM()
-      LIMIT $2
-    `, [universeId, planetCount]);
+      LIMIT $3
+    `, [universeId, terraSpaceSize, planetCount]);
 
     const availableSectors = sectorsResult.rows.map(r => r.sector_number);
 
@@ -164,8 +182,8 @@ export async function generateAliensForUniverse(config: AlienGenerationConfig): 
         // 70% chance to start near an alien planet
         startSector = alienPlanets[Math.floor(Math.random() * alienPlanets.length)];
       } else {
-        // Random sector outside TerraSpace
-        startSector = Math.floor(Math.random() * (sectorCount - 10)) + 11;
+        // Random sector outside TerraSpace (use dynamic terraSpaceSize)
+        startSector = Math.floor(Math.random() * (sectorCount - terraSpaceSize)) + terraSpaceSize + 1;
       }
 
       // Choose behavior with weighted distribution
@@ -217,13 +235,15 @@ export async function generateAliensForUniverse(config: AlienGenerationConfig): 
 
       await client.query(`
         INSERT INTO alien_ships (
-          universe_id, sector_number, alien_race, ship_type,
-          behavior, fighters, shields
+          universe_id, sector_number, alien_race, ship_name, ship_type,
+          behavior, fighters, shields, credits, alignment, home_sector,
+          cargo_fuel, cargo_organics, cargo_equipment, current_sector
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       `, [
-        universeId, startSector, race, shipType.name,
-        behavior, fighters, shields
+        universeId, startSector, race, shipName, shipType.name,
+        behavior, fighters, shields, credits, alignment, homeSector,
+        cargoFuel, cargoOrganics, cargoEquipment, startSector
       ]);
 
       console.log(`  ✓ Created alien ship: ${shipName} in sector ${startSector} (${behavior})`);
@@ -414,28 +434,51 @@ export async function moveAlienShips(universeId: number): Promise<void> {
       let nextSector = ship.sector_number;
       const validWarps = warpsResult.rows.map(r => r.destination).filter(s => s !== ship.sector_number);
 
-      if (validWarps.length === 0) continue;
+      // Filter TerraSpace for non-trade aliens (aggressive, patrol, defensive cannot enter TerraSpace)
+      let allowedWarps = validWarps;
+      if (ship.behavior !== 'trade') {
+        // Check each warp destination for TerraSpace region
+        const terraSpaceChecks = await Promise.all(
+          validWarps.map(async (sector) => ({
+            sector,
+            isTerraSpace: await isInTerraSpace(client, universeId, sector)
+          }))
+        );
+
+        // Filter out TerraSpace sectors
+        allowedWarps = terraSpaceChecks
+          .filter(check => !check.isTerraSpace)
+          .map(check => check.sector);
+      }
+
+      // If no valid non-TerraSpace warps, skip movement
+      if (allowedWarps.length === 0) continue;
 
       if (ship.behavior === 'patrol' && ship.home_sector) {
         // Patrol around home sector - stay within 2-3 jumps
-        nextSector = validWarps[Math.floor(Math.random() * validWarps.length)];
+        nextSector = allowedWarps[Math.floor(Math.random() * allowedWarps.length)];
       } else if (ship.behavior === 'aggressive') {
-        // Move toward player-populated sectors (if any nearby)
+        // Move toward player-populated sectors (if any nearby, excluding TerraSpace)
         const playerSectors = await client.query(`
-          SELECT current_sector FROM players
-          WHERE universe_id = $1 AND current_sector = ANY($2::int[]) AND is_alive = true
-        `, [universeId, validWarps]);
+          SELECT p.current_sector
+          FROM players p
+          JOIN sectors s ON s.universe_id = p.universe_id AND s.sector_number = p.current_sector
+          WHERE p.universe_id = $1
+            AND p.current_sector = ANY($2::int[])
+            AND p.is_alive = true
+            AND s.region != 'TerraSpace'
+        `, [universeId, allowedWarps]);
 
         if (playerSectors.rows.length > 0) {
           // Move toward players
           nextSector = playerSectors.rows[0].current_sector;
         } else {
           // Random movement
-          nextSector = validWarps[Math.floor(Math.random() * validWarps.length)];
+          nextSector = allowedWarps[Math.floor(Math.random() * allowedWarps.length)];
         }
       } else {
-        // Random movement for trade/defensive behaviors
-        nextSector = validWarps[Math.floor(Math.random() * validWarps.length)];
+        // Random movement for trade/defensive behaviors (trade can enter TerraSpace, defensive cannot)
+        nextSector = allowedWarps[Math.floor(Math.random() * allowedWarps.length)];
       }
 
       // Update ship position
