@@ -33,7 +33,7 @@
 ## 📋 Feature Audit (2026-01-13)
 
 ### ✅ FULLY IMPLEMENTED & ACCESSIBLE
-**Game UI**: Leaderboard (RANKINGS button), Ship Log (LOG button), Messaging (COMMS button), Corporation (CORP button), Universe Info (INFO button), Player-to-Player Trading (TRADE button), Plot Course, Port Trading, StarDock, Planet Management, Combat System, Alien Trading, Beacon System, Fighter/Mine Deployment, Genesis Torpedoes, Cargo Pickup
+**Game UI**: Leaderboard (RANKINGS button), Ship Log (LOG button), Messaging (COMMS button), Corporation (CORP button), Universe Info (INFO button), Player-to-Player Trading (TRADE button), Player Search (SEARCH button), Plot Course, Port Trading, StarDock, Planet Management, Combat System, Alien Trading, Beacon System, Fighter/Mine Deployment, Genesis Torpedoes, Cargo Pickup
 
 **Categories**: All 4 leaderboard categories (Net Worth, Experience, Kills, Planets) functional with top 50 rankings
 
@@ -41,8 +41,9 @@
 
 **Player Trading System** (Completed 2026-01-13): Cyan TRADE button next to ATTACK on player list. Full trade flow: Create offer → Recipient views in COMMS → Accept/Decline with automatic cargo/credit transfer
 
+**Player Search System** (Completed 2026-02-25): Neon green SEARCH button in the dashboard allows players to search for others in the universe and initiate messaging. AI-driven alien dialogue also integrated alongside this update.
+
 ### ⚠️ IMPLEMENTED BUT NOT ACCESSIBLE
-**Player Search**: Backend route exists (`GET /api/players/search`), no frontend search UI. Players can only message known traders (met in sectors).
 
 **Trade Robbery**: API endpoint exists (`POST /api/trade/rob/:offerId`), no UI to attempt robbery.
 
@@ -55,7 +56,7 @@
 1. ✅ ~~Add Universe Info Panel~~ - **COMPLETED 2026-01-13**
 2. ✅ ~~Fix Trade Accept/Decline~~ - **COMPLETED 2026-01-13**
 3. ✅ ~~Add Trade Offer Button~~ - **COMPLETED 2026-01-13**
-4. **Player Search UI** (2 hours) - Connect to existing `/api/players/search` endpoint
+4. ✅ ~~Player Search UI~~ - **COMPLETED 2026-02-25**
 5. **Mobile Responsive Design** (1-2 weeks) - Touch-friendly buttons, responsive layouts
 
 ## Overview

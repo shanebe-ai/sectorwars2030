@@ -387,6 +387,20 @@ For the cost of one turn, you get complete intel without moving:
 - Avoiding ambushes
 - Finding empty sectors to hide in
 
+### Player Search
+
+Space is big, but you don't have to fly blind. The **Search** function (neon green button on your dashboard) allows you to scan the universe for other active pilots. 
+
+**How it works:**
+- Search by pilot name or corporation
+- View their current known location (if they haven't jammed their signal)
+- Instantly send them a comms message without needing to be in the same sector
+
+**Strategic uses:**
+- Finding trade partners for specific commodities
+- Coordinating with corporate allies across the galaxy
+- Tracking down a pirate who owes you credits
+
 ---
 
 ## 🎯 Ship Progression: From Scraps to Flagship
