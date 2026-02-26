@@ -4,6 +4,12 @@
  */
 
 import { pool } from '../db/connection';
+import {
+  generateEncounterMessage,
+  generateCombatTaunt,
+  generateDeathMessage,
+  generateSectorEntryMessage
+} from './alienDialogueService';
 
 /**
  * Check if a sector is in TerraSpace by querying the database
@@ -516,8 +522,14 @@ export async function moveAlienShips(universeId: number): Promise<void> {
         if (newFighters <= 0) {
           await client.query(`DELETE FROM alien_ships WHERE id = $1`, [ship.id]);
           const { broadcastAlienComms } = require('./broadcastService');
+          // Generate LLM-powered death message
+          const mineDeathMessage = await generateDeathMessage(
+            ship.alien_race,
+            ship.ship_name,
+            'mines'
+          );
           await broadcastAlienComms(universeId, 'combat',
-            `💀 ${ship.alien_race} vessel "${ship.ship_name}" DESTROYED by mines in Sector ${nextSector}!`,
+            `💀 ${mineDeathMessage}`,
             {
               alienRace: ship.alien_race,
               sectorNumber: nextSector
@@ -596,8 +608,14 @@ export async function moveAlienShips(universeId: number): Promise<void> {
             if (ship.fighters <= 0) {
               await client.query(`DELETE FROM alien_ships WHERE id = $1`, [ship.id]);
               const { broadcastAlienComms } = require('./broadcastService');
+              // Generate LLM-powered death message
+              const fighterDeathMessage = await generateDeathMessage(
+                ship.alien_race,
+                ship.ship_name,
+                'fighters'
+              );
               await broadcastAlienComms(universeId, 'combat',
-                `⚔️ ${ship.alien_race} vessel "${ship.ship_name}" DESTROYED by deployed fighters in Sector ${nextSector}!`,
+                `⚔️ ${fighterDeathMessage}`,
                 {
                   alienRace: ship.alien_race,
                   sectorNumber: nextSector
@@ -616,8 +634,15 @@ export async function moveAlienShips(universeId: number): Promise<void> {
       // Broadcast movement to alien comms (only sometimes to avoid spam)
       if (Math.random() < 0.3) { // 30% chance to broadcast movement
         const { broadcastAlienComms } = require('./broadcastService');
+        // Generate LLM-powered alien dialogue
+        const sectorMessage = await generateSectorEntryMessage(
+          ship.alien_race,
+          ship.ship_name,
+          nextSector,
+          ship.behavior
+        );
         await broadcastAlienComms(universeId, 'sector_entry',
-          `${ship.alien_race} vessel "${ship.ship_name}" detected entering Sector ${nextSector}`,
+          sectorMessage,
           {
             alienRace: ship.alien_race,
             sectorNumber: nextSector,
@@ -636,8 +661,15 @@ export async function moveAlienShips(universeId: number): Promise<void> {
 
       for (const player of playersInSector.rows) {
         const { broadcastAlienComms } = require('./broadcastService');
+        // Generate LLM-powered encounter dialogue
+        const encounterMessage = await generateEncounterMessage(
+          ship.alien_race,
+          ship.ship_name,
+          nextSector,
+          player.username
+        );
         await broadcastAlienComms(universeId, 'encounter',
-          `Encounter detected: ${player.username} (${player.corp_name || 'Independent'}) and ${ship.ship_name} in Sector ${nextSector}`,
+          encounterMessage,
           {
             alienRace: ship.alien_race,
             sectorNumber: nextSector,
@@ -995,8 +1027,15 @@ export async function attackAlienShip(
       const { broadcastAlienComms } = require('./broadcastService');
 
       if (combatResult.alienDestroyed) {
+        // Generate LLM-powered death message
+        const deathMessage = await generateDeathMessage(
+          alien.alien_race,
+          alien.ship_name,
+          'combat',
+          player.username
+        );
         await broadcastAlienComms(alien.universe_id, 'combat',
-          `⚠️ ALERT: ${alien.alien_race} vessel "${alien.ship_name}" destroyed by ${player.username} in Sector ${player.current_sector}!`,
+          `⚠️ ${deathMessage}`,
           {
             alienRace: alien.alien_race,
             sectorNumber: player.current_sector,
@@ -1005,8 +1044,15 @@ export async function attackAlienShip(
           }
         );
       } else if (combatResult.playerDestroyed) {
+        // Generate LLM-powered victory taunt
+        const victoryMessage = await generateCombatTaunt(
+          alien.alien_race,
+          alien.ship_name,
+          player.username,
+          'winning'
+        );
         await broadcastAlienComms(alien.universe_id, 'combat',
-          `🎯 ${alien.alien_race} vessel "${alien.ship_name}" repelled attack by ${player.username} in Sector ${player.current_sector}`,
+          `🎯 ${victoryMessage}`,
           {
             alienRace: alien.alien_race,
             sectorNumber: player.current_sector,

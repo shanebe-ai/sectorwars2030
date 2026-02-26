@@ -5,6 +5,7 @@ import ShipLogPanel from './ShipLogPanel';
 import CorporationPanel from './CorporationPanel';
 import LeaderboardPanel from './LeaderboardPanel';
 import UniverseInfoPanel from './UniverseInfoPanel';
+import PlayerSearchPanel from './PlayerSearchPanel';
 import CombatNotification from './CombatNotification';
 import { API_URL } from '../config/api';
 import { useSocketNotifications } from '../hooks/useSocketNotifications';
@@ -22,6 +23,7 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
   const [showCorporation, setShowCorporation] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showUniverseInfo, setShowUniverseInfo] = useState(false);
+  const [showPlayerSearch, setShowPlayerSearch] = useState(false);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [unreadLogCount, setUnreadLogCount] = useState(0);
   const [loginNotification, setLoginNotification] = useState<any>(null);
@@ -386,6 +388,17 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
               )}
             </button>
             <button
+              onClick={() => setShowPlayerSearch(true)}
+              className="cyberpunk-button"
+              style={{
+                background: 'rgba(0, 255, 0, 0.1)',
+                borderColor: 'var(--neon-green)',
+                color: 'var(--neon-green)'
+              }}
+            >
+              🔍 SEARCH
+            </button>
+            <button
               onClick={() => setShowCorporation(true)}
               className="cyberpunk-button"
               style={{
@@ -565,6 +578,20 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
           universeId={player.universeId}
           token={token}
           onClose={() => setShowUniverseInfo(false)}
+        />
+      )}
+
+      {showPlayerSearch && (
+        <PlayerSearchPanel
+          token={token}
+          universeId={player.universeId}
+          onClose={() => setShowPlayerSearch(false)}
+          onMessagePlayer={(playerId, username) => {
+            setShowPlayerSearch(false);
+            setShowMessaging(true);
+            // Note: MessagingPanel would need to support pre-filling recipient
+            // For now, just open the messaging panel
+          }}
         />
       )}
 

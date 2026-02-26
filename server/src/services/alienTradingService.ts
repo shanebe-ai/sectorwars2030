@@ -6,6 +6,7 @@
 
 import { pool } from '../db/connection';
 import { AlienTradeOffer, AlienTradeHistory } from '../../../shared/types';
+import { generateTradeGreeting, generateRobberyResponse } from './alienDialogueService';
 
 // Import emitPlayerEvent for WebSocket notifications
 let emitPlayerEvent: ((playerId: number, event: string, data: any) => void) | null = null;
@@ -167,12 +168,20 @@ export async function generateTradeOffer(
 
     const offer = mapTradeOfferFromDb(result.rows[0], alien);
 
-    // Emit WebSocket event to notify player
+    // Emit WebSocket event to notify player with LLM-generated greeting
     try {
       const emit = await getEmitPlayerEvent();
+      // Generate an LLM-powered trade greeting
+      const greeting = await generateTradeGreeting(
+        alien.alien_race,
+        alien.ship_name,
+        commodity,
+        offerAmount
+      );
       emit(playerId, 'alien_trade_offer', {
         offer,
-        message: `${alien.alien_race} trader offers ${offerAmount} ${commodity} for ₡${totalCredits}`
+        message: `${alien.alien_race} trader offers ${offerAmount} ${commodity} for ₡${totalCredits}`,
+        greeting: greeting
       });
     } catch (wsError) {
       console.error('Error emitting trade offer event:', wsError);
