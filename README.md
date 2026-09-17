@@ -1,11 +1,27 @@
 # TradeWars 2030
 
-A modern web-based multiplayer space trading game featuring ASCII art, cyberpunk aesthetics, and turn-based gameplay.
+A modern, real-time browser game inspired by TradeWars 2002, with React clients, a Node/Express server, PostgreSQL persistence, Socket.io multiplayer state, authentication, an admin application, and AI-assisted dialogue.
+
+## Product tour
+
+Screenshots and a short gameplay demo are planned. Useful views to capture are the main game map, trading or combat flow, multiplayer interaction, and the admin console.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  U[Player] --> C[React client]
+  A[Administrator] --> D[React admin]
+  C --> S[Node / Express / Socket.io]
+  D --> S
+  S --> P[PostgreSQL]
+  S --> E[AI dialogue provider]
+```
 
 ## Project Structure
 
 ```
-/home/helloai/
+tradewars2030/
 ├── client/          # Player frontend (React + Vite + TypeScript)
 ├── admin/           # Admin panel (React + Vite + TypeScript)
 ├── server/          # Backend API (Node.js + Express + TypeScript)
