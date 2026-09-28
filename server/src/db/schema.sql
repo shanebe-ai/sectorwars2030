@@ -233,6 +233,7 @@ CREATE TABLE combat_log (
   credits_looted BIGINT DEFAULT 0,
   cargo_looted JSONB,
   combat_details JSONB,
+  notification_seen BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -388,12 +389,19 @@ CREATE TABLE sector_cargo (
   id SERIAL PRIMARY KEY,
   universe_id INTEGER REFERENCES universes(id) ON DELETE CASCADE,
   sector_number INTEGER NOT NULL,
-  cargo_type VARCHAR(20) NOT NULL, -- 'fuel', 'organics', 'equipment'
-  quantity INTEGER NOT NULL,
+  fuel INTEGER DEFAULT 0,
+  organics INTEGER DEFAULT 0,
+  equipment INTEGER DEFAULT 0,
+  colonists INTEGER DEFAULT 0,
+  source_event VARCHAR(50), -- 'combat', 'jettison', 'wreckage'
+  source_player_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  expires_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '24 hours'),
-  UNIQUE(universe_id, sector_number, cargo_type)
+  expires_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '24 hours')
 );
+
+CREATE INDEX idx_sector_cargo_universe ON sector_cargo(universe_id);
+CREATE INDEX idx_sector_cargo_sector ON sector_cargo(universe_id, sector_number);
+CREATE INDEX idx_sector_cargo_expires ON sector_cargo(expires_at);
 
 -- ============================================================================
 -- BEACON SYSTEM (from migration 013)
