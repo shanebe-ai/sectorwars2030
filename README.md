@@ -4,7 +4,23 @@ A modern, real-time browser game inspired by TradeWars 2002, with React clients,
 
 ## Product tour
 
-Screenshots and a short gameplay demo are planned. Useful views to capture are the main game map, trading or combat flow, multiplayer interaction, and the admin console.
+Screenshots from a local demo run (200-sector universe, September 2026).
+
+**Login** — cyberpunk-styled entry point for pilots.
+
+![TradeWars 2030 login screen](docs/screenshots/shot-1-login.png)
+
+**In-game dashboard** — ship status, cargo manifest, and sector overview for the active corporation.
+
+![TradeWars 2030 in-game dashboard](docs/screenshots/shot-3-dashboard.png)
+
+**Sector view during play** — sector scan with warp connections, planets in sector (Earth, owned by Terra Corp), and ships present.
+
+![TradeWars 2030 sector view during play](docs/screenshots/shot-4-sector-space.png)
+
+**Admin panel** — create and manage universes without touching SQL.
+
+![TradeWars 2030 admin panel](docs/screenshots/shot-5-admin.png)
 
 ## Architecture
 
