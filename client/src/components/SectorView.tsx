@@ -163,9 +163,10 @@ interface SectorViewProps {
   player: PlayerData;
   onSectorChange: (player: any) => void;
   refreshKey?: number; // Increment to force sector reload
+  onPlayerUpdate?: () => void; // Optional hook to refresh player data (e.g. after mine damage)
 }
 
-export default function SectorView({ currentSector, token, currentPlayerId, player, onSectorChange, refreshKey }: SectorViewProps) {
+export default function SectorView({ currentSector, token, currentPlayerId, player, onSectorChange, refreshKey, onPlayerUpdate }: SectorViewProps) {
   const [sector, setSector] = useState<Sector | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -2490,7 +2491,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
           )}
 
           {/* Launch Genesis Button */}
-          {sector.region !== 'TerraSpace' && !sector.planet && !sector.port && (player as any).shipGenesis > 0 && (
+          {sector.region !== 'TerraSpace' && !sector.hasPlanet && !sector.hasPort && (player as any).shipGenesis > 0 && (
             <div style={{ marginBottom: '15px' }}>
               <button
                 onClick={handleLaunchGenesis}

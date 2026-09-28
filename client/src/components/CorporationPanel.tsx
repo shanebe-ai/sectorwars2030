@@ -55,7 +55,7 @@ export default function CorporationPanel({ token, onClose, playerId, corpId, cor
   // Autocomplete
   const [searchResults, setSearchResults] = useState<PlayerSearchResult[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [searchTimeout, setSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
 
   // Confirmation dialogs
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
@@ -315,9 +315,9 @@ export default function CorporationPanel({ token, onClose, playerId, corpId, cor
     }
   };
 
-  const canInvite = corporation?.members.find(m => m.playerId === playerId)?.rank in { founder: 1, officer: 1 };
-  const isFounder = corporation?.members.find(m => m.playerId === playerId)?.rank === 'founder';
   const myRank = corporation?.members.find(m => m.playerId === playerId)?.rank;
+  const canInvite = myRank === 'founder' || myRank === 'officer';
+  const isFounder = myRank === 'founder';
 
   // Not in a corporation
   if (!corpId || !corpName) {

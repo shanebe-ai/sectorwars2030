@@ -20,7 +20,7 @@ export default function PlayerSearchPanel({ token, universeId, onClose, onMessag
   const [searchResults, setSearchResults] = useState<PlayerSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [searchTimeout, setSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Focus input on mount

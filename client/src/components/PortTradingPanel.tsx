@@ -487,7 +487,6 @@ export default function PortTradingPanel({
                       }));
                     }}
                     onFocus={(e) => e.target.select()}
-                    placeholder="0"
                     style={{
                       flex: 1,
                       padding: '10px',

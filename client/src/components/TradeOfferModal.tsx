@@ -6,6 +6,7 @@
  */
 
 import React, { useState } from 'react';
+import { API_URL } from '../config/api';
 
 interface TradeOfferModalProps {
   playerId: number;
@@ -70,7 +71,7 @@ const TradeOfferModal: React.FC<TradeOfferModalProps> = ({
     setSuccess('');
 
     try {
-      const response = await fetch('http://localhost:3000/api/player-trading/create', {
+      const response = await fetch(`${API_URL}/api/player-trading/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

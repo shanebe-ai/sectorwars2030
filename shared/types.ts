@@ -222,7 +222,7 @@ export interface WsPortUpdate {
 }
 
 // Message types
-export type MessageType = 'DIRECT' | 'BROADCAST' | 'CORPORATE';
+export type MessageType = 'DIRECT' | 'BROADCAST' | 'CORPORATE' | 'corp_invite';
 
 export interface Message {
   id: number;
@@ -467,6 +467,7 @@ export interface AlienCommunication {
 export interface AlienCommsResponse {
   unlocked: boolean;
   communications: AlienCommunication[];
+  error?: string;
 }
 
 // Alien Trading types

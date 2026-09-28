@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect } from 'react';
 import type { PlayerTradeOffer } from '../../../shared/types';
+import { API_URL } from '../config/api';
 
 interface TradeOutboxProps {
   playerId: number;
@@ -32,7 +33,7 @@ const TradeOutbox: React.FC<TradeOutboxProps> = ({
     setError('');
 
     try {
-      const response = await fetch(`http://localhost:3000/api/player-trading/outbox/${playerId}`, {
+      const response = await fetch(`${API_URL}/api/player-trading/outbox/${playerId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -81,7 +82,7 @@ const TradeOutbox: React.FC<TradeOutboxProps> = ({
     setResult(null);
 
     try {
-      const response = await fetch(`http://localhost:3000/api/player-trading/cancel/${offerId}`, {
+      const response = await fetch(`${API_URL}/api/player-trading/cancel/${offerId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

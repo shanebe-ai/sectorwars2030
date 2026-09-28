@@ -39,7 +39,9 @@ const httpServer = createServer(app);
 
 // CORS allowed origins - support localhost and network access
 // Keep in sync with any externally exposed host/port used by clients
-const allowedOrigins = [
+// CORS_ORIGIN_CLIENT / CORS_ORIGIN_ADMIN override for deployments;
+// localhost dev defaults are always kept as a fallback.
+const defaultOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:5175',
@@ -51,6 +53,12 @@ const allowedOrigins = [
   // add bare-IP without port to allow socket probing from default origins
   'http://37.27.80.77',
 ];
+
+const allowedOrigins = Array.from(new Set([
+  ...(process.env.CORS_ORIGIN_CLIENT ? [process.env.CORS_ORIGIN_CLIENT] : []),
+  ...(process.env.CORS_ORIGIN_ADMIN ? [process.env.CORS_ORIGIN_ADMIN] : []),
+  ...defaultOrigins,
+]));
 
 const io = new Server(httpServer, {
   cors: {

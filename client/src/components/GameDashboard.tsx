@@ -586,7 +586,7 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
           token={token}
           universeId={player.universeId}
           onClose={() => setShowPlayerSearch(false)}
-          onMessagePlayer={(playerId, username) => {
+          onMessagePlayer={() => {
             setShowPlayerSearch(false);
             setShowMessaging(true);
             // Note: MessagingPanel would need to support pre-filling recipient

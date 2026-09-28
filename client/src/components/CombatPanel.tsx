@@ -64,7 +64,6 @@ interface CombatPanelProps {
 export default function CombatPanel({ 
   target, 
   token, 
-  currentPlayerId,
   onClose, 
   onCombatComplete 
 }: CombatPanelProps) {
@@ -130,8 +129,6 @@ export default function CombatPanel({
 
   // Get current round stats for display
   const currentRound = combatResult?.combatLog[displayedRound - 1];
-  const initialAttackerFighters = combatResult?.combatLog[0]?.attackerFighters || 0;
-  const initialDefenderFighters = combatResult?.combatLog[0]?.defenderFighters || 0;
 
   return (
     <div style={{

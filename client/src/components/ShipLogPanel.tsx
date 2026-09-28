@@ -533,13 +533,13 @@ export const ShipLogPanel: React.FC<ShipLogPanelProps> = ({ token, onClose, onUn
                       }}>
                         {getLogDescription(log)}
                       </div>
-                      {log.sector_name && log.log_type !== 'SOL' && (
+                      {log.log_type !== 'SOL' && (
                         <div style={{ 
                           color: 'var(--text-secondary)', 
                           fontSize: '12px',
                           marginTop: '2px' 
                         }}>
-                          {log.sector_name}
+                          Sector {log.sector_number}
                         </div>
                       )}
                     </div>

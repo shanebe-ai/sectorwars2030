@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect } from 'react';
 import type { PlayerTradeOffer } from '../../../shared/types';
+import { API_URL } from '../config/api';
 
 interface TradeInboxProps {
   playerId: number;
@@ -43,7 +44,7 @@ const TradeInbox: React.FC<TradeInboxProps> = ({
     setError('');
 
     try {
-      const response = await fetch(`http://localhost:3000/api/player-trading/inbox/${playerId}`, {
+      const response = await fetch(`${API_URL}/api/player-trading/inbox/${playerId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -89,7 +90,7 @@ const TradeInbox: React.FC<TradeInboxProps> = ({
     setCombatResult(null);
 
     try {
-      const response = await fetch(`http://localhost:3000/api/player-trading/accept/${offerId}`, {
+      const response = await fetch(`${API_URL}/api/player-trading/accept/${offerId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -127,7 +128,7 @@ const TradeInbox: React.FC<TradeInboxProps> = ({
     setCombatResult(null);
 
     try {
-      const response = await fetch(`http://localhost:3000/api/player-trading/rob/${offerId}`, {
+      const response = await fetch(`${API_URL}/api/player-trading/rob/${offerId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -168,7 +169,7 @@ const TradeInbox: React.FC<TradeInboxProps> = ({
     setResult(null);
 
     try {
-      const response = await fetch(`http://localhost:3000/api/player-trading/cancel/${offerId}`, {
+      const response = await fetch(`${API_URL}/api/player-trading/cancel/${offerId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
