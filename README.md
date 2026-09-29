@@ -6,19 +6,19 @@ A modern, real-time browser game inspired by TradeWars 2002, with React clients,
 
 Screenshots from a local demo run (200-sector universe, September 2026).
 
-**Login** — cyberpunk-styled entry point for pilots.
+**Login**: cyberpunk-styled entry point for pilots.
 
 ![TradeWars 2030 login screen](docs/screenshots/shot-1-login.png)
 
-**In-game dashboard** — ship status, cargo manifest, and sector overview for the active corporation.
+**In-game dashboard**: ship status, cargo manifest, and sector overview for the active corporation.
 
 ![TradeWars 2030 in-game dashboard](docs/screenshots/shot-3-dashboard.png)
 
-**Sector view during play** — sector scan with warp connections, planets in sector (Earth, owned by Terra Corp), and ships present.
+**Sector view during play**: sector scan with warp connections, planets in sector (Earth, owned by Terra Corp), and ships present.
 
 ![TradeWars 2030 sector view during play](docs/screenshots/shot-4-sector-space.png)
 
-**Admin panel** — create and manage universes without touching SQL.
+**Admin panel**: create and manage universes without touching SQL.
 
 ![TradeWars 2030 admin panel](docs/screenshots/shot-5-admin.png)
 
@@ -47,18 +47,18 @@ tradewars2030/
 ## Tech Stack
 
 ### Frontend (Client & Admin)
-- **React 19** - UI framework
-- **TypeScript** - Type safety
-- **Vite** - Build tool and dev server
-- **CSS** - Cyberpunk-themed styling with ASCII art
+- **React 19**: UI framework
+- **TypeScript**: Type safety
+- **Vite**: Build tool and dev server
+- **CSS**: Cyberpunk-themed styling with ASCII art
 
 ### Backend (Server)
-- **Node.js + Express** - REST API server
-- **TypeScript** - Type-safe backend code
-- **Socket.io** - Real-time WebSocket communication
-- **PostgreSQL** - Robust relational database
-- **JWT** - Authentication
-- **bcrypt** - Password hashing
+- **Node.js + Express**: REST API server
+- **TypeScript**: Type-safe backend code
+- **Socket.io**: Real-time WebSocket communication
+- **PostgreSQL**: Robust relational database
+- **JWT**: Authentication
+- **bcrypt**: Password hashing
 
 ## Getting Started
 
@@ -119,46 +119,46 @@ Admin panel runs on http://localhost:5174
 ## Database Schema
 
 ### Core Tables
-- **users** - Player accounts and authentication
-- **universes** - Game universe configurations
-- **players** - Player game state (ships, cargo, credits, turns)
-- **sectors** - Universe sectors with ports and connections
-- **sector_warps** - Warp connections between sectors
-- **planets** - Player-owned planets
-- **ship_types** - Available ship configurations
-- **corporations** - Team/alliance system
-- **game_events** - Historical event log
-- **combat_log** - Combat history
-- **alien_planets** - Alien planet locations and details
-- **alien_ships** - Alien ship configurations and positions
-- **alien_communications** - Alien message history
-- **player_alien_unlocks** - Tracks which players have unlocked alien comms
+- **users**: Player accounts and authentication
+- **universes**: Game universe configurations
+- **players**: Player game state (ships, cargo, credits, turns)
+- **sectors**: Universe sectors with ports and connections
+- **sector_warps**: Warp connections between sectors
+- **planets**: Player-owned planets
+- **ship_types**: Available ship configurations
+- **corporations**: Team/alliance system
+- **game_events**: Historical event log
+- **combat_log**: Combat history
+- **alien_planets**: Alien planet locations and details
+- **alien_ships**: Alien ship configurations and positions
+- **alien_communications**: Alien message history
+- **player_alien_unlocks**: Tracks which players have unlocked alien comms
 
 See [server/src/db/schema.sql](server/src/db/schema.sql) for complete schema.
 
 ## Game Features
 
 ### Core Game Mechanics
-- **Turn-based gameplay** - Limited turns per day with automatic regeneration
-- **Turn regeneration** - Turns restore gradually over time (turns_per_day / 24 per hour)
-- **Space trading** - Buy/sell fuel, organics, equipment at ports
-- **Port types** - 8 port configurations for strategic trading routes
-- **Ship progression** - 10 ships from Escape Pod to Dreadnought
-- **TW2002-style warp ranges** - Constrained warp destinations (±50-200 sectors) create natural trade routes and strategic territory
-- **Warp drive misfire** - 0.25% chance of malfunction sending you to a random sector
-- **TerraSpace safe zone** - Protected starting area (2% of universe, minimum 10 sectors) where aggressive aliens cannot enter
-- **Plot Course** - Auto-navigation with smart pause at points of interest
-- **Ship communications** - Direct messages, broadcasts, and corporate chat
-- **Combat system** - Attack players and aliens (1 turn, 75% loot, 25% death penalty)
-- **Planets** - ~30 claimable planets per universe, colonize and produce resources
+- **Turn-based gameplay**: Limited turns per day with automatic regeneration
+- **Turn regeneration**: Turns restore gradually over time (turns_per_day / 24 per hour)
+- **Space trading**: Buy/sell fuel, organics, equipment at ports
+- **Port types**: 8 port configurations for strategic trading routes
+- **Ship progression**: 10 ships from Escape Pod to Dreadnought
+- **TW2002-style warp ranges**: Constrained warp destinations (±50-200 sectors) create natural trade routes and strategic territory
+- **Warp drive misfire**: 0.25% chance of malfunction sending you to a random sector
+- **TerraSpace safe zone**: Protected starting area (2% of universe, minimum 10 sectors) where aggressive aliens cannot enter
+- **Plot Course**: Auto-navigation with smart pause at points of interest
+- **Ship communications**: Direct messages, broadcasts, and corporate chat
+- **Combat system**: Attack players and aliens (1 turn, 75% loot, 25% death penalty)
+- **Planets**: ~30 claimable planets per universe, colonize and produce resources
   - Earth (Sol, Sector 1) and Mars (last TerraSpace sector) owned by Terra Corp
   - Citadel defense system (6 levels with production bonuses)
   - Resource production based on colonist population
   - Fighter deployment and credit treasury
-- **Banking System** - StarDock-based banking with personal and corporate accounts
+- **Banking System**: StarDock-based banking with personal and corporate accounts
   - 5% withdrawal fee, 25% bank balance lost on death
   - Corporate withdrawal limits by rank
-- **Alien System** - NPC adversaries with AI behaviors
+- **Alien System**: NPC adversaries with AI behaviors
   - Alien planets scale with universe size (0.3% formula for 1000+ sectors)
   - Alien ships with balanced behavior distribution (40% trade, 30% patrol, 20% aggressive, 10% defensive)
   - Alignment system affects alien interactions: traders are friendly, raiders are hostile
@@ -166,26 +166,26 @@ See [server/src/db/schema.sql](server/src/db/schema.sql) for complete schema.
   - Alien communications channel (read-only), unlocked after visiting an alien planet
   - Alien ships move and attack automatically via game tick system
   - Combat with aliens for credits and cargo (strategic choice: attack traders or build relationships)
-- **Corporations** - Form alliances with other players
+- **Corporations**: Form alliances with other players
   - Ranks: Founder, Officer, Member
   - Invite system, kick members, promote/demote
   - Corporate chat channel for alliance coordination
-- **Territory control** - Deploy fighters and mines
+- **Territory control**: Deploy fighters and mines
   - Fighter maintenance: ₡5/fighter/day
   - Mines: ₡10,000 each, 75-225 damage per explosion
   - Beacons: Personal markers with custom messages
-- **Genesis Torpedoes** - Create new planets anywhere (₡50,000 each)
-- **Ship Log** - Auto-logging of discoveries (ports, planets, StarDocks, dead-ends)
+- **Genesis Torpedoes**: Create new planets anywhere (₡50,000 each)
+- **Ship Log**: Auto-logging of discoveries (ports, planets, StarDocks, dead-ends)
 
 ### Modern Enhancements
-- **Web-based interface** - Accessible from any browser
-- **Real-time updates** - See other players' actions via WebSockets
+- **Web-based interface**: Accessible from any browser
+- **Real-time updates**: See other players' actions via WebSockets
   - Player movement, combat, trading, planet colonization
   - Alien encounters and communications
   - Genesis torpedo launches, beacon messages
-- **Cyberpunk aesthetics** - Neon colors and ASCII art
-- **Admin panel** - Configure universes without SQL
-- **Responsive design** - Play on desktop or mobile
+- **Cyberpunk aesthetics**: Neon colors and ASCII art
+- **Admin panel**: Configure universes without SQL
+- **Responsive design**: Play on desktop or mobile
 
 ## Port Types
 
@@ -195,14 +195,14 @@ Each letter represents commodity availability:
 
 Format: `[Fuel][Organics][Equipment]`
 
-- **BBS** - Buys Fuel, Buys Organics, Sells Equipment
-- **BSB** - Buys Fuel, Sells Organics, Buys Equipment
-- **SBB** - Sells Fuel, Buys Organics, Buys Equipment
-- **SSB** - Sells Fuel, Sells Organics, Buys Equipment
-- **SBS** - Sells Fuel, Buys Organics, Sells Equipment
-- **BSS** - Buys Fuel, Sells Organics, Sells Equipment
-- **SSS** - Sells all commodities (rare)
-- **BBB** - Buys all commodities (rare)
+- **BBS**: Buys Fuel, Buys Organics, Sells Equipment
+- **BSB**: Buys Fuel, Sells Organics, Buys Equipment
+- **SBB**: Sells Fuel, Buys Organics, Buys Equipment
+- **SSB**: Sells Fuel, Sells Organics, Buys Equipment
+- **SBS**: Sells Fuel, Buys Organics, Sells Equipment
+- **BSS**: Buys Fuel, Sells Organics, Sells Equipment
+- **SSS**: Sells all commodities (rare)
+- **BBB**: Buys all commodities (rare)
 
 ## Development Roadmap
 
@@ -227,8 +227,8 @@ Format: `[Fuel][Organics][Equipment]`
   - [x] Credits and sector placement
   - [x] Reserved corporation names (Terra Corp)
 - [x] **Sector Navigation System**
-  - [x] GET /api/sectors/:sectorNumber - Sector details with warps
-  - [x] POST /api/sectors/move - Move player between sectors
+  - [x] GET /api/sectors/:sectorNumber: sector details with warps
+  - [x] POST /api/sectors/move: move player between sectors
   - [x] Turn consumption (1 turn per move)
   - [x] Bidirectional warp connections
   - [x] SectorView component with ASCII art
@@ -236,8 +236,8 @@ Format: `[Fuel][Organics][Equipment]`
   - [x] Visited sector tracking with visual indicators
   - [x] Previous sector navigation (◄ marker)
 - [x] **Port Trading System**
-  - [x] GET /api/ports/:sectorNumber - Port details and prices
-  - [x] POST /api/ports/trade - Buy/sell commodities
+  - [x] GET /api/ports/:sectorNumber: port details and prices
+  - [x] POST /api/ports/trade: buy/sell commodities
   - [x] Dynamic pricing based on port percentage
   - [x] PortTradingPanel with cyberpunk UI
   - [x] Cargo manifest display
@@ -263,7 +263,7 @@ Format: `[Fuel][Organics][Equipment]`
   - [x] Corporate account withdrawal limits (founder/officer/member tiers)
   - [x] Ship cost database fixes
 - [x] **UI Improvements**
-  - [x] No browser popups (prompt/alert/confirm) - all interactions use UI modals
+  - [x] No browser popups (prompt/alert/confirm). All interactions use UI modals
   - [x] Real-time ship status updates (fighters update immediately on deploy/retrieve)
   - [x] Fighter maintenance cost warnings in deployment UI
 - [x] **Alien System (2025-12-02, updated 2026-01-12)**
@@ -304,10 +304,10 @@ npm run test:coverage # With coverage report
 
 ## Documentation
 
-- **PROJECT_STATUS.md** - Detailed development status and session context
-- **MANUAL_TESTING_GUIDE.md** - Comprehensive manual testing procedures
-- **IDEAS.md** - Brainstorming and future feature ideas
-- **server/DATABASE_SETUP.md** - Database configuration guide
+- **PROJECT_STATUS.md**: Detailed development status and session context
+- **MANUAL_TESTING_GUIDE.md**: Comprehensive manual testing procedures
+- **IDEAS.md**: Brainstorming and future feature ideas
+- **server/DATABASE_SETUP.md**: Database configuration guide
 
 ## License
 
@@ -315,4 +315,4 @@ MIT
 
 ## Credits
 
-Inspired by TradeWars 2002 by Gary Martin - the legendary BBS space trading game that defined the genre.
+Inspired by TradeWars 2002 by Gary Martin, the legendary BBS space trading game that defined the genre.
