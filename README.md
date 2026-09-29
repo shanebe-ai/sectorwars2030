@@ -6,19 +6,19 @@ A modern, real-time browser game inspired by TradeWars 2002, with React clients,
 
 Screenshots from a local demo run (200-sector universe, September 2026).
 
-**Login** — cyberpunk-styled entry point for pilots.
+**Login**: cyberpunk-styled entry point for pilots.
 
 ![TradeWars 2030 login screen](docs/screenshots/shot-1-login.png)
 
-**In-game dashboard** — ship status, cargo manifest, and sector overview for the active corporation.
+**In-game dashboard**: ship status, cargo manifest, and sector overview for the active corporation.
 
 ![TradeWars 2030 in-game dashboard](docs/screenshots/shot-3-dashboard.png)
 
-**Sector view during play** — sector scan with warp connections, planets in sector (Earth, owned by Terra Corp), and ships present.
+**Sector view during play**: sector scan with warp connections, planets in sector (Earth, owned by Terra Corp), and ships present.
 
 ![TradeWars 2030 sector view during play](docs/screenshots/shot-4-sector-space.png)
 
-**Admin panel** — create and manage universes without touching SQL.
+**Admin panel**: create and manage universes without touching SQL.
 
 ![TradeWars 2030 admin panel](docs/screenshots/shot-5-admin.png)
 
@@ -227,8 +227,8 @@ Format: `[Fuel][Organics][Equipment]`
   - [x] Credits and sector placement
   - [x] Reserved corporation names (Terra Corp)
 - [x] **Sector Navigation System**
-  - [x] GET /api/sectors/:sectorNumber - Sector details with warps
-  - [x] POST /api/sectors/move - Move player between sectors
+  - [x] GET /api/sectors/:sectorNumber: sector details with warps
+  - [x] POST /api/sectors/move: move player between sectors
   - [x] Turn consumption (1 turn per move)
   - [x] Bidirectional warp connections
   - [x] SectorView component with ASCII art
@@ -236,8 +236,8 @@ Format: `[Fuel][Organics][Equipment]`
   - [x] Visited sector tracking with visual indicators
   - [x] Previous sector navigation (◄ marker)
 - [x] **Port Trading System**
-  - [x] GET /api/ports/:sectorNumber - Port details and prices
-  - [x] POST /api/ports/trade - Buy/sell commodities
+  - [x] GET /api/ports/:sectorNumber: port details and prices
+  - [x] POST /api/ports/trade: buy/sell commodities
   - [x] Dynamic pricing based on port percentage
   - [x] PortTradingPanel with cyberpunk UI
   - [x] Cargo manifest display
@@ -263,7 +263,7 @@ Format: `[Fuel][Organics][Equipment]`
   - [x] Corporate account withdrawal limits (founder/officer/member tiers)
   - [x] Ship cost database fixes
 - [x] **UI Improvements**
-  - [x] No browser popups (prompt/alert/confirm) - all interactions use UI modals
+  - [x] No browser popups (prompt/alert/confirm). All interactions use UI modals
   - [x] Real-time ship status updates (fighters update immediately on deploy/retrieve)
   - [x] Fighter maintenance cost warnings in deployment UI
 - [x] **Alien System (2025-12-02, updated 2026-01-12)**
@@ -315,4 +315,4 @@ MIT
 
 ## Credits
 
-Inspired by TradeWars 2002 by Gary Martin - the legendary BBS space trading game that defined the genre.
+Inspired by TradeWars 2002 by Gary Martin, the legendary BBS space trading game that defined the genre.
