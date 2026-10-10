@@ -2,10 +2,14 @@ import { useState, useEffect } from 'react';
 import Login from './components/Login';
 import PlayerInitialization from './components/PlayerInitialization';
 import GameDashboard from './components/GameDashboard';
+import { ThemeProvider } from './themes/ThemeContext';
+import TerminalShell from './components/bbs/TerminalShell';
+import ThemeToggle from './components/bbs/ThemeToggle';
 import { API_URL } from './config/api';
 import './App.css';
+import './styles/bbs-terminal.css';
 
-function App() {
+function AppContent() {
   const [user, setUser] = useState<any>(null);
   const [token, setToken] = useState<string>('');
   const [player, setPlayer] = useState<any>(null);
@@ -105,6 +109,17 @@ function App() {
       token={token}
       onLogout={handleLogout}
     />
+  );
+}
+
+function App() {
+  return (
+    <ThemeProvider>
+      <TerminalShell>
+        <ThemeToggle />
+        <AppContent />
+      </TerminalShell>
+    </ThemeProvider>
   );
 }
 

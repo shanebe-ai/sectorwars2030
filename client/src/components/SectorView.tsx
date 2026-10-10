@@ -5,6 +5,9 @@ import StarDockPanel from './StarDockPanel';
 import CombatPanel from './CombatPanel';
 import AlienTradePanel from './AlienTradePanel';
 import TradeOfferModal from './TradeOfferModal';
+import SectorDisplay from './bbs/SectorDisplay';
+import { useTheme } from '../themes/ThemeContext';
+import { playWarp, playAlert, playHit } from '../audio/retroSfx';
 import { API_URL } from '../config/api';
 import { useAutoScroll } from '../hooks/useAutoScroll';
 
@@ -167,6 +170,7 @@ interface SectorViewProps {
 }
 
 export default function SectorView({ currentSector, token, currentPlayerId, player, onSectorChange, refreshKey, onPlayerUpdate }: SectorViewProps) {
+  const { theme } = useTheme();
   const [sector, setSector] = useState<Sector | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -411,6 +415,8 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
       const data = await response.json();
 
       if (response.ok) {
+        // Play warp sound on successful sector move
+        if (theme === 'bbs') playWarp();
         // Check for warp misfire
         if (data.misfired && data.misfireMessage) {
           setMisfireAlert(data.misfireMessage);
@@ -428,6 +434,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
             shieldsLost: data.mineResult.shieldsLost || 0,
             fightersLost: data.mineResult.fightersLost || 0
           });
+          if (theme === 'bbs') playAlert();
         }
         // Update parent with new player data
         onSectorChange(data.player);
@@ -1081,6 +1088,10 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
 
       if (response.ok) {
         setAlienCombatResult(data);
+        if (theme === 'bbs') {
+          if (data.combat?.winner === 'player') playHit();
+          else playAlert();
+        }
         // Don't refresh player or sector immediately - wait for user to close combat panel
         // This prevents the screen from refreshing when player is destroyed and respawns elsewhere
       } else {
@@ -1254,6 +1265,13 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
       <div className="panel-header">
         ► SECTOR {sector.sectorNumber} {sector.name ? `- ${sector.name.toUpperCase()}` : ''}
       </div>
+
+      {/* BBS mode: classic TW2002 sector readout */}
+      {theme === 'bbs' && sector && (
+        <div style={{ padding: '0 20px', borderBottom: '1px solid rgba(51,255,51,0.2)' }}>
+          <SectorDisplay sector={sector} visitedSectors={visitedSectors} />
+        </div>
+      )}
 
       {/* TerraSpace Safe Zone Indicator */}
       {sector.region === 'TerraSpace' && (
