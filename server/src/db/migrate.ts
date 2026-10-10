@@ -2,6 +2,12 @@ import { pool } from './connection';
 import * as fs from 'fs';
 import * as path from 'path';
 
+/**
+ * PostgreSQL error code for "relation already exists" (duplicate table/index).
+ * These are safe to skip: the object is already in the desired state.
+ */
+const DUPLICATE_OBJECT_CODES = new Set(['42P07']);
+
 async function runMigration() {
   const client = await pool.connect();
 
@@ -12,16 +18,34 @@ async function runMigration() {
     const schemaPath = path.join(__dirname, 'schema.sql');
     const schema = fs.readFileSync(schemaPath, 'utf-8');
 
-    // Execute the schema
-    await client.query('BEGIN');
-    await client.query(schema);
-    await client.query('COMMIT');
+    // Execute statement by statement so the migration is idempotent:
+    // on an existing database, objects that are already there are skipped
+    // instead of aborting the whole run (which used to break deploys).
+    // schema.sql contains only CREATE TABLE / CREATE INDEX statements, so a
+    // naive split on semicolons is safe here.
+    const statements = schema
+      .split(';')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
 
-    console.log('✓ Database schema created successfully');
-    console.log('✓ Tables created: users, universes, players, sectors, sector_warps, planets, ship_types, corporations, corp_members, game_events, combat_log, turn_updates');
+    let created = 0;
+    let skipped = 0;
+    for (const statement of statements) {
+      try {
+        await client.query(statement);
+        created++;
+      } catch (error: any) {
+        if (error?.code && DUPLICATE_OBJECT_CODES.has(error.code)) {
+          skipped++;
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    console.log(`✓ Database migration complete (${created} statements applied, ${skipped} already existed)`);
 
   } catch (error) {
-    await client.query('ROLLBACK');
     console.error('✗ Migration failed:', error);
     throw error;
   } finally {
