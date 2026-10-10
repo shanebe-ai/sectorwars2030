@@ -143,6 +143,7 @@ See [server/src/db/schema.sql](server/src/db/schema.sql) for complete schema.
 - **Turn regeneration**: Turns restore gradually over time (turns_per_day / 24 per hour)
 - **Space trading**: Buy/sell fuel, organics, equipment at ports
 - **Port types**: 8 port configurations for strategic trading routes
+- **Player-to-player trading**: Make trade offers to other pilots, with a 25% robbery gamble for the bold (failed robberies trigger combat)
 - **Ship progression**: 10 ships from Escape Pod to Dreadnought
 - **TW2002-style warp ranges**: Constrained warp destinations (±50-200 sectors) create natural trade routes and strategic territory
 - **Warp drive misfire**: 0.25% chance of malfunction sending you to a random sector
@@ -185,7 +186,6 @@ See [server/src/db/schema.sql](server/src/db/schema.sql) for complete schema.
   - Genesis torpedo launches, beacon messages
 - **Cyberpunk aesthetics**: Neon colors and ASCII art
 - **Admin panel**: Configure universes without SQL
-- **Responsive design**: Play on desktop or mobile
 
 ## Port Types
 
@@ -289,7 +289,6 @@ Format: `[Fuel][Organics][Equipment]`
   - [x] Automatic connection of unreachable sectors during universe generation
 
 ### In Progress 🚧
-- [ ] Player rankings and leaderboards
 - [ ] Mobile responsive design improvements
 - [ ] Advanced admin tools (player management, universe editing)
 
@@ -306,7 +305,6 @@ npm run test:coverage # With coverage report
 
 - **PROJECT_STATUS.md**: Detailed development status and session context
 - **MANUAL_TESTING_GUIDE.md**: Comprehensive manual testing procedures
-- **IDEAS.md**: Brainstorming and future feature ideas
 - **server/DATABASE_SETUP.md**: Database configuration guide
 
 ## License

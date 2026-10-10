@@ -11,7 +11,7 @@
 **Ports**: Backend (3000), Client (5173), Admin (5174)
 
 **Current State**: ✅ Fully functional multiplayer game with all core features implemented and tested
-**Latest Update**: 2026-01-12 - TW2002-style universe generation with constrained warp ranges
+**Latest Update**: 2026-10-10 - Trade robbery verified complete: UI, API, and tests
 **Ready For**: Production deployment, multiplayer testing
 
 **Key Files to Review**:
@@ -43,9 +43,7 @@
 
 **Player Search System** (Completed 2026-02-25): Neon green SEARCH button in the dashboard allows players to search for others in the universe and initiate messaging. AI-driven alien dialogue also integrated alongside this update.
 
-### ⚠️ IMPLEMENTED BUT NOT ACCESSIBLE
-
-**Trade Robbery**: API endpoint exists (`POST /api/trade/rob/:offerId`), no UI to attempt robbery.
+**Trade Robbery System** (Completed, verified 2026-10-10): "Rob (25%)" button in the Trade Inbox on pending offers. 25% success steals the offered goods; 75% failure triggers combat with the victim. Same-sector and corporation-member protections enforced. Confirm dialog explains the odds before attempting.
 
 ### ❌ NEEDS IMPROVEMENT
 **Mobile Responsiveness**: Desktop-focused, needs mobile optimization
@@ -529,6 +527,13 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
   - `last_turn_update` timestamp tracks regeneration
 
 ## Current Session Context 🎯
+
+**What We Just Did (2026-10-10):**
+- ✅ **Trade Robbery Verification (COMPLETE!):**
+  - **Finding:** The robbery feature was already fully built, the status doc was just stale. API (`POST /api/player-trading/rob/:offerId`), service logic (`attemptPlayerRobbery`), and UI ("Rob (25%)" button in TradeInbox with confirm dialog, same-sector gating, and combat-result handling) all existed.
+  - **Tests:** Replaced the six placeholder robbery tests in `server/src/__tests__/playerTrading.test.ts` with real ones: successful theft transfers goods/credits and marks the offer `robbed` with `robbed_success` history; failed roll triggers combat and logs `robbed_failed`; corporation members cannot rob each other; different-sector robbery rejected; insufficient cargo space rejected; cannot rob your own offer. Randomness is pinned via `jest.spyOn(Math, 'random')` for determinism.
+  - **Docs:** Updated PROJECT_STATUS.md (this file): moved Trade Robbery to fully implemented, corrected the stale "Latest Update" date.
+  - **Note:** `IDEAS.md` is gitignored (Shane's private notes), intentionally not committed.
 
 **What We Just Did (2026-01-12):**
 - ✅ **TW2002-Style Universe Generation (COMPLETE!):**
