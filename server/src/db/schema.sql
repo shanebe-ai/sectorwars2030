@@ -352,15 +352,21 @@ CREATE TABLE bank_accounts (
   corp_id INTEGER REFERENCES corporations(id) ON DELETE CASCADE, -- For corporate accounts
   balance BIGINT DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(player_id, account_type, corp_id)
 );
 
 CREATE TABLE bank_transactions (
   id SERIAL PRIMARY KEY,
+  universe_id INTEGER REFERENCES universes(id) ON DELETE CASCADE,
   account_id INTEGER REFERENCES bank_accounts(id) ON DELETE CASCADE,
   transaction_type VARCHAR(20) NOT NULL, -- 'deposit', 'withdraw', 'transfer_in', 'transfer_out'
   amount BIGINT NOT NULL,
+  balance_before BIGINT NOT NULL,
   balance_after BIGINT NOT NULL,
+  related_account_id INTEGER REFERENCES bank_accounts(id) ON DELETE SET NULL,
+  related_player_name VARCHAR(100),
+  related_corp_name VARCHAR(100),
   memo TEXT,
   related_player_id INTEGER REFERENCES players(id), -- For transfers
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -480,6 +486,17 @@ CREATE TABLE alien_ships (
   behavior VARCHAR(20) NOT NULL, -- 'patrol', 'trade', 'aggressive', 'defensive'
   fighters INTEGER NOT NULL,
   shields INTEGER NOT NULL,
+  ship_name VARCHAR(100),
+  current_sector INTEGER,
+  credits INTEGER DEFAULT 50000,
+  cargo_fuel INTEGER DEFAULT 0,
+  cargo_organics INTEGER DEFAULT 0,
+  cargo_equipment INTEGER DEFAULT 0,
+  alignment INTEGER DEFAULT -200,
+  kills INTEGER DEFAULT 0,
+  home_sector INTEGER,
+  last_move_at TIMESTAMP DEFAULT NOW(),
+  last_action_at TIMESTAMP DEFAULT NOW(),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -520,29 +537,81 @@ ALTER TABLE players ADD COLUMN IF NOT EXISTS corp_id INTEGER REFERENCES corporat
 
 CREATE TABLE alien_trade_offers (
   id SERIAL PRIMARY KEY,
-  universe_id INTEGER REFERENCES universes(id) ON DELETE CASCADE,
-  alien_ship_id INTEGER REFERENCES alien_ships(id) ON DELETE CASCADE,
-  player_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
-  offer_type VARCHAR(20) NOT NULL, -- 'buy', 'sell'
-  cargo_type VARCHAR(20) NOT NULL, -- 'fuel', 'organics', 'equipment'
-  quantity INTEGER NOT NULL,
-  price_per_unit INTEGER NOT NULL,
-  expires_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '30 minutes'),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
+  alien_ship_id INTEGER NOT NULL REFERENCES alien_ships(id) ON DELETE CASCADE,
+  player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+
+  -- What the alien is offering to the player
+  alien_offers_fuel INTEGER NOT NULL DEFAULT 0,
+  alien_offers_organics INTEGER NOT NULL DEFAULT 0,
+  alien_offers_equipment INTEGER NOT NULL DEFAULT 0,
+  alien_offers_credits INTEGER NOT NULL DEFAULT 0,
+
+  -- What the alien wants from the player
+  alien_requests_fuel INTEGER NOT NULL DEFAULT 0,
+  alien_requests_organics INTEGER NOT NULL DEFAULT 0,
+  alien_requests_equipment INTEGER NOT NULL DEFAULT 0,
+  alien_requests_credits INTEGER NOT NULL DEFAULT 0,
+
+  -- Pricing information (for display/validation)
+  alien_alignment INTEGER NOT NULL, -- Copy of alien's alignment at offer time
+  price_modifier DECIMAL(5,2) NOT NULL DEFAULT 1.0, -- Alignment-based price adjustment
+
+  -- Status and timing
+  status VARCHAR(20) NOT NULL DEFAULT 'pending', -- pending, accepted, expired, cancelled, robbed
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  expires_at TIMESTAMP NOT NULL DEFAULT (NOW() + INTERVAL '5 minutes'),
+  completed_at TIMESTAMP,
+
+  -- Constraints
+  CONSTRAINT valid_status CHECK (status IN ('pending', 'accepted', 'expired', 'cancelled', 'robbed')),
+  CONSTRAINT valid_cargo CHECK (
+    alien_offers_fuel >= 0 AND alien_offers_organics >= 0 AND alien_offers_equipment >= 0 AND alien_offers_credits >= 0 AND
+    alien_requests_fuel >= 0 AND alien_requests_organics >= 0 AND alien_requests_equipment >= 0 AND alien_requests_credits >= 0
+  ),
+  CONSTRAINT valid_expiry CHECK (expires_at > created_at)
 );
+
+CREATE INDEX idx_alien_trade_offers_player ON alien_trade_offers(player_id) WHERE status = 'pending';
+CREATE INDEX idx_alien_trade_offers_alien_ship ON alien_trade_offers(alien_ship_id) WHERE status = 'pending';
+CREATE INDEX idx_alien_trade_offers_universe ON alien_trade_offers(universe_id);
+CREATE INDEX idx_alien_trade_offers_expires ON alien_trade_offers(expires_at) WHERE status = 'pending';
+CREATE INDEX idx_alien_trade_offers_status ON alien_trade_offers(status);
 
 CREATE TABLE alien_trade_history (
   id SERIAL PRIMARY KEY,
-  universe_id INTEGER REFERENCES universes(id) ON DELETE CASCADE,
-  alien_ship_id INTEGER REFERENCES alien_ships(id) ON DELETE CASCADE,
-  player_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
-  cargo_type VARCHAR(20) NOT NULL,
-  quantity INTEGER NOT NULL,
-  price_per_unit INTEGER NOT NULL,
-  total_price INTEGER NOT NULL,
-  trade_type VARCHAR(20) NOT NULL, -- 'buy', 'sell'
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
+  alien_ship_id INTEGER NOT NULL REFERENCES alien_ships(id) ON DELETE CASCADE,
+  player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+
+  -- What was traded
+  fuel_traded INTEGER NOT NULL DEFAULT 0, -- Positive = player received, negative = player gave
+  organics_traded INTEGER NOT NULL DEFAULT 0,
+  equipment_traded INTEGER NOT NULL DEFAULT 0,
+  credits_traded INTEGER NOT NULL DEFAULT 0,
+
+  -- Trade outcome
+  outcome VARCHAR(20) NOT NULL, -- 'completed', 'robbery_success', 'robbery_combat'
+  was_robbery BOOLEAN NOT NULL DEFAULT FALSE,
+  robber_id INTEGER REFERENCES players(id) ON DELETE SET NULL, -- NULL if not a robbery
+
+  -- Context
+  alien_race VARCHAR(50) NOT NULL,
+  alien_alignment INTEGER NOT NULL,
+  sector_number INTEGER NOT NULL,
+
+  -- Timestamp
+  traded_at TIMESTAMP NOT NULL DEFAULT NOW(),
+
+  -- Constraints
+  CONSTRAINT valid_outcome CHECK (outcome IN ('completed', 'robbery_success', 'robbery_combat'))
 );
+
+CREATE INDEX idx_alien_trade_history_player ON alien_trade_history(player_id);
+CREATE INDEX idx_alien_trade_history_universe ON alien_trade_history(universe_id);
+CREATE INDEX idx_alien_trade_history_alien_ship ON alien_trade_history(alien_ship_id);
+CREATE INDEX idx_alien_trade_history_traded_at ON alien_trade_history(traded_at DESC);
+CREATE INDEX idx_alien_trade_history_robbery ON alien_trade_history(was_robbery) WHERE was_robbery = TRUE;
 
 -- ============================================================================
 -- PLAYER TRADING (from migration 022)
