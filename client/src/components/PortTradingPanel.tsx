@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { API_URL } from '../config/api';
 import { useAutoScroll } from '../hooks/useAutoScroll';
+import { useTheme } from '../themes/ThemeContext';
+import BbsPortDisplay from './bbs/BbsPortDisplay';
+import { playTrade } from '../audio/retroSfx';
 
 interface CommodityInfo {
   action: 'buy' | 'sell';
@@ -43,6 +46,7 @@ export default function PortTradingPanel({
   onTradeComplete,
   onClose,
 }: PortTradingPanelProps) {
+  const { theme } = useTheme();
   const [port, setPort] = useState<Port | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -151,6 +155,7 @@ export default function PortTradingPanel({
         setQuantities((prev) => ({ ...prev, [commodity]: 0 }));
         // Update parent with new player data
         onTradeComplete(data.player);
+        if (theme === 'bbs') playTrade();
       } else {
         setError(data.error || 'Trade failed');
       }
@@ -294,6 +299,9 @@ export default function PortTradingPanel({
           <span>► TRADING PORT [{port.portType}]</span>
           <span style={{ fontSize: '12px', opacity: 0.7 }}>SECTOR {port.sectorNumber}</span>
         </div>
+
+        {/* BBS mode: terminal port display */}
+        {theme === 'bbs' && <BbsPortDisplay port={port} />}
 
         {/* Port ASCII Art */}
         <div

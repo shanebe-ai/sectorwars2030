@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { API_URL } from '../config/api';
 import { useAutoScroll } from '../hooks/useAutoScroll';
+import { useTheme } from '../themes/ThemeContext';
+import BbsLogEntry from './bbs/BbsLogEntry';
 
 interface ShipLogEntry {
   id: number;
@@ -54,6 +56,7 @@ const LOG_TYPE_ICONS: Record<string, string> = {
 };
 
 export const ShipLogPanel: React.FC<ShipLogPanelProps> = ({ token, onClose, onUnreadCountChange }) => {
+  const { theme } = useTheme();
   const [logs, setLogs] = useState<ShipLogEntry[]>([]);
   const [stats, setStats] = useState<LogStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -485,7 +488,9 @@ export const ShipLogPanel: React.FC<ShipLogPanelProps> = ({ token, onClose, onUn
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {sortedLogs.map(log => (
+              {sortedLogs.map(log => theme === 'bbs' ? (
+                <BbsLogEntry key={log.id} entry={log} />
+              ) : (
                 <div
                   key={log.id}
                   style={{
