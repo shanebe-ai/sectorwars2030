@@ -1,6 +1,6 @@
-import { describe, beforeAll, afterAll, it, expect, beforeEach } from '@jest/globals';
-import { createTestUser, createTestPlayer, cleanupTestData } from './helpers/testDb';
-import { createTradeOffer, acceptPlayerTrade, getPlayerTradeOffers } from '../services/playerTradingService';
+import { describe, beforeAll, afterAll, it, expect, beforeEach, jest } from '@jest/globals';
+import { createTestUser, createTestPlayer, cleanupTestData, getTestPool } from './helpers/testDb';
+import { createTradeOffer, acceptPlayerTrade, getPlayerTradeOffers, attemptPlayerRobbery } from '../services/playerTradingService';
 
 describe('Player-to-Player Trading System', () => {
   let testPlayer1Id: number;
@@ -287,34 +287,157 @@ describe('Player-to-Player Trading System', () => {
   });
 
   describe('Robbery Mechanics', () => {
-    it('should have 25% success rate for player robbery', async () => {
-      // This would require multiple robbery attempts to test probability
-      expect(true).toBe(true); // Placeholder
+    beforeEach(async () => {
+      // Clean slate for each robbery test: offers accumulate across tests
+      // (10 pending offer cap) and the corp test sets corp_id on players.
+      const pool = getTestPool();
+      await pool.query('DELETE FROM player_trade_history WHERE initiator_player_id = ANY($1::int[])', [[testPlayer1Id, testPlayer2Id, testRobberId]]);
+      await pool.query('DELETE FROM player_trade_offers WHERE initiator_player_id = ANY($1::int[])', [[testPlayer1Id, testPlayer2Id, testRobberId]]);
+      await pool.query('UPDATE players SET corp_id = NULL WHERE id = ANY($1::int[])', [[testPlayer1Id, testPlayer2Id, testRobberId]]);
+      await pool.query(`DELETE FROM corporations WHERE name = 'rob_test_corp'`);
+      // The combat-on-failure test can kill or damage players; restore them.
+      await pool.query('UPDATE players SET is_alive = true, ship_fighters = 0, ship_shields = 0 WHERE id = ANY($1::int[])', [[testPlayer1Id, testPlayer2Id, testRobberId]]);
     });
 
-    it('should successfully rob and steal goods', async () => {
-      // This would require successful robbery setup
-      expect(true).toBe(true); // Placeholder
+    const makeOffer = async () => {
+      const result = await createTradeOffer(testPlayer1Id, testPlayer2Id, {
+        fuel: 100,
+        organics: 50,
+        equipment: 25,
+        credits: 1000
+      }, {
+        fuel: 50,
+        organics: 100,
+        equipment: 75,
+        credits: 500
+      }, 'Robbery test offer');
+      expect(result.success).toBe(true);
+      return result.offer!;
+    };
+
+    const getPlayer = async (id: number) => {
+      const pool = getTestPool();
+      const res = await pool.query('SELECT * FROM players WHERE id = $1', [id]);
+      return res.rows[0];
+    };
+
+    const getOfferStatus = async (offerId: number) => {
+      const pool = getTestPool();
+      const res = await pool.query('SELECT status FROM player_trade_offers WHERE id = $1', [offerId]);
+      return res.rows[0].status;
+    };
+
+    const getHistoryAction = async (offerId: number) => {
+      const pool = getTestPool();
+      const res = await pool.query(
+        'SELECT action FROM player_trade_history WHERE offer_id = $1 ORDER BY id DESC LIMIT 1',
+        [offerId]
+      );
+      return res.rows[0]?.action;
+    };
+
+    afterEach(() => {
+      jest.restoreAllMocks();
     });
 
-    it('should trigger combat on robbery failure', async () => {
-      // This would require failed robbery setup
-      expect(true).toBe(true); // Placeholder
+    it('should successfully rob and transfer stolen goods on a lucky roll', async () => {
+      jest.spyOn(Math, 'random').mockReturnValue(0.1); // below 0.25 → success
+      const offer = await makeOffer();
+
+      const robberBefore = await getPlayer(testRobberId);
+      const result = await attemptPlayerRobbery(offer.id, testRobberId);
+
+      expect(result.outcome).toBe('robbery_success');
+      expect(result.success).toBe(true);
+      // Note: credits is BIGINT, pg returns it as a string
+      expect(result.stolenGoods).toEqual({ fuel: 100, organics: 50, equipment: 25, credits: '1000' });
+
+      const robberAfter = await getPlayer(testRobberId);
+      // Note: credits is BIGINT, pg returns it as a string
+      expect(Number(robberAfter.credits)).toBe(Number(robberBefore.credits) + 1000);
+      expect(robberAfter.cargo_fuel).toBe(robberBefore.cargo_fuel + 100);
+      expect(robberAfter.cargo_organics).toBe(robberBefore.cargo_organics + 50);
+      expect(robberAfter.cargo_equipment).toBe(robberBefore.cargo_equipment + 25);
+
+      const victimAfter = await getPlayer(testPlayer1Id);
+      expect(Number(victimAfter.credits)).toBe(5000 - 1000);
+      expect(victimAfter.cargo_fuel).toBe(500 - 100);
+
+      expect(await getOfferStatus(offer.id)).toBe('robbed');
+      expect(await getHistoryAction(offer.id)).toBe('robbed_success');
+    });
+
+    it('should trigger combat on an unlucky roll', async () => {
+      jest.spyOn(Math, 'random').mockReturnValue(0.9); // above 0.25 → failure
+      const offer = await makeOffer();
+
+      // Both sides need fighters for combat to resolve
+      const pool = getTestPool();
+      await pool.query('UPDATE players SET ship_fighters = 50 WHERE id = ANY($1::int[])', [[testRobberId, testPlayer1Id]]);
+
+      const result = await attemptPlayerRobbery(offer.id, testRobberId);
+
+      expect(result.outcome).toBe('robbery_combat');
+      expect(result.success).toBe(false);
+      expect(result.combatResult).toBeDefined();
+      expect(await getOfferStatus(offer.id)).toBe('robbed');
+      expect(await getHistoryAction(offer.id)).toBe('robbed_failed');
     });
 
     it('should prevent robbery between corporation members', async () => {
-      // This would require corporation setup
-      expect(true).toBe(true); // Placeholder
+      const offer = await makeOffer();
+      const pool = getTestPool();
+
+      const corpRes = await pool.query(
+        `INSERT INTO corporations (universe_id, name, founder_id) VALUES (3, 'rob_test_corp', $1) RETURNING id`,
+        [testPlayer1Id]
+      );
+      const corpId = corpRes.rows[0].id;
+      await pool.query('UPDATE players SET corp_id = $1 WHERE id = ANY($2::int[])', [corpId, [testPlayer1Id, testRobberId]]);
+
+      const result = await attemptPlayerRobbery(offer.id, testRobberId);
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('corporation');
+      expect(await getOfferStatus(offer.id)).toBe('pending');
     });
 
-    it('should reject robbery if not in same sector', async () => {
-      // This would require sector distance check
-      expect(true).toBe(true); // Placeholder
+    it('should reject robbery if robber is not in the same sector', async () => {
+      const offer = await makeOffer();
+      const pool = getTestPool();
+      await pool.query('UPDATE players SET current_sector = 11 WHERE id = $1', [testRobberId]);
+
+      const result = await attemptPlayerRobbery(offer.id, testRobberId);
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('same sector');
+      expect(await getOfferStatus(offer.id)).toBe('pending');
     });
 
-    it('should reject if robber cannot fit stolen goods', async () => {
-      // This would require cargo capacity checks
-      expect(true).toBe(true); // Placeholder
+    it('should reject robbery when the robber cannot fit the stolen goods', async () => {
+      const offer = await makeOffer();
+      const pool = getTestPool();
+      // Robber holds are maxed out: 2000/2000, stolen cargo is 175
+      await pool.query(
+        'UPDATE players SET cargo_fuel = 1000, cargo_organics = 500, cargo_equipment = 500 WHERE id = $1',
+        [testRobberId]
+      );
+
+      const result = await attemptPlayerRobbery(offer.id, testRobberId);
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('cargo space');
+      expect(await getOfferStatus(offer.id)).toBe('pending');
+    });
+
+    it('should reject robbery of your own trade offer', async () => {
+      const offer = await makeOffer();
+
+      const result = await attemptPlayerRobbery(offer.id, testPlayer1Id);
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('own trade offer');
+      expect(await getOfferStatus(offer.id)).toBe('pending');
     });
   });
 

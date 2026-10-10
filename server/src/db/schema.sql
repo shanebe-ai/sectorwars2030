@@ -550,33 +550,111 @@ CREATE TABLE alien_trade_history (
 
 CREATE TABLE player_trade_offers (
   id SERIAL PRIMARY KEY,
-  universe_id INTEGER REFERENCES universes(id) ON DELETE CASCADE,
-  initiator_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
-  target_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
-  -- What initiator wants
-  initiator_requests_fuel INTEGER DEFAULT 0,
-  initiator_requests_organics INTEGER DEFAULT 0,
-  initiator_requests_equipment INTEGER DEFAULT 0,
-  initiator_requests_credits BIGINT DEFAULT 0,
-  -- What initiator offers
-  initiator_offers_fuel INTEGER DEFAULT 0,
-  initiator_offers_organics INTEGER DEFAULT 0,
-  initiator_offers_equipment INTEGER DEFAULT 0,
-  initiator_offers_credits BIGINT DEFAULT 0,
-  expires_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '24 hours'),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
+
+  -- Players involved
+  initiator_player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  recipient_player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+
+  -- Location (must be same sector at creation AND acceptance)
+  sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
+
+  -- Offer status
+  status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'expired', 'cancelled', 'robbed')),
+
+  -- What initiator is offering
+  initiator_offers_fuel INTEGER NOT NULL DEFAULT 0 CHECK (initiator_offers_fuel >= 0),
+  initiator_offers_organics INTEGER NOT NULL DEFAULT 0 CHECK (initiator_offers_organics >= 0),
+  initiator_offers_equipment INTEGER NOT NULL DEFAULT 0 CHECK (initiator_offers_equipment >= 0),
+  initiator_offers_credits BIGINT NOT NULL DEFAULT 0 CHECK (initiator_offers_credits >= 0),
+
+  -- What initiator is requesting
+  initiator_requests_fuel INTEGER NOT NULL DEFAULT 0 CHECK (initiator_requests_fuel >= 0),
+  initiator_requests_organics INTEGER NOT NULL DEFAULT 0 CHECK (initiator_requests_organics >= 0),
+  initiator_requests_equipment INTEGER NOT NULL DEFAULT 0 CHECK (initiator_requests_equipment >= 0),
+  initiator_requests_credits BIGINT NOT NULL DEFAULT 0 CHECK (initiator_requests_credits >= 0),
+
+  -- Optional message (sanitize for XSS on input)
+  message TEXT,
+
+  -- Timestamps
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  expires_at TIMESTAMP NOT NULL, -- 24 hours from creation
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  -- Constraints
+  CONSTRAINT different_players CHECK (initiator_player_id != recipient_player_id),
+  CONSTRAINT has_offers CHECK (
+    initiator_offers_fuel > 0 OR
+    initiator_offers_organics > 0 OR
+    initiator_offers_equipment > 0 OR
+    initiator_offers_credits > 0
+  ),
+  CONSTRAINT has_requests CHECK (
+    initiator_requests_fuel > 0 OR
+    initiator_requests_organics > 0 OR
+    initiator_requests_equipment > 0 OR
+    initiator_requests_credits > 0
+  )
 );
+
+-- Indexes for performance
+CREATE INDEX idx_player_trade_offers_initiator_pending
+  ON player_trade_offers(initiator_player_id)
+  WHERE status = 'pending';
+
+CREATE INDEX idx_player_trade_offers_recipient_pending
+  ON player_trade_offers(recipient_player_id)
+  WHERE status = 'pending';
+
+CREATE INDEX idx_player_trade_offers_universe
+  ON player_trade_offers(universe_id);
+
+CREATE INDEX idx_player_trade_offers_expires_pending
+  ON player_trade_offers(expires_at)
+  WHERE status = 'pending';
+
+CREATE INDEX idx_player_trade_offers_sector_pending
+  ON player_trade_offers(sector_id)
+  WHERE status = 'pending';
+
+CREATE INDEX idx_player_trade_offers_created
+  ON player_trade_offers(created_at DESC);
 
 CREATE TABLE player_trade_history (
   id SERIAL PRIMARY KEY,
-  universe_id INTEGER REFERENCES universes(id) ON DELETE CASCADE,
-  initiator_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
-  target_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
-  -- What was traded
-  fuel_traded INTEGER DEFAULT 0,
-  organics_traded INTEGER DEFAULT 0,
-  equipment_traded INTEGER DEFAULT 0,
-  credits_traded BIGINT DEFAULT 0,
-  trade_type VARCHAR(20) NOT NULL, -- 'accepted', 'cancelled'
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  offer_id INTEGER NOT NULL REFERENCES player_trade_offers(id) ON DELETE CASCADE,
+  universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
+
+  -- Players involved
+  initiator_player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  recipient_player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+
+  -- Location
+  sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
+
+  -- Action taken
+  action VARCHAR(20) NOT NULL CHECK (action IN ('accepted', 'cancelled', 'expired', 'robbed_success', 'robbed_failed')),
+
+  -- Resources transferred (actual amounts, may differ from offer if partial)
+  fuel_transferred INTEGER NOT NULL DEFAULT 0,
+  organics_transferred INTEGER NOT NULL DEFAULT 0,
+  equipment_transferred INTEGER NOT NULL DEFAULT 0,
+  credits_transferred BIGINT NOT NULL DEFAULT 0,
+
+  -- Timestamp
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Indexes for history queries
+CREATE INDEX idx_player_trade_history_initiator
+  ON player_trade_history(initiator_player_id, created_at DESC);
+
+CREATE INDEX idx_player_trade_history_recipient
+  ON player_trade_history(recipient_player_id, created_at DESC);
+
+CREATE INDEX idx_player_trade_history_universe
+  ON player_trade_history(universe_id);
+
+CREATE INDEX idx_player_trade_history_offer
+  ON player_trade_history(offer_id);
