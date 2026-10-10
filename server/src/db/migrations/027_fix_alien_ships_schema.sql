@@ -1,4 +1,6 @@
--- Migration 022: Fix alien_ships schema to match service requirements
+-- Migration 027: Fix alien_ships schema to match service requirements
+-- (Renumbered from 022 to resolve collision with 022_player_trading.sql.
+-- Migration 026 now covers these columns for existing databases.)
 -- Description: Adds missing columns needed for alien trading system
 -- Date: 2025-12-18
 

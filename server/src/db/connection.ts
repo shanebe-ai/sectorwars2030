@@ -1,7 +1,14 @@
-import { Pool, PoolConfig } from 'pg';
+import { Pool, PoolConfig, types } from 'pg';
 import dotenv from 'dotenv';
 
 dotenv.config();
+
+// Force pg to interpret TIMESTAMP WITHOUT TIME ZONE as UTC.
+// Without this, the driver parses timestamps in the server's local timezone,
+// which shifts all times when the server isn't running in UTC (e.g. JST
+// shifts everything by 9 hours, breaking offer expiry comparisons).
+types.setTypeParser(types.builtins.TIMESTAMP, (val: string) => new Date(val + 'Z'));
+types.setTypeParser(types.builtins.TIMESTAMPTZ, (val: string) => new Date(val));
 
 function buildPoolConfig(): PoolConfig {
   const base: PoolConfig = {
