@@ -92,7 +92,7 @@ describe('Alien Trading System', () => {
         100, // cargo_fuel
         100, // cargo_organics
         100, // cargo_equipment
-        100, // neutral-friendly alignment
+        120, // friendly alignment (gives price discount per the 50->1.1 / 150->0.9 formula)
         50000 // credits
       ]
     );
@@ -116,9 +116,9 @@ describe('Alien Trading System', () => {
       expect(offer.alienShipId).toBe(tradeAlienId);
       expect(offer.playerId).toBe(testPlayerId);
       expect(offer.status).toBe('pending');
-      expect(offer.alienAlignment).toBe(100);
+      expect(offer.alienAlignment).toBe(120);
 
-      // Alignment 100 should give better prices (modifier < 1.0)
+      // Alignment 120 should give better prices (modifier < 1.0)
       expect(offer.priceModifier).toBeLessThan(1.0);
       expect(offer.priceModifier).toBeGreaterThanOrEqual(0.9);
 
