@@ -531,9 +531,19 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 **What We Just Did (2026-10-10):**
 - ✅ **Trade Robbery Verification (COMPLETE!):**
   - **Finding:** The robbery feature was already fully built, the status doc was just stale. API (`POST /api/player-trading/rob/:offerId`), service logic (`attemptPlayerRobbery`), and UI ("Rob (25%)" button in TradeInbox with confirm dialog, same-sector gating, and combat-result handling) all existed.
-  - **Tests:** Replaced the six placeholder robbery tests in `server/src/__tests__/playerTrading.test.ts` with real ones: successful theft transfers goods/credits and marks the offer `robbed` with `robbed_success` history; failed roll triggers combat and logs `robbed_failed`; corporation members cannot rob each other; different-sector robbery rejected; insufficient cargo space rejected; cannot rob your own offer. Randomness is pinned via `jest.spyOn(Math, 'random')` for determinism.
+  - **Tests:** Replaced the six placeholder robbery tests in `server/src/__tests__/playerTrading.test.ts` with real ones: successful theft transfers goods/credits and marks the offer `robbed` with `robbed_success` history; failed roll triggers combat and logs `robbed_failed`; corporation members cannot rob each other; different-sector robbery rejected; insufficient cargo space rejected; cannot rob your own offer. Randomness is pinned via `jest.spyOn(Math, 'random')` for determinism. 30/30 pass.
   - **Docs:** Updated PROJECT_STATUS.md (this file): moved Trade Robbery to fully implemented, corrected the stale "Latest Update" date.
   - **Note:** `IDEAS.md` is gitignored (Shane's private notes), intentionally not committed.
+
+- ✅ **Critical Fixes Deployed (2026-10-10):**
+  - **Unmounted API routes:** The entire player-trading router (`/api/player-trading/*`) was never mounted in `index.ts`, so every trade/inbox/rob call 404'd. Mounted it; verified live on prod.
+  - **Schema drift (player trade):** `schema.sql` had the legacy `player_trade_offers`/`player_trade_history` layout; migration 022's `CREATE TABLE IF NOT EXISTS` was a silent no-op. Fixed `schema.sql`; added idempotent migration `025_fix_player_trade_schema.sql`. Applied to prod.
+  - **Schema drift (banking):** `bank_accounts`/`bank_transactions` missing columns (`updated_at`, `universe_id`, `balance_before`, etc.) that the service expects. Fixed `schema.sql`; added migration `026_fix_banking_alien_schema.sql`. Banking tests went from 4/10 to 10/10. Applied to prod.
+  - **Schema drift (alien):** `alien_ships` missing 11 columns and `alien_trade_*` tables had the old layout. Fixed `schema.sql`; covered by migration 026. Applied to prod.
+  - **Deploy pipeline:** `db:migrate` ran `schema.sql` as one transaction and aborted on existing tables, which would have broken every future deploy. Now applies statement-by-statement, skipping existing objects.
+  - **Timezone bug:** pg parsed `TIMESTAMP WITHOUT TIME ZONE` in local server time, shifting times by the UTC offset (9h in JST) and breaking offer expiry comparisons. Forced UTC parsing in `src/db/connection.ts`. This was a real production bug.
+  - **Migration numbering:** Two files were both numbered `022`; renamed `022_fix_alien_ships_schema.sql` to `027_fix_alien_ships_schema.sql`.
+  - All commits by Shane Bennett <shanebe@live.com>, pushed to main and deployed. Migrations 025 and 026 applied to prod database.
 
 **What We Just Did (2026-01-12):**
 - ✅ **TW2002-Style Universe Generation (COMPLETE!):**
