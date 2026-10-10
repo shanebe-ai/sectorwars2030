@@ -26,6 +26,7 @@ import tradeRoutes from './routes/trade';
 import corporationRoutes from './routes/corporation';
 import genesisRoutes from './routes/genesis';
 import leaderboardRoutes from './routes/leaderboard';
+import playerTradingRoutes from './routes/playerTrading';
 import { startPortRegeneration } from './services/portService';
 import { startFighterMaintenance } from './services/maintenanceService';
 import { startAlienShipMovement, startAlienAggression } from './services/alienService';
@@ -163,6 +164,9 @@ app.use('/api/genesis', genesisRoutes);
 
 // Leaderboard routes
 app.use('/api/leaderboard', leaderboardRoutes);
+
+// Player-to-player trading routes (offers, inbox, accept, rob)
+app.use('/api/player-trading', playerTradingRoutes);
 
 // WebSocket connection handling
 io.on('connection', (socket) => {
