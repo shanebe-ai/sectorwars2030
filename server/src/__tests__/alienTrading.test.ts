@@ -190,21 +190,29 @@ describe('Alien Trading System', () => {
       // Clean up any existing offers
       await testPool.query(`DELETE FROM alien_trade_offers WHERE player_id = $1`, [testPlayerId]);
 
-      // Generate fresh offer
-      const offer = await alienTradingService.generateTradeOffer(tradeAlienId, testPlayerId);
-      if (!offer) throw new Error('Failed to generate offer');
-      offerId = offer.id;
-
-      // Ensure player has enough cargo space and resources
+      // Reset player state FIRST (before generating offer)
+      // Use large holds to ensure test offers always fit
       await testPool.query(
         `UPDATE players SET
           credits = 50000,
           cargo_fuel = 0,
           cargo_organics = 0,
-          cargo_equipment = 0
+          cargo_equipment = 0,
+          ship_holds_max = 1000
         WHERE id = $1`,
         [testPlayerId]
       );
+
+      // Reset alien cargo (may have been depleted by robbery tests)
+      await testPool.query(
+        `UPDATE alien_ships SET cargo_fuel = 100, cargo_organics = 100, cargo_equipment = 100 WHERE id = $1`,
+        [tradeAlienId]
+      );
+
+      // Generate fresh offer
+      const offer = await alienTradingService.generateTradeOffer(tradeAlienId, testPlayerId);
+      if (!offer) throw new Error('Failed to generate offer');
+      offerId = offer.id;
     });
 
     it('should successfully accept a valid trade offer', async () => {
@@ -307,9 +315,9 @@ describe('Alien Trading System', () => {
         [tradeAlienId]
       );
 
-      // Reset player cargo
+      // Reset player cargo (and give large holds for robbery to fit)
       await testPool.query(
-        `UPDATE players SET cargo_fuel = 0, cargo_organics = 0, cargo_equipment = 0, credits = 50000 WHERE id = $1`,
+        `UPDATE players SET cargo_fuel = 0, cargo_organics = 0, cargo_equipment = 0, credits = 50000, ship_holds_max = 1000 WHERE id = $1`,
         [testPlayerId]
       );
 
@@ -334,7 +342,7 @@ describe('Alien Trading System', () => {
           [tradeAlienId]
         );
         await testPool.query(
-          `UPDATE players SET cargo_fuel = 0, cargo_organics = 0, cargo_equipment = 0 WHERE id = $1`,
+          `UPDATE players SET cargo_fuel = 0, cargo_organics = 0, cargo_equipment = 0, ship_holds_max = 1000 WHERE id = $1`,
           [testPlayerId]
         );
         const offer = await alienTradingService.generateTradeOffer(tradeAlienId, testPlayerId);
@@ -390,7 +398,7 @@ describe('Alien Trading System', () => {
         );
 
         expect(history.rows.length).toBe(1);
-        expect(history.rows[0].outcome).toBe('robbed');
+        expect(history.rows[0].outcome).toBe('robbery_success');
       } else {
         // If we didn't get a success after 20 tries, that's statistically unlikely but possible
         console.log('Note: Did not get a robbery success in 20 attempts (statistically unlikely but possible)');
