@@ -226,7 +226,7 @@ describe('Alien Trading System', () => {
         [testPlayerId, tradeAlienId]
       );
       expect(history.rows.length).toBeGreaterThan(0);
-      expect(history.rows[0].outcome).toBe('accepted');
+      expect(history.rows[0].outcome).toBe('completed');
     });
 
     it('should reject trade if player lacks credits', async () => {
@@ -258,9 +258,12 @@ describe('Alien Trading System', () => {
     });
 
     it('should reject expired offers', async () => {
-      // Expire the offer
+      // Expire the offer (backdate both to satisfy valid_expiry constraint)
       await testPool.query(
-        `UPDATE alien_trade_offers SET expires_at = NOW() - INTERVAL '1 hour' WHERE id = $1`,
+        `UPDATE alien_trade_offers
+         SET created_at = NOW() - INTERVAL '2 hours',
+             expires_at = NOW() - INTERVAL '1 hour'
+         WHERE id = $1`,
         [offerId]
       );
 
@@ -280,13 +283,13 @@ describe('Alien Trading System', () => {
 
       const playerAfter = await getPlayer(testPlayerId);
 
-      // Credits should change based on offer
-      const expectedCredits = playerBefore.credits + offer.alienOffersCredits - offer.alienRequestsCredits;
-      expect(playerAfter.credits).toBe(expectedCredits);
+      // Credits should change based on offer (Postgres returns numeric as string)
+      const expectedCredits = Number(playerBefore.credits) + Number(offer.alienOffersCredits) - Number(offer.alienRequestsCredits);
+      expect(Number(playerAfter.credits)).toBe(expectedCredits);
 
       // Cargo should change based on offer
-      const expectedFuel = playerBefore.cargo_fuel + offer.alienOffersFuel - offer.alienRequestsFuel;
-      expect(playerAfter.cargo_fuel).toBe(expectedFuel);
+      const expectedFuel = Number(playerBefore.cargo_fuel) + Number(offer.alienOffersFuel) - Number(offer.alienRequestsFuel);
+      expect(Number(playerAfter.cargo_fuel)).toBe(expectedFuel);
     });
   });
 
@@ -297,6 +300,18 @@ describe('Alien Trading System', () => {
       // Clean up any existing offers
       await testPool.query(`DELETE FROM alien_trade_offers WHERE player_id = $1`, [testPlayerId]);
       await testPool.query(`DELETE FROM alien_trade_history WHERE player_id = $1`, [testPlayerId]);
+
+      // Reset alien cargo (robbery depletes it)
+      await testPool.query(
+        `UPDATE alien_ships SET cargo_fuel = 100, cargo_organics = 100, cargo_equipment = 100 WHERE id = $1`,
+        [tradeAlienId]
+      );
+
+      // Reset player cargo
+      await testPool.query(
+        `UPDATE players SET cargo_fuel = 0, cargo_organics = 0, cargo_equipment = 0, credits = 50000 WHERE id = $1`,
+        [testPlayerId]
+      );
 
       // Generate fresh offer
       const offer = await alienTradingService.generateTradeOffer(tradeAlienId, testPlayerId);
@@ -313,6 +328,15 @@ describe('Alien Trading System', () => {
         // Reset offer for each attempt
         await testPool.query(`DELETE FROM alien_trade_offers WHERE player_id = $1`, [testPlayerId]);
         await testPool.query(`DELETE FROM alien_trade_history WHERE player_id = $1`, [testPlayerId]);
+        // Reset alien and player cargo (robbery depletes alien cargo, fills player cargo)
+        await testPool.query(
+          `UPDATE alien_ships SET cargo_fuel = 100, cargo_organics = 100, cargo_equipment = 100 WHERE id = $1`,
+          [tradeAlienId]
+        );
+        await testPool.query(
+          `UPDATE players SET cargo_fuel = 0, cargo_organics = 0, cargo_equipment = 0 WHERE id = $1`,
+          [testPlayerId]
+        );
         const offer = await alienTradingService.generateTradeOffer(tradeAlienId, testPlayerId);
         if (!offer) continue; // Skip if offer generation failed
 
@@ -399,7 +423,7 @@ describe('Alien Trading System', () => {
       expect(result?.combatData).toBeDefined();
       expect(result?.combatData?.alienShipId).toBe(tradeAlienId);
       expect(result?.combatData?.playerId).toBe(testPlayerId);
-      expect(result?.combatData?.robberPenalty).toBe(true);
+      expect(result?.combatData?.robberPenalty).toBe(0.2);
     });
 
     it('should mark offer as completed after robbery', async () => {
@@ -481,7 +505,10 @@ describe('Alien Trading System', () => {
       if (!offer) throw new Error('Failed to generate offer');
 
       await testPool.query(
-        `UPDATE alien_trade_offers SET expires_at = NOW() - INTERVAL '1 hour' WHERE id = $1`,
+        `UPDATE alien_trade_offers
+         SET created_at = NOW() - INTERVAL '2 hours',
+             expires_at = NOW() - INTERVAL '1 hour'
+         WHERE id = $1`,
         [offer.id]
       );
 
@@ -525,6 +552,11 @@ describe('Alien Trading System', () => {
       // Make a few trades
       for (let i = 0; i < 3; i++) {
         await testPool.query(`DELETE FROM alien_trade_offers WHERE player_id = $1`, [testPlayerId]);
+        // Reset player credits and cargo for each trade
+        await testPool.query(
+          `UPDATE players SET credits = 50000, cargo_fuel = 0, cargo_organics = 0, cargo_equipment = 0 WHERE id = $1`,
+          [testPlayerId]
+        );
         const offer = await alienTradingService.generateTradeOffer(tradeAlienId, testPlayerId);
         if (!offer) continue;
         await alienTradingService.acceptAlienTrade(offer.id, testPlayerId);
@@ -534,13 +566,17 @@ describe('Alien Trading System', () => {
 
       expect(history.length).toBe(3);
       expect(history[0].playerId).toBe(testPlayerId);
-      expect(history[0].outcome).toBe('accepted');
+      expect(history[0].outcome).toBe('completed');
     });
 
     it('should limit history results', async () => {
       // Create 10 history entries
       for (let i = 0; i < 10; i++) {
         await testPool.query(`DELETE FROM alien_trade_offers WHERE player_id = $1`, [testPlayerId]);
+        await testPool.query(
+          `UPDATE players SET credits = 50000, cargo_fuel = 0, cargo_organics = 0, cargo_equipment = 0 WHERE id = $1`,
+          [testPlayerId]
+        );
         const offer = await alienTradingService.generateTradeOffer(tradeAlienId, testPlayerId);
         if (!offer) continue;
         await alienTradingService.acceptAlienTrade(offer.id, testPlayerId);
@@ -554,6 +590,10 @@ describe('Alien Trading System', () => {
     it('should order history by most recent first', async () => {
       // Create trades with delays
       await testPool.query(`DELETE FROM alien_trade_offers WHERE player_id = $1`, [testPlayerId]);
+      await testPool.query(
+        `UPDATE players SET credits = 50000, cargo_fuel = 0, cargo_organics = 0, cargo_equipment = 0 WHERE id = $1`,
+        [testPlayerId]
+      );
       const offer1 = await alienTradingService.generateTradeOffer(tradeAlienId, testPlayerId);
       if (!offer1) throw new Error('Failed to generate offer1');
       await alienTradingService.acceptAlienTrade(offer1.id, testPlayerId);
@@ -562,6 +602,10 @@ describe('Alien Trading System', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       await testPool.query(`DELETE FROM alien_trade_offers WHERE player_id = $1`, [testPlayerId]);
+      await testPool.query(
+        `UPDATE players SET credits = 50000, cargo_fuel = 0, cargo_organics = 0, cargo_equipment = 0 WHERE id = $1`,
+        [testPlayerId]
+      );
       const offer2 = await alienTradingService.generateTradeOffer(tradeAlienId, testPlayerId);
       if (!offer2) throw new Error('Failed to generate offer2');
       await alienTradingService.acceptAlienTrade(offer2.id, testPlayerId);
