@@ -16,6 +16,9 @@ module.exports = {
   moduleFileExtensions: ['ts', 'js', 'json'],
   verbose: true,
   testTimeout: 30000,
+  // Run suites sequentially: they share one database and parallel workers
+  // step on each other's data.
+  maxWorkers: 1,
 };
 
 
