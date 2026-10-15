@@ -301,8 +301,23 @@ export const executeAttack = async (
       return 1; // Final fallback to Sol
     };
 
+    // Ion storm: shields are dead in sector, so both sides fight without them.
+    // The anomalies table may not exist yet if migration 031 was not applied.
+    let ionStorm = false;
+    try {
+      const anomalyCheck = await client.query(
+        `SELECT 1 FROM anomalies
+         WHERE universe_id = $1 AND sector_number = $2 AND type = 'ion' AND ends_at > NOW()
+         LIMIT 1`,
+        [attacker.universe_id, attacker.current_sector]
+      );
+      ionStorm = anomalyCheck.rows.length > 0;
+    } catch {
+      ionStorm = false;
+    }
+
     // Run combat simulation with async escape sector function
-    const combatResult = await simulateCombatAsync(attacker, defender, getEscapeSectorFn);
+    const combatResult = await simulateCombatAsync(attacker, defender, getEscapeSectorFn, { ionStorm });
 
     // Deduct turns from attacker
     await client.query(
@@ -803,19 +818,37 @@ export const executeAttack = async (
   }
 };
 
+export interface ResolvedCombatRounds {
+  rounds: number;
+  attackerFighters: number;
+  attackerShields: number;
+  defenderFighters: number;
+  defenderShields: number;
+  attackerFightersLost: number;
+  attackerShieldsLost: number;
+  defenderFightersLost: number;
+  defenderShieldsLost: number;
+  winner: 'attacker' | 'defender' | 'draw';
+  combatLog: CombatRound[];
+}
+
 /**
- * Simulate combat between attacker and defender (async version)
- * Returns detailed combat results
+ * Resolve the round by round exchange of a combat. Pure function with no
+ * database access, shared by player combat and automated defense fights.
+ * When ionStorm is set, shields are dead in sector: both sides fight with
+ * zero shields and lose none permanently.
  */
-async function simulateCombatAsync(
-  attacker: PlayerCombatStats,
-  defender: PlayerCombatStats,
-  getEscapeSector: () => Promise<number>
-): Promise<CombatResult> {
-  let attackerFighters = attacker.ship_fighters;
-  let defenderFighters = defender.ship_fighters;
-  let attackerShields = attacker.ship_shields;
-  let defenderShields = defender.ship_shields;
+export function resolveCombatRounds(
+  attackerFighters: number,
+  attackerShields: number,
+  defenderFighters: number,
+  defenderShields: number,
+  options: { ionStorm?: boolean } = {}
+): ResolvedCombatRounds {
+  if (options.ionStorm) {
+    attackerShields = 0;
+    defenderShields = 0;
+  }
 
   const initialAttackerFighters = attackerFighters;
   const initialDefenderFighters = defenderFighters;
@@ -895,6 +928,57 @@ async function simulateCombatAsync(
     });
   }
 
+  let winner: 'attacker' | 'defender' | 'draw';
+  if (defenderFighters <= 0 && attackerFighters > 0) {
+    winner = 'attacker';
+  } else if (attackerFighters <= 0 && defenderFighters > 0) {
+    winner = 'defender';
+  } else if (attackerFighters <= 0 && defenderFighters <= 0) {
+    winner = 'draw';
+  } else {
+    winner = attackerFighters > defenderFighters ? 'attacker' :
+             defenderFighters > attackerFighters ? 'defender' : 'draw';
+  }
+
+  return {
+    rounds: round,
+    attackerFighters,
+    attackerShields,
+    defenderFighters,
+    defenderShields,
+    attackerFightersLost: initialAttackerFighters - attackerFighters,
+    attackerShieldsLost: initialAttackerShields - attackerShields,
+    defenderFightersLost: initialDefenderFighters - defenderFighters,
+    defenderShieldsLost: initialDefenderShields - defenderShields,
+    winner,
+    combatLog,
+  };
+}
+
+/**
+ * Simulate combat between attacker and defender (async version)
+ * Returns detailed combat results
+ */
+async function simulateCombatAsync(
+  attacker: PlayerCombatStats,
+  defender: PlayerCombatStats,
+  getEscapeSector: () => Promise<number>,
+  options: { ionStorm?: boolean } = {}
+): Promise<CombatResult> {
+  const resolved = resolveCombatRounds(
+    attacker.ship_fighters,
+    attacker.ship_shields,
+    defender.ship_fighters,
+    defender.ship_shields,
+    options
+  );
+
+  let attackerFighters = resolved.attackerFighters;
+  let defenderFighters = resolved.defenderFighters;
+  let attackerShields = resolved.attackerShields;
+  let defenderShields = resolved.defenderShields;
+  const combatLog: CombatRound[] = resolved.combatLog;
+  let round = resolved.rounds;
   // Determine winner
   let winner: 'attacker' | 'defender' | 'draw';
   let defenderDestroyed = false;
@@ -980,10 +1064,10 @@ async function simulateCombatAsync(
     success: true,
     winner,
     rounds: round,
-    attackerFightersLost: initialAttackerFighters - attackerFighters,
-    defenderFightersLost: initialDefenderFighters - defenderFighters,
-    attackerShieldsLost: initialAttackerShields - attackerShields,
-    defenderShieldsLost: initialDefenderShields - defenderShields,
+    attackerFightersLost: resolved.attackerFightersLost,
+    defenderFightersLost: resolved.defenderFightersLost,
+    attackerShieldsLost: resolved.attackerShieldsLost,
+    defenderShieldsLost: resolved.defenderShieldsLost,
     defenderDestroyed,
     attackerDestroyed,
     creditsLooted,
