@@ -1,11 +1,15 @@
 import { Router } from 'express';
 import { authenticateToken } from '../middleware/auth';
-import { getPort, trade, getColonists, purchaseColonists } from '../controllers/portController';
+import { getPort, trade, getColonists, purchaseColonists, getMarket } from '../controllers/portController';
 
 const router = Router();
 
 // All port routes require authentication
 router.use(authenticateToken);
+
+// Market board (must be before :sectorNumber to avoid conflicts)
+// GET /api/ports/market - Get market trends for the universe
+router.get('/market', getMarket);
 
 // Colonist routes (must be before :sectorNumber to avoid conflicts)
 // GET /api/ports/colonists - Get colonist purchase info
