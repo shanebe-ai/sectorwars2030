@@ -727,3 +727,57 @@ CREATE INDEX idx_player_trade_history_universe
 
 CREATE INDEX idx_player_trade_history_offer
   ON player_trade_history(offer_id);
+
+-- ============================================================================
+-- LIVING ECONOMY (migration 028)
+-- ============================================================================
+
+CREATE TABLE port_economy (
+  id SERIAL PRIMARY KEY,
+  universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
+  sector_number INTEGER NOT NULL,
+  commodity VARCHAR(20) NOT NULL CHECK (commodity IN ('fuel', 'organics', 'equipment')),
+  volume_bought INTEGER DEFAULT 0,
+  volume_sold INTEGER DEFAULT 0,
+  drift NUMERIC(5, 4) DEFAULT 0,
+  last_restock TIMESTAMP DEFAULT NOW(),
+  event_state VARCHAR(20) DEFAULT 'none' CHECK (event_state IN ('none', 'scarcity', 'surplus')),
+  event_ends_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(universe_id, sector_number, commodity)
+);
+
+CREATE INDEX idx_port_economy_sector ON port_economy(universe_id, sector_number);
+CREATE INDEX idx_port_economy_event ON port_economy(event_state) WHERE event_state != 'none';
+
+-- ============================================================================
+-- BOUNTIES (migration 029)
+-- ============================================================================
+
+CREATE TABLE bounties (
+  id SERIAL PRIMARY KEY,
+  universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
+  target_player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  placer_player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  amount INTEGER NOT NULL CHECK (amount >= 5000),
+  signed BOOLEAN DEFAULT FALSE,
+  status VARCHAR(20) DEFAULT 'active'
+    CHECK (status IN ('active', 'claimed', 'expired', 'refunded')),
+  claimed_by_player_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
+  claimed_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW(),
+  expires_at TIMESTAMP DEFAULT NOW() + INTERVAL '7 days',
+  CHECK (target_player_id != placer_player_id)
+);
+
+CREATE INDEX idx_bounties_target ON bounties(target_player_id) WHERE status = 'active';
+CREATE INDEX idx_bounties_status ON bounties(status);
+CREATE INDEX idx_bounties_expires ON bounties(expires_at) WHERE status = 'active';
+
+CREATE TABLE bounty_hunters (
+  player_id INTEGER PRIMARY KEY REFERENCES players(id) ON DELETE CASCADE,
+  bounties_claimed INTEGER DEFAULT 0,
+  bounty_credits_earned INTEGER DEFAULT 0,
+  updated_at TIMESTAMP DEFAULT NOW()
+);

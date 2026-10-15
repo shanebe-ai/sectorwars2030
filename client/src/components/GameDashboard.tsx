@@ -4,6 +4,8 @@ import MessagingPanel from './MessagingPanel';
 import ShipLogPanel from './ShipLogPanel';
 import CorporationPanel from './CorporationPanel';
 import LeaderboardPanel from './LeaderboardPanel';
+import MarketBoardPanel from './MarketBoardPanel';
+import BountyBoardPanel from './BountyBoardPanel';
 import UniverseInfoPanel from './UniverseInfoPanel';
 import PlayerSearchPanel from './PlayerSearchPanel';
 import CombatNotification from './CombatNotification';
@@ -22,6 +24,8 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
   const [showShipLog, setShowShipLog] = useState(false);
   const [showCorporation, setShowCorporation] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showMarketBoard, setShowMarketBoard] = useState(false);
+  const [showBountyBoard, setShowBountyBoard] = useState(false);
   const [showUniverseInfo, setShowUniverseInfo] = useState(false);
   const [showPlayerSearch, setShowPlayerSearch] = useState(false);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
@@ -421,6 +425,28 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
               🏆 RANKINGS
             </button>
             <button
+              onClick={() => setShowMarketBoard(true)}
+              className="cyberpunk-button"
+              style={{
+                background: 'rgba(0, 255, 255, 0.1)',
+                borderColor: 'var(--neon-cyan)',
+                color: 'var(--neon-cyan)'
+              }}
+            >
+              📈 MARKET
+            </button>
+            <button
+              onClick={() => setShowBountyBoard(true)}
+              className="cyberpunk-button"
+              style={{
+                background: 'rgba(255, 0, 0, 0.1)',
+                borderColor: 'var(--neon-red)',
+                color: 'var(--neon-red)'
+              }}
+            >
+              🎯 BOUNTIES
+            </button>
+            <button
               onClick={() => setShowUniverseInfo(true)}
               className="cyberpunk-button"
               style={{
@@ -570,6 +596,20 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
           universeId={player.universeId}
           token={token}
           onClose={() => setShowLeaderboard(false)}
+        />
+      )}
+
+      {showMarketBoard && (
+        <MarketBoardPanel
+          token={token}
+          onClose={() => setShowMarketBoard(false)}
+        />
+      )}
+
+      {showBountyBoard && (
+        <BountyBoardPanel
+          token={token}
+          onClose={() => setShowBountyBoard(false)}
         />
       )}
 

@@ -80,6 +80,20 @@ export const getPortInfo = async (
 
   const universeId = playerResult.rows[0].universe_id;
 
+  // Get living economy drift for this port (defaults to zero if no row yet)
+  const economyResult = await pool.query(
+    `SELECT commodity, drift, event_state
+     FROM port_economy
+     WHERE universe_id = $1 AND sector_number = $2`,
+    [universeId, sectorNumber]
+  );
+  const driftByCommodity: Record<string, number> = {};
+  const eventByCommodity: Record<string, string> = {};
+  for (const row of economyResult.rows) {
+    driftByCommodity[row.commodity] = parseFloat(row.drift) || 0;
+    eventByCommodity[row.commodity] = row.event_state || 'none';
+  }
+
   // Get sector with port data
   const sectorResult = await pool.query(
     `SELECT
@@ -116,29 +130,36 @@ export const getPortInfo = async (
   // S = Port SELLS to player (cheap - they have excess)
   // B = Port BUYS from player (expensive - they need it)
   // Stock percentage affects price: low stock = higher prices
+  // Living economy drift adjusts price by trade volume, bounded to [-0.4, 0.4]
   const calculatePrice = (commodity: 'fuel' | 'organics' | 'equipment', action: 'S' | 'B') => {
     const basePrice = BASE_PRICES[commodity];
     const pctKey = `port_${commodity}_pct` as keyof typeof sector;
     const stockPct = sector[pctKey] || 100;
-    
+
     // Stock affects price: low stock (high pct) = higher prices
     // pct represents "demand" - 100% = normal, 150% = high demand, 50% = low demand
     const stockMultiplier = stockPct / 100;
-    
+
     // Check if this is a rare port type (SSS or BBB)
     const isRarePort = sector.port_type === 'SSS' || sector.port_type === 'BBB';
     const rareBonus = isRarePort ? RARE_PORT_BONUS : 1.0;
-    
+
+    // Living economy: drift from trade volume, plus event multiplier
+    const drift = Math.max(-0.4, Math.min(0.4, driftByCommodity[commodity] || 0));
+    const driftMultiplier = 1 + drift;
+    const eventState = eventByCommodity[commodity] || 'none';
+    const eventMultiplier = eventState === 'scarcity' ? 2.0 : eventState === 'surplus' ? 0.5 : 1.0;
+
     if (action === 'S') {
       // Port SELLS to player = player BUYS at LOW price
       // Lower stock = slightly higher buy price
-      const price = basePrice * PRICE_MULTIPLIERS.SELL_TO_PLAYER * stockMultiplier;
+      const price = basePrice * PRICE_MULTIPLIERS.SELL_TO_PLAYER * stockMultiplier * driftMultiplier * eventMultiplier;
       // SSS sells even cheaper (better for player)
       return Math.round(price / rareBonus);
     } else {
       // Port BUYS from player = player SELLS at HIGH price
       // Higher stock demand (high pct) = even higher sell price
-      const price = basePrice * PRICE_MULTIPLIERS.BUY_FROM_PLAYER * stockMultiplier;
+      const price = basePrice * PRICE_MULTIPLIERS.BUY_FROM_PLAYER * stockMultiplier * driftMultiplier * eventMultiplier;
       // BBB buys even higher (better for player)
       return Math.round(price * rareBonus);
     }
@@ -254,24 +275,37 @@ export const executeTrade = async (
     const cargoKey = `cargo_${commodity}` as keyof typeof player;
     const playerCargo = player[cargoKey] || 0;
 
-    // Calculate price using the same formula as getPortInfo
+    // Calculate price using the same formula as getPortInfo (including living economy drift)
     const basePrice = BASE_PRICES[commodity];
     const pctKey = `port_${commodity}_pct` as keyof typeof player;
     const stockPct = player[pctKey] || 100;
     const stockMultiplier = stockPct / 100;
-    
+
     // Check if this is a rare port type
     const isRarePort = player.port_type === 'SSS' || player.port_type === 'BBB';
     const rareBonus = isRarePort ? RARE_PORT_BONUS : 1.0;
 
+    // Living economy drift for this port
+    const economyRow = await client.query(
+      `SELECT drift, event_state FROM port_economy
+       WHERE universe_id = $1 AND sector_number = $2 AND commodity = $3`,
+      [player.universe_id, player.current_sector, commodity]
+    );
+    const drift = economyRow.rows.length > 0
+      ? Math.max(-0.4, Math.min(0.4, parseFloat(economyRow.rows[0].drift) || 0))
+      : 0;
+    const driftMultiplier = 1 + drift;
+    const eventState = economyRow.rows.length > 0 ? economyRow.rows[0].event_state : 'none';
+    const eventMultiplier = eventState === 'scarcity' ? 2.0 : eventState === 'surplus' ? 0.5 : 1.0;
+
     let pricePerUnit: number;
     if (action === 'buy') {
       // Player BUYS from port (port SELLS) = LOW price
-      const price = basePrice * PRICE_MULTIPLIERS.SELL_TO_PLAYER * stockMultiplier;
+      const price = basePrice * PRICE_MULTIPLIERS.SELL_TO_PLAYER * stockMultiplier * driftMultiplier * eventMultiplier;
       pricePerUnit = Math.round(price / rareBonus);
     } else {
       // Player SELLS to port (port BUYS) = HIGH price
-      const price = basePrice * PRICE_MULTIPLIERS.BUY_FROM_PLAYER * stockMultiplier;
+      const price = basePrice * PRICE_MULTIPLIERS.BUY_FROM_PLAYER * stockMultiplier * driftMultiplier * eventMultiplier;
       pricePerUnit = Math.round(price * rareBonus);
     }
 
@@ -359,6 +393,22 @@ export const executeTrade = async (
         }),
         player.current_sector,
       ]
+    );
+
+    // Living economy: record trade volume and nudge drift.
+    // Buying from the port drains shelves (drift up), selling to the port
+    // floods the market (drift down). Bounded to [-0.4, 0.4].
+    const volumeColumn = action === 'buy' ? 'volume_bought' : 'volume_sold';
+    const driftDelta = action === 'buy' ? 0.002 * actualQuantity : -0.002 * actualQuantity;
+    await client.query(
+      `INSERT INTO port_economy (universe_id, sector_number, commodity, ${volumeColumn}, drift, updated_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())
+       ON CONFLICT (universe_id, sector_number, commodity)
+       DO UPDATE SET
+         ${volumeColumn} = port_economy.${volumeColumn} + EXCLUDED.${volumeColumn},
+         drift = GREATEST(-0.4, LEAST(0.4, port_economy.drift + EXCLUDED.drift)),
+         updated_at = NOW()`,
+      [player.universe_id, player.current_sector, commodity, actualQuantity, driftDelta]
     );
 
     // Get updated player and port data
@@ -646,3 +696,50 @@ export const startPortRegeneration = (intervalMs: number = 3600000): NodeJS.Time
   }, intervalMs);
 };
 
+
+export interface MarketEntry {
+  sectorNumber: number;
+  portType: string;
+  commodity: string;
+  drift: number;
+  eventState: string;
+  trend: 'up' | 'down' | 'flat';
+}
+
+/**
+ * Get market board data: drift and events for all ports in the player's universe.
+ * Powers the market trends panel.
+ */
+export const getMarketBoard = async (userId: number): Promise<MarketEntry[]> => {
+  const playerResult = await pool.query(
+    'SELECT universe_id FROM players WHERE user_id = $1',
+    [userId]
+  );
+
+  if (playerResult.rows.length === 0) {
+    throw new Error('Player not found');
+  }
+
+  const universeId = playerResult.rows[0].universe_id;
+
+  const result = await pool.query(
+    `SELECT pe.sector_number, s.port_type, pe.commodity, pe.drift, pe.event_state
+     FROM port_economy pe
+     JOIN sectors s ON s.universe_id = pe.universe_id AND s.sector_number = pe.sector_number
+     WHERE pe.universe_id = $1 AND s.port_type IS NOT NULL
+     ORDER BY pe.sector_number, pe.commodity`,
+    [universeId]
+  );
+
+  return result.rows.map((row) => {
+    const drift = parseFloat(row.drift) || 0;
+    return {
+      sectorNumber: row.sector_number,
+      portType: row.port_type,
+      commodity: row.commodity,
+      drift,
+      eventState: row.event_state || 'none',
+      trend: drift > 0.05 ? 'up' : drift < -0.05 ? 'down' : 'flat',
+    };
+  });
+};

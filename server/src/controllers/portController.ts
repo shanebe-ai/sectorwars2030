@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { getPortInfo, executeTrade, buyColonists, getColonistInfo } from '../services/portService';
+import { getPortInfo, executeTrade, buyColonists, getColonistInfo, getMarketBoard } from '../services/portService';
 
 /**
  * GET /api/ports/:sectorNumber
@@ -147,3 +147,23 @@ export const purchaseColonists = async (req: Request, res: Response) => {
   }
 };
 
+
+/**
+ * GET /api/ports/market
+ * Get market board data for the player's universe
+ */
+export const getMarket = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const market = await getMarketBoard(userId);
+    res.json({ market });
+  } catch (error: any) {
+    console.error('Error getting market board:', error);
+    res.status(500).json({ error: error.message || 'Failed to get market board' });
+  }
+};

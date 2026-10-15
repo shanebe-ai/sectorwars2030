@@ -24,11 +24,13 @@ import alienRoutes from './routes/alien';
 import alienTradingRoutes from './routes/alienTrading';
 import tradeRoutes from './routes/trade';
 import corporationRoutes from './routes/corporation';
+import bountyRoutes from './routes/bounty';
 import genesisRoutes from './routes/genesis';
 import leaderboardRoutes from './routes/leaderboard';
 import playerTradingRoutes from './routes/playerTrading';
 import { startPortRegeneration } from './services/portService';
 import { startFighterMaintenance } from './services/maintenanceService';
+import { startEconomyTick } from './services/economyService';
 import { startAlienShipMovement, startAlienAggression } from './services/alienService';
 import { cleanupExpiredOffers } from './services/alienTradingService';
 import { cleanupExpiredPlayerTrades } from './services/playerTradingService';
@@ -159,6 +161,9 @@ app.use('/api/trade', tradeRoutes);
 // Corporation routes (corp management)
 app.use('/api/corporations', corporationRoutes);
 
+// Bounty routes (bounty contracts and board)
+app.use('/api/bounties', bountyRoutes);
+
 // Genesis routes (genesis torpedoes)
 app.use('/api/genesis', genesisRoutes);
 
@@ -261,6 +266,9 @@ httpServer.listen(PORT, () => {
 
   // Start fighter maintenance charging (daily - 24 hours)
   startFighterMaintenance(24 * 60 * 60 * 1000);
+
+  // Start living economy tick (every 5 minutes: restock, drift decay, events, bounty expiry)
+  startEconomyTick(5 * 60 * 1000);
 
   // Start alien ship movement (every 5 minutes)
   startAlienShipMovement(5 * 60 * 1000);

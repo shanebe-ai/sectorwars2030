@@ -778,6 +778,22 @@ export const executeAttack = async (
       });
     }
 
+    // Bounties: pay out when a player kill happens. Podded victims pay half
+    // and the bounty stays active; full destruction claims it outright.
+    // Runs after COMMIT so a bounty failure never rolls back combat.
+    try {
+      const { claimBounties } = await import('./bountyService');
+      if (combatResult.defenderDestroyed) {
+        const wasPodded = !!combatResult.defenderEscapeSector;
+        await claimBounties(attackerId, defenderId, wasPodded);
+      } else if (combatResult.attackerDestroyed) {
+        const wasPodded = !!combatResult.attackerEscapeSector;
+        await claimBounties(defenderId, attackerId, wasPodded);
+      }
+    } catch (bountyError) {
+      console.error('Bounty claim failed after combat:', bountyError);
+    }
+
     return combatResult;
   } catch (error) {
     await client.query('ROLLBACK');
