@@ -269,6 +269,36 @@ export const getSectorDetails = async (req: Request, res: Response) => {
     // to prevent potential deadlocks from concurrent writes while clients
     // load a sector.
 
+    // Active anomaly and derelict flags for the sector display.
+    let sectorAnomaly: { type: string } | null = null;
+    let sectorDerelict: { type: string; state: string } | null = null;
+    try {
+      const anomalyResult = await pool.query(
+        `SELECT type FROM anomalies
+         WHERE universe_id = $1 AND sector_number = $2 AND ends_at > NOW()
+         LIMIT 1`,
+        [universeId, parseInt(sectorNumber as string)]
+      );
+      if (anomalyResult.rows.length > 0) {
+        sectorAnomaly = { type: anomalyResult.rows[0].type };
+      }
+      const derelictResult = await pool.query(
+        `SELECT type, state FROM derelicts
+         WHERE universe_id = $1 AND sector_number = $2 AND state != 'claimed'
+         LIMIT 1`,
+        [universeId, parseInt(sectorNumber as string)]
+      );
+      if (derelictResult.rows.length > 0) {
+        sectorDerelict = {
+          type: derelictResult.rows[0].type,
+          state: derelictResult.rows[0].state
+        };
+      }
+    } catch {
+      // Derelicts and anomalies tables may not exist yet if migration
+      // 031 was not applied.
+    }
+
     // Auto-log sector when viewing current sector (for initial spawn and returning visits)
     if (parseInt(sectorNumber as string) === currentSector) {
       // Get planet name if exists
@@ -310,6 +340,8 @@ export const getSectorDetails = async (req: Request, res: Response) => {
         hasBeacon: beacons.length > 0,
         fightersCount: sector.fighters_count,
         minesCount: sector.mines_count,
+        anomaly: sectorAnomaly,
+        derelict: sectorDerelict,
         warps,
         players,
         planets,
@@ -537,6 +569,27 @@ export const scanSector = async (req: Request, res: Response) => {
       createdAt: b.created_at
     }));
 
+    // Active anomaly in the scanned sector, if any.
+    let scanAnomaly: { type: string } | null = null;
+    try {
+      const anomalyResult = await pool.query(
+        `SELECT type FROM anomalies
+         WHERE universe_id = $1 AND sector_number = $2 AND ends_at > NOW()
+         LIMIT 1`,
+        [player.universe_id, targetSector]
+      );
+      if (anomalyResult.rows.length > 0) {
+        scanAnomaly = { type: anomalyResult.rows[0].type };
+      }
+    } catch {
+      // Anomalies table may not exist yet if migration 031 was not applied.
+    }
+
+    // Nebula shroud: players and beacons in the sector do not appear on
+    // scans. The anomaly flag itself is still shown.
+    const visibleShips = scanAnomaly && scanAnomaly.type === 'nebula' ? [] : ships;
+    const visibleBeacons = scanAnomaly && scanAnomaly.type === 'nebula' ? [] : beacons;
+
     // Get floating cargo in sector (denormalized structure)
     const cargoResult = await pool.query(
       `SELECT id, fuel, organics, equipment, colonists, source_event, created_at
@@ -595,10 +648,11 @@ export const scanSector = async (req: Request, res: Response) => {
         region: sector.region,
         portInfo,
         planetInfo,
-        ships,
+        ships: visibleShips,
         deployedFighters,
-        beacons,
-        hasBeacon: beacons.length > 0,
+        beacons: visibleBeacons,
+        hasBeacon: visibleBeacons.length > 0,
+        anomaly: scanAnomaly,
         floatingCargo,
         fightersCount: sector.fighters_count || 0,
         minesCount: sector.mines_count || 0,
@@ -706,7 +760,29 @@ export const moveToSector = async (req: Request, res: Response) => {
       }
 
       // Get ship type to determine turn cost (default 1 turn per move for now)
-      const turnCost = 1;
+      let turnCost = 1;
+
+      // Gravity well: warping out of the sector costs extra turns.
+      // There is always a way out, it just costs more.
+      try {
+        const gravityCheck = await client.query(
+          `SELECT 1 FROM anomalies
+           WHERE universe_id = $1 AND sector_number = $2 AND type = 'gravity' AND ends_at > NOW()
+           LIMIT 1`,
+          [player.universe_id, player.current_sector]
+        );
+        if (gravityCheck.rows.length > 0) {
+          turnCost = 2;
+        }
+      } catch {
+        // Anomalies table may not exist yet if migration 031 was not applied.
+      }
+
+      // Check the player can afford the (possibly surcharged) turn cost
+      if (player.turns_remaining < turnCost) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Not enough turns remaining' });
+      }
 
       // Warp drive misfire chance (0.25% chance of malfunction)
       const MISFIRE_CHANCE = 0.0025; // 0.25% = 0.0025

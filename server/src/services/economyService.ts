@@ -67,11 +67,28 @@ export const runEconomyTick = async (): Promise<void> => {
       LIMIT 50
     `);
 
+    // Shared exclusion with anomalies: a sector never hosts an economy
+    // event and an anomaly at once.
+    const anomalySectors = new Set<string>();
+    try {
+      const anomalyRes = await client.query(
+        `SELECT universe_id, sector_number FROM anomalies WHERE ends_at > NOW()`
+      );
+      for (const row of anomalyRes.rows) {
+        anomalySectors.add(`${row.universe_id}:${row.sector_number}`);
+      }
+    } catch {
+      // Anomalies table may not exist yet if migration 031 was not applied.
+    }
+
     for (const row of candidates.rows) {
       if (Math.random() > EVENT_CHANCE) continue;
 
       // Skip Stardock sectors (sector 1 is the safe starting market)
       if (row.sector_number === 1) continue;
+
+      // Skip sectors currently hosting an anomaly
+      if (anomalySectors.has(`${row.universe_id}:${row.sector_number}`)) continue;
 
       const eventType = Math.random() < 0.5 ? 'scarcity' : 'surplus';
       await client.query(

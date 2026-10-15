@@ -31,6 +31,8 @@ import playerTradingRoutes from './routes/playerTrading';
 import { startPortRegeneration } from './services/portService';
 import { startFighterMaintenance } from './services/maintenanceService';
 import { startEconomyTick } from './services/economyService';
+import { startDerelictTick } from './services/derelictService';
+import { startAnomalyTick } from './services/anomalyService';
 import { startAlienShipMovement, startAlienAggression } from './services/alienService';
 import { cleanupExpiredOffers } from './services/alienTradingService';
 import { cleanupExpiredPlayerTrades } from './services/playerTradingService';
@@ -270,6 +272,12 @@ httpServer.listen(PORT, () => {
 
   // Start living economy tick (every 5 minutes: restock, drift decay, events, bounty expiry)
   startEconomyTick(5 * 60 * 1000);
+
+  // Start derelict tick (every 5 minutes: expiry and spawning)
+  startDerelictTick(5 * 60 * 1000);
+
+  // Start anomaly tick (every 5 minutes: dissipation, radiation decay, formation)
+  startAnomalyTick(5 * 60 * 1000);
 
   // Start alien ship movement (every 5 minutes)
   startAlienShipMovement(5 * 60 * 1000);
