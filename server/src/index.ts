@@ -250,7 +250,8 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
-// Start server
+// Start server (skip when imported by tests)
+if (process.env.NODE_ENV !== 'test' && process.env.JEST_WORKER_ID === undefined) {
 httpServer.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════════════╗
@@ -286,6 +287,7 @@ httpServer.listen(PORT, () => {
     }
   }, 60 * 1000); // 1 minute
 });
+} // end if (not test mode)
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {

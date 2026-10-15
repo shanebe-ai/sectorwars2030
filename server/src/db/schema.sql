@@ -613,6 +613,26 @@ CREATE INDEX idx_alien_trade_history_alien_ship ON alien_trade_history(alien_shi
 CREATE INDEX idx_alien_trade_history_traded_at ON alien_trade_history(traded_at DESC);
 CREATE INDEX idx_alien_trade_history_robbery ON alien_trade_history(was_robbery) WHERE was_robbery = TRUE;
 
+-- Function to automatically expire old alien trade offers (from migration 021)
+CREATE OR REPLACE FUNCTION expire_alien_trade_offers()
+RETURNS INTEGER AS $$
+DECLARE
+  expired_count INTEGER;
+BEGIN
+  WITH expired AS (
+    UPDATE alien_trade_offers
+    SET status = 'expired',
+        completed_at = NOW()
+    WHERE status = 'pending'
+      AND expires_at < NOW()
+    RETURNING id
+  )
+  SELECT COUNT(*) INTO expired_count FROM expired;
+
+  RETURN expired_count;
+END;
+$$ LANGUAGE plpgsql;
+
 -- ============================================================================
 -- PLAYER TRADING (from migration 022)
 -- ============================================================================

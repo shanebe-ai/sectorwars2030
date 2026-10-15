@@ -412,6 +412,16 @@ describe('Alien Trading System', () => {
 
       while (attempts < 10) {
         await testPool.query(`DELETE FROM alien_trade_offers WHERE player_id = $1`, [testPlayerId]);
+        // Reset alien cargo (robbery depletes it)
+        await testPool.query(
+          `UPDATE alien_ships SET cargo_fuel = 100, cargo_organics = 100, cargo_equipment = 100 WHERE id = $1`,
+          [tradeAlienId]
+        );
+        // Reset player cargo and holds
+        await testPool.query(
+          `UPDATE players SET cargo_fuel = 0, cargo_organics = 0, cargo_equipment = 0, ship_holds_max = 1000 WHERE id = $1`,
+          [testPlayerId]
+        );
         const offer = await alienTradingService.generateTradeOffer(tradeAlienId, testPlayerId);
         if (!offer) {
           attempts++;
