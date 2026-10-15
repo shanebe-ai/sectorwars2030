@@ -6,7 +6,10 @@ import * as path from 'path';
  * PostgreSQL error code for "relation already exists" (duplicate table/index).
  * These are safe to skip: the object is already in the desired state.
  */
-const DUPLICATE_OBJECT_CODES = new Set(['42P07']);
+const DUPLICATE_OBJECT_CODES = new Set([
+  '42P07', // relation already exists
+  '42501', // insufficient privilege (e.g. function owned by another user, already works)
+]);
 
 async function runMigration() {
   const client = await pool.connect();
