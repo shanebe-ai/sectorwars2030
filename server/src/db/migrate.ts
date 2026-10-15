@@ -21,12 +21,40 @@ async function runMigration() {
     // Execute statement by statement so the migration is idempotent:
     // on an existing database, objects that are already there are skipped
     // instead of aborting the whole run (which used to break deploys).
-    // schema.sql contains only CREATE TABLE / CREATE INDEX statements, so a
-    // naive split on semicolons is safe here.
-    const statements = schema
-      .split(';')
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
+    // Split on semicolons, but respect dollar-quoted blocks (used in
+    // CREATE FUNCTION bodies) so we don't split inside them.
+    const statements: string[] = [];
+    let current = '';
+    let inDollarQuote = false;
+    let dollarTag = '';
+    const lines = schema.split('\n');
+    for (let i = 0; i < schema.length; i++) {
+      // Check for dollar quote start/end ($$ or $tag$)
+      const dollarMatch = schema.slice(i).match(/^\$([A-Za-z_][A-Za-z0-9_]*)?\$/);
+      if (dollarMatch) {
+        const tag = dollarMatch[0];
+        if (!inDollarQuote) {
+          inDollarQuote = true;
+          dollarTag = tag;
+        } else if (tag === dollarTag) {
+          inDollarQuote = false;
+          dollarTag = '';
+        }
+        current += tag;
+        i += tag.length - 1;
+        continue;
+      }
+      if (schema[i] === ';' && !inDollarQuote) {
+        statements.push(current.trim());
+        current = '';
+      } else {
+        current += schema[i];
+      }
+    }
+    if (current.trim().length > 0) {
+      statements.push(current.trim());
+    }
+    const filtered = statements.filter((s) => s.length > 0);
 
     let created = 0;
     let skipped = 0;
