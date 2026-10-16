@@ -9,6 +9,9 @@ import BountyBoardPanel from './BountyBoardPanel';
 import UniverseInfoPanel from './UniverseInfoPanel';
 import PlayerSearchPanel from './PlayerSearchPanel';
 import CombatNotification from './CombatNotification';
+import ThemeToggle from './bbs/ThemeToggle';
+import BbsTerminal from './bbs/BbsTerminal';
+import { useTheme } from '../themes/ThemeContext';
 import { API_URL } from '../config/api';
 import { useSocketNotifications } from '../hooks/useSocketNotifications';
 
@@ -108,7 +111,27 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
       ...updatedPlayer
     }));
   };
+
+  const { theme } = useTheme();
+
+  // BBS mode: full terminal interface like the original TW2002
+  if (theme === 'bbs') {
+    return (
+      <>
+        <ThemeToggle />
+        <BbsTerminal
+          player={player}
+token={token}
+          onPlayerUpdate={handleSectorChange}
+          onLogout={onLogout}
+        />
+      </>
+    );
+  }
+
   return (
+    <>
+      <ThemeToggle />
     <div className="cyberpunk-container">
       {/* Login Notification (Escape Pod Alert) */}
       {loginNotification && (
@@ -685,5 +708,6 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
         }
       `}</style>
     </div>
+    </>
   );
 }

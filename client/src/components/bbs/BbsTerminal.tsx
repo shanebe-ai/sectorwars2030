@@ -1,0 +1,336 @@
+import { useState, useEffect, useRef } from 'react';
+import { API_URL } from '../../config/api';
+import AnsiText from './AnsiText';
+import AnsiArt, { MINE_ALERT_ART, COMBAT_ALERT_ART } from './AnsiArt';
+
+interface BbsTerminalProps {
+  player: any;
+token: string;
+  onPlayerUpdate: (player: any) => void;
+  onLogout: () => void;
+}
+
+/**
+ * Full TW2002-style BBS terminal interface.
+ * Command-driven navigation like the original game.
+ * Commands: ?/help, d, m, p, i, q, and more.
+ */
+export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }: BbsTerminalProps) {
+  const [lines, setLines] = useState<string[]>([]);
+  const [input, setInput] = useState('');
+  const [sector, setSector] = useState<any>(null);
+  const [history, setHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [alert, setAlert] = useState<'mine' | 'combat' | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  const addLines = (newLines: string[]) => {
+    setLines(prev => [...prev, ...newLines]);
+  };
+
+  const fetchSector = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/sectors/${player.currentSector}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.sector) {
+        setSector(data.sector);
+        return data.sector;
+      }
+    } catch (e) {
+      addLines(['\x1b[31mError fetching sector data.\x1b[0m']);
+    }
+    return null;
+  };
+
+  useEffect(() => {
+    // Initial display
+    addLines([
+      '',
+      '\x1b[33mTRADEWARS 2030 - BBS TERMINAL MODE\x1b[0m',
+      '\x1b[32mType ? for help.\x1b[0m',
+      '',
+    ]);
+    fetchSector().then(s => {
+      if (s) displaySector(s);
+    });
+    inputRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [lines]);
+
+  const displaySector = (s: any) => {
+    const out: string[] = [''];
+    // Check for alerts
+    if (s.minesCount > 0) {
+      setAlert('mine');
+    } else if (s.hasHostileFighters) {
+      setAlert('combat');
+    } else {
+      setAlert(null);
+    }
+    out.push(`\x1b[33mSector \x1b[0m: \x1b[32m${s.sector_number}\x1b[0m` + (s.name ? ` \x1b[36m(${s.name})\x1b[0m` : ''));
+    if (s.port_type) {
+      out.push(`\x1b[36mPorts   \x1b[0m: \x1b[32m${s.port_type}\x1b[0m (Class ${s.port_class || '?'})`);
+    }
+    if (s.warps && s.warps.length > 0) {
+      out.push(`\x1b[36mWarps   \x1b[0m: ${s.warps.map((w: any) => `\x1b[36m${w.destination}\x1b[0m${w.isTwoWay ? '' : ' \x1b[33m(1-way)\x1b[0m'}`).join(', ')}`);
+    } else {
+      out.push(`\x1b[36mWarps   \x1b[0m: \x1b[31m(none)\x1b[0m`);
+    }
+    if (s.players && s.players.length > 0) {
+      out.push(`\x1b[36mTraders \x1b[0m: ${s.players.map((p: any) => p.username).join(', ')}`);
+    }
+    out.push('');
+    addLines(out);
+  };
+
+  const showHelp = () => {
+    addLines([
+      '',
+      '\x1b[33mCOMMANDS:\x1b[0m',
+      '  \x1b[32m?\x1b[0m, \x1b[32mhelp\x1b[0m     - Show this help',
+      '  \x1b[32md\x1b[0m            - Display current sector',
+      '  \x1b[32mm <sector>\x1b[0m   - Move to sector (e.g. m 42)',
+      '  \x1b[32mi\x1b[0m            - Ship and player info',
+      '  \x1b[32mp\x1b[0m            - Port info (if docked at port)',
+      '  \x1b[32mb\x1b[0m            - Bounty board',
+      '  \x1b[32mk\x1b[0m            - Market board',
+      '  \x1b[32mq\x1b[0m            - Quit to login',
+      '',
+    ]);
+  };
+
+  const showInfo = () => {
+    addLines([
+      '',
+      `\x1b[33mSHIP INFO:\x1b[0m`,
+      `  Trader : \x1b[32m${player.corpName || player.username}\x1b[0m`,
+      `  Sector : \x1b[32m${player.currentSector}\x1b[0m`,
+      `  Credits: \x1b[32m${player.credits}\x1b[0m`,
+      `  Turns  : \x1b[32m${player.turnsRemaining}\x1b[0m`,
+      `  Ship   : \x1b[32m${player.shipType}\x1b[0m`,
+      `  Holds  : \x1b[32m${player.shipHoldsMax}\x1b[0m`,
+      `  Fighters: \x1b[32m${player.shipFighters}\x1b[0m`,
+      `  Shields : \x1b[32m${player.shipShields}\x1b[0m`,
+      '',
+    ]);
+  };
+
+  const handleMove = async (destStr: string) => {
+    const dest = parseInt(destStr);
+    if (isNaN(dest)) {
+      addLines(['\x1b[31mUsage: m <sector number>\x1b[0m', '']);
+      return;
+    }
+    addLines([`\x1b[36mWarping to sector ${dest}...\x1b[0m`]);
+    try {
+      const res = await fetch(`${API_URL}/api/sectors/move`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ destinationSector: dest }),
+      });
+      const data = await res.json();
+      if (data.success && data.player) {
+        onPlayerUpdate(data.player);
+        addLines([`\x1b[32mArrived at sector ${data.player.currentSector}.\x1b[0m`, '']);
+        const s = await fetchSector();
+        if (s) displaySector(s);
+      } else {
+        addLines([`\x1b[31m${data.error || 'Move failed.'}\x1b[0m`, '']);
+      }
+    } catch (e) {
+      addLines(['\x1b[31mConnection error.\x1b[0m', '']);
+    }
+  };
+
+  const handlePort = async () => {
+    if (!sector?.port_type) {
+      addLines(['\x1b[31mNo port in this sector.\x1b[0m', '']);
+      return;
+    }
+    addLines([
+      '',
+      `\x1b[33mPORT: ${sector.port_type} (Class ${sector.port_class || '?'})\x1b[0m`,
+      `  Fuel     : \x1b[32m${sector.port_fuel_qty || 0}\x1b[0m units`,
+      `  Organics : \x1b[32m${sector.port_organics_qty || 0}\x1b[0m units`,
+      `  Equipment: \x1b[32m${sector.port_equipment_qty || 0}\x1b[0m units`,
+      '',
+      '\x1b[36mUse the cyberpunk mode for trading.\x1b[0m',
+      '',
+    ]);
+  };
+
+  const handleBounties = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/bounties/board`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await res.json();
+      addLines(['', '\x1b[33mBOUNTY BOARD:\x1b[0m']);
+      if (!data.board || data.board.length === 0) {
+        addLines(['  \x1b[36mNo active bounties.\x1b[0m', '']);
+      } else {
+        data.board.forEach((b: any) => {
+          addLines([`  \x1b[32m${b.target_name}\x1b[0m: \x1b[33m${b.amount}\x1b[0m credits`]);
+        });
+        addLines(['']);
+      }
+    } catch (e) {
+      addLines(['\x1b[31mError fetching bounties.\x1b[0m', '']);
+    }
+  };
+
+  const handleMarket = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/ports/market`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await res.json();
+      addLines(['', '\x1b[33mMARKET BOARD:\x1b[0m']);
+      if (!data.market || data.market.length === 0) {
+        addLines(['  \x1b[36mNo market data available.\x1b[0m', '']);
+      } else {
+        data.market.slice(0, 10).forEach((m: any) => {
+          addLines([`  Sector ${m.sector_number}: ${m.port_type} - drift ${m.drift || 0}%`]);
+        });
+      }
+      addLines(['']);
+    } catch (e) {
+      addLines(['\x1b[31mError fetching market.\x1b[0m', '']);
+    }
+  };
+
+  const handleCommand = async (raw: string) => {
+    const cmd = raw.trim().toLowerCase();
+    if (!cmd) return;
+
+    addLines([`\x1b[36m> ${raw}\x1b[0m`]);
+    setHistory(prev => [raw, ...prev].slice(0, 50));
+    setHistoryIndex(-1);
+
+    const parts = cmd.split(/\s+/);
+    const verb = parts[0];
+
+    switch (verb) {
+      case '?':
+      case 'help':
+        showHelp();
+        break;
+      case 'd':
+      case 'display':
+        {
+          const s = await fetchSector();
+          if (s) displaySector(s);
+        }
+        break;
+      case 'm':
+      case 'move':
+      case 'warp':
+        await handleMove(parts[1] || '');
+        break;
+      case 'i':
+      case 'info':
+        showInfo();
+        break;
+      case 'p':
+      case 'port':
+        await handlePort();
+        break;
+      case 'b':
+      case 'bounty':
+      case 'bounties':
+        await handleBounties();
+        break;
+      case 'k':
+      case 'market':
+        await handleMarket();
+        break;
+      case 'q':
+      case 'quit':
+      case 'exit':
+        addLines(['\x1b[33mGoodbye, trader.\x1b[0m']);
+        setTimeout(onLogout, 500);
+        break;
+      default:
+        addLines([`\x1b[31mUnknown command: ${verb}. Type ? for help.\x1b[0m`, '']);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleCommand(input);
+      setInput('');
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (historyIndex < history.length - 1) {
+        const idx = historyIndex + 1;
+        setHistoryIndex(idx);
+        setInput(history[idx]);
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (historyIndex > 0) {
+        const idx = historyIndex - 1;
+        setHistoryIndex(idx);
+        setInput(history[idx]);
+      } else {
+        setHistoryIndex(-1);
+        setInput('');
+      }
+    }
+  };
+
+  return (
+    <div
+      style={{
+        fontFamily: "'VT323', 'IBM Plex Mono', monospace",
+        fontSize: '22px',
+        lineHeight: 1.4,
+        padding: '20px',
+        minHeight: '100vh',
+        background: '#0a0f0a',
+        color: '#33ff33',
+        cursor: 'text',
+      }}
+      onClick={() => inputRef.current?.focus()}
+    >
+      {lines.map((line, i) => (
+        <div key={i} style={{ whiteSpace: 'pre-wrap' }}>
+          <AnsiText text={line || ' '} />
+        </div>
+      ))}
+      {alert === 'mine' && <AnsiArt art={MINE_ALERT_ART} color="#ff3333" animated />}
+      {alert === 'combat' && <AnsiArt art={COMBAT_ALERT_ART} color="#ff3333" animated />}
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <span style={{ color: '#33ff33', marginRight: '8px' }}>&gt;</span>
+        <input
+          ref={inputRef}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          style={{
+            flex: 1,
+            background: 'transparent',
+            border: 'none',
+            outline: 'none',
+            color: '#33ff33',
+            fontFamily: 'inherit',
+            fontSize: 'inherit',
+            caretColor: '#33ff33',
+          }}
+          autoComplete="off"
+          spellCheck={false}
+        />
+      </div>
+      <div ref={bottomRef} />
+    </div>
+  );
+}

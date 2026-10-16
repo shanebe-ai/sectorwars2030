@@ -116,7 +116,6 @@ function App() {
   return (
     <ThemeProvider>
       <TerminalShell>
-        <ThemeToggle />
         <AppContent />
       </TerminalShell>
     </ThemeProvider>
