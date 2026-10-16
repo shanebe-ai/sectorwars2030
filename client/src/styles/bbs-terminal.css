@@ -156,3 +156,71 @@
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
 }
+
+/* ============================================================================
+ * BBS overrides for cyberpunk component classes
+ * These force the retro terminal look on components that use cyberpunk classes
+ * or inline styles. High specificity + !important overrides inline styles.
+ * ============================================================================ */
+
+/* Main containers */
+[data-theme="bbs"] .cyberpunk-container {
+  background: #0a0f0a !important;
+  color: #33ff33 !important;
+  font-family: 'VT323', 'IBM Plex Mono', monospace !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Cyberpunk buttons become terminal prompts */
+[data-theme="bbs"] .cyberpunk-button {
+  background: transparent !important;
+  border: 1px solid #33ff33 !important;
+  color: #33ff33 !important;
+  font-family: 'VT323', 'IBM Plex Mono', monospace !important;
+  font-size: 20px !important;
+  text-transform: none !important;
+  letter-spacing: 1px !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  text-shadow: 0 0 6px rgba(51, 255, 51, 0.5) !important;
+  clip-path: none !important;
+}
+
+[data-theme="bbs"] .cyberpunk-button:hover {
+  background: #33ff33 !important;
+  color: #000 !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+}
+
+[data-theme="bbs"] .cyberpunk-button:disabled {
+  border-color: #1a5533 !important;
+  color: #1a5533 !important;
+  text-shadow: none !important;
+}
+
+/* Panels */
+[data-theme="bbs"] .cyberpunk-panel,
+[data-theme="bbs"] [class*="panel"] {
+  background: #0a0f0a !important;
+  border: 1px solid rgba(51, 255, 51, 0.3) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Headers */
+[data-theme="bbs"] .panel-header,
+[data-theme="bbs"] [class*="header"] {
+  color: #ffb000 !important;
+  font-family: 'VT323', 'IBM Plex Mono', monospace !important;
+  text-shadow: 0 0 10px rgba(255, 176, 0, 0.6) !important;
+  border-bottom: 1px solid rgba(51, 255, 51, 0.3) !important;
+  background: transparent !important;
+}
+
+/* Override inline style backgrounds on main layout divs */
+[data-theme="bbs"] div[style*="background"] {
+  /* This is too broad, skip */
+}
