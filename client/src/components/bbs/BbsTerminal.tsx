@@ -80,9 +80,18 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
     } else {
       setAlert(null);
     }
-    out.push(`\x1b[33mSector \x1b[0m: \x1b[32m${s.sector_number}\x1b[0m` + (s.name ? ` \x1b[36m(${s.name})\x1b[0m` : ''));
-    if (s.port_type) {
-      out.push(`\x1b[36mPorts   \x1b[0m: \x1b[32m${s.port_type}\x1b[0m (Class ${s.port_class || '?'})`);
+    out.push(`\x1b[33mSector \x1b[0m: \x1b[32m${s.sectorNumber}\x1b[0m` + (s.name ? ` \x1b[36m(${s.name})\x1b[0m` : '') + (s.region ? ` in \x1b[36m${s.region}\x1b[0m` : ''));
+    if (s.portType) {
+      out.push(`\x1b[36mPorts   \x1b[0m: \x1b[32m${s.portType}\x1b[0m (Class ${s.portClass || '?'})`);
+    }
+    if (s.planets && s.planets.length > 0) {
+      out.push(`\x1b[36mPlanets \x1b[0m: ${s.planets.map((p: any) => p.name + (p.ownerName ? ` (${p.ownerName})` : ' (unclaimed)')).join(', ')}`);
+    }
+    if (s.fightersCount > 0) {
+      out.push(`\x1b[36mFighters\x1b[0m: \x1b[32m${s.fightersCount}\x1b[0m` + (s.hasHostileFighters ? ` \x1b[31m[HOSTILE: ${s.hostileFighterCount}]\x1b[0m` : ''));
+    }
+    if (s.minesCount > 0) {
+      out.push(`\x1b[36mMines   \x1b[0m: \x1b[31m${s.minesCount}\x1b[0m`);
     }
     if (s.warps && s.warps.length > 0) {
       out.push(`\x1b[36mWarps   \x1b[0m: ${s.warps.map((w: any) => `\x1b[36m${w.destination}\x1b[0m${w.isTwoWay ? '' : ' \x1b[33m(1-way)\x1b[0m'}`).join(', ')}`);
@@ -91,6 +100,11 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
     }
     if (s.players && s.players.length > 0) {
       out.push(`\x1b[36mTraders \x1b[0m: ${s.players.map((p: any) => p.username).join(', ')}`);
+    }
+    if (s.beacons && s.beacons.length > 0) {
+      s.beacons.forEach((b: any) => {
+        out.push(`\x1b[36mBeacon  \x1b[0m: "${b.message}" - ${b.ownerName || 'Unknown'}`);
+      });
     }
     out.push('');
     addLines(out);
@@ -173,18 +187,15 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
   };
 
   const handlePort = async () => {
-    if (!sector?.port_type) {
+    if (!sector?.portType) {
       addLines(['\x1b[31mNo port in this sector.\x1b[0m', '']);
       return;
     }
     addLines([
       '',
-      `\x1b[33mPORT: ${sector.port_type} (Class ${sector.port_class || '?'})\x1b[0m`,
-      `  Fuel     : \x1b[32m${sector.port_fuel_qty || 0}\x1b[0m units`,
-      `  Organics : \x1b[32m${sector.port_organics_qty || 0}\x1b[0m units`,
-      `  Equipment: \x1b[32m${sector.port_equipment_qty || 0}\x1b[0m units`,
+      `\x1b[33mPORT: ${sector.portType} (Class ${sector.portClass || '?'})\x1b[0m`,
       '',
-      '\x1b[36mUse the cyberpunk mode for trading.\x1b[0m',
+      '\x1b[36mUse cyberpunk mode for trading.\x1b[0m',
       '',
     ]);
   };
