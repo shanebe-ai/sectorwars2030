@@ -1,4 +1,5 @@
 import AnsiText, { ansi } from './AnsiText';
+import AnsiArt, { STARDOCK_ART, PORT_ART } from './AnsiArt';
 
 interface CommodityInfo {
   action: 'buy' | 'sell';
@@ -19,9 +20,18 @@ interface PortData {
 
 /**
  * Classic TW2002-style port display for BBS mode.
- * Shows commodities as a terminal table with buy/sell indicators.
+ * Shows ANSI art header plus commodities as a terminal table.
  */
 export default function BbsPortDisplay({ port }: { port: PortData }) {
+  // Pick art based on port type
+  const isStardock = port.portType.toLowerCase().includes('stardock');
+  const artKey = port.portType.toLowerCase().includes('fuel') ? 'fuel'
+    : port.portType.toLowerCase().includes('organic') ? 'organics'
+    : port.portType.toLowerCase().includes('equip') ? 'equipment'
+    : null;
+  const art = isStardock ? STARDOCK_ART : (artKey ? PORT_ART[artKey] : null);
+  const artColor = isStardock ? '#ff00ff' : '#33ff33';
+
   const lines: string[] = [];
 
   lines.push('');
@@ -61,6 +71,7 @@ export default function BbsPortDisplay({ port }: { port: PortData }) {
         padding: '8px 0',
       }}
     >
+      {art && <AnsiArt art={art} color={artColor} />}
       {lines.map((line, i) => (
         <div key={i}>
           <AnsiText text={line || ' '} />
