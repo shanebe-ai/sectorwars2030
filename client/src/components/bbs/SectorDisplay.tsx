@@ -47,9 +47,11 @@ interface SectorData {
 export default function SectorDisplay({
   sector,
   visitedSectors,
+  onWarp,
 }: {
   sector: SectorData;
   visitedSectors?: Set<number>;
+  onWarp?: (destination: number) => void;
 }) {
   const lines: string[] = [];
 
@@ -112,12 +114,44 @@ export default function SectorDisplay({
   }
 
   // Warps: only reveal one-way status for sectors the player has visited
+  // Render as clickable buttons when onWarp is provided
+  let warpsElement: React.ReactNode = null;
   if (sector.warps.length > 0) {
-    const warps = sector.warps.map(w => {
-      const isKnownOneWay = !w.isTwoWay && visitedSectors?.has(w.destination);
-      return isKnownOneWay ? `${w.destination} (1-way)` : String(w.destination);
-    });
-    lines.push(`Warps   : ${warps.join(', ')}`);
+    if (onWarp) {
+      warpsElement = (
+        <span>
+          {'Warps   : '}
+          {sector.warps.map((w, i) => {
+            const isKnownOneWay = !w.isTwoWay && visitedSectors?.has(w.destination);
+            return (
+              <span key={w.destination}>
+                {i > 0 && ', '}
+                <button
+                  onClick={() => onWarp(w.destination)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    font: 'inherit',
+                    color: 'var(--bbs-cyan, #33ffff)',
+                    textDecoration: 'underline',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {w.destination}{isKnownOneWay ? ' (1-way)' : ''}
+                </button>
+              </span>
+            );
+          })}
+        </span>
+      );
+    } else {
+      const warps = sector.warps.map(w => {
+        const isKnownOneWay = !w.isTwoWay && visitedSectors?.has(w.destination);
+        return isKnownOneWay ? `${w.destination} (1-way)` : String(w.destination);
+      });
+      lines.push(`Warps   : ${warps.join(', ')}`);
+    }
   } else {
     lines.push(`Warps   : ${ansi.red('(none - dead end!)')}`);
   }
@@ -141,6 +175,7 @@ export default function SectorDisplay({
           <AnsiText text={line || ' '} />
         </div>
       ))}
+      {warpsElement && <div>{warpsElement}</div>}
     </div>
   );
 }
