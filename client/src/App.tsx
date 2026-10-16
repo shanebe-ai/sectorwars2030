@@ -4,7 +4,6 @@ import PlayerInitialization from './components/PlayerInitialization';
 import GameDashboard from './components/GameDashboard';
 import { ThemeProvider } from './themes/ThemeContext';
 import TerminalShell from './components/bbs/TerminalShell';
-import ThemeToggle from './components/bbs/ThemeToggle';
 import { API_URL } from './config/api';
 import './App.css';
 import './styles/bbs-terminal.css';
