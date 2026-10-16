@@ -30,14 +30,21 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
   };
 
   const fetchSector = async () => {
+    const sectorNum = player.currentSector;
+    if (!sectorNum) {
+      addLines(['\x1b[31mNo sector data. Try the d command.\x1b[0m']);
+      return null;
+    }
     try {
-      const res = await fetch(`${API_URL}/api/sectors/${player.currentSector}`, {
+      const res = await fetch(`${API_URL}/api/sectors/${sectorNum}`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await res.json();
       if (data.sector) {
         setSector(data.sector);
         return data.sector;
+      } else {
+        addLines([`\x1b[31mSector ${sectorNum} not found.\x1b[0m`]);
       }
     } catch (e) {
       addLines(['\x1b[31mError fetching sector data.\x1b[0m']);
@@ -96,6 +103,7 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
       '  \x1b[32m?\x1b[0m, \x1b[32mhelp\x1b[0m     - Show this help',
       '  \x1b[32md\x1b[0m            - Display current sector',
       '  \x1b[32mm <sector>\x1b[0m   - Move to sector (e.g. m 42)',
+      '  \x1b[32m<sector>\x1b[0m      - Move to sector (just type the number)',
       '  \x1b[32mi\x1b[0m            - Ship and player info',
       '  \x1b[32mp\x1b[0m            - Port info (if docked at port)',
       '  \x1b[32mb\x1b[0m            - Bounty board',
@@ -140,9 +148,22 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
       const data = await res.json();
       if (data.success && data.player) {
         onPlayerUpdate(data.player);
-        addLines([`\x1b[32mArrived at sector ${data.player.currentSector}.\x1b[0m`, '']);
-        const s = await fetchSector();
-        if (s) displaySector(s);
+        // Use the fresh player data, not the stale prop
+        const newSectorNum = data.player.currentSector;
+        addLines([`\x1b[32mArrived at sector ${newSectorNum}.\x1b[0m`, '']);
+        // Fetch sector with the new sector number directly
+        try {
+          const sres = await fetch(`${API_URL}/api/sectors/${newSectorNum}`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+          const sdata = await sres.json();
+          if (sdata.sector) {
+            setSector(sdata.sector);
+            displaySector(sdata.sector);
+          }
+        } catch (e) {
+          addLines(['\x1b[31mError fetching new sector.\x1b[0m']);
+        }
       } else {
         addLines([`\x1b[31m${data.error || 'Move failed.'}\x1b[0m`, '']);
       }
@@ -218,6 +239,12 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
 
     const parts = cmd.split(/\s+/);
     const verb = parts[0];
+
+    // TW2002 style: typing just a number warps to that sector
+    if (/^\d+$/.test(verb)) {
+      await handleMove(verb);
+      return;
+    }
 
     switch (verb) {
       case '?':
