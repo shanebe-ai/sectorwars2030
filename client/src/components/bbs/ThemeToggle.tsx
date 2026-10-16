@@ -20,7 +20,7 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={handleToggle}
-      title={theme === 'bbs' ? 'Switch to cyberpunk theme' : 'Switch to BBS terminal mode'}
+      title={theme === 'bbs' ? 'Switch to cyberpunk theme (current: BBS)' : 'Switch to BBS terminal mode (current: Cyberpunk)'}
       style={{
         position: 'fixed',
         top: '12px',
@@ -50,7 +50,7 @@ export default function ThemeToggle() {
         e.currentTarget.style.opacity = '0.95';
       }}
     >
-      {theme === 'bbs' ? '[ CYBER ]' : '[ BBS ]'}
+      {theme === 'bbs' ? 'BBS MODE' : 'CYBER MODE'}
     </button>
   );
 }
