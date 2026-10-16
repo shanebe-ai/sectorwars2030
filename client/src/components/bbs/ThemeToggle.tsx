@@ -50,7 +50,7 @@ export default function ThemeToggle() {
         e.currentTarget.style.opacity = '0.95';
       }}
     >
-      {theme === 'bbs' ? 'BBS MODE' : 'CYBER MODE'}
+      {theme === 'bbs' ? '[ CYBER ]' : '[ BBS ]'}
     </button>
   );
 }
