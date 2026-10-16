@@ -1269,7 +1269,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
       {/* BBS mode: classic TW2002 sector readout */}
       {theme === 'bbs' && sector && (
         <div style={{ padding: '0 20px', borderBottom: '1px solid rgba(51,255,51,0.2)' }}>
-          <SectorDisplay sector={sector} visitedSectors={visitedSectors} />
+          <SectorDisplay sector={sector} visitedSectors={visitedSectors} onWarp={(dest) => moveToSector(dest)} />
         </div>
       )}
 
