@@ -1,0 +1,133 @@
+/* TradeWars 2030 - Mobile Cyberpunk Optimizations
+ *
+ * Targeted overrides for phone-sized screens. These use !important to
+ * override React inline styles (which cannot use !important themselves).
+ * Desktop layout is untouched - all rules are inside the mobile media query.
+ */
+
+@media (max-width: 768px) {
+  /* --- Base: reduce chrome, prevent horizontal scroll --- */
+  .cyberpunk-container {
+    padding: 8px !important;
+    overflow-x: hidden !important;
+  }
+
+  body {
+    font-size: 14px !important;
+    -webkit-text-size-adjust: 100% !important;
+  }
+
+  /* --- Touch targets: minimum 44px for buttons --- */
+  [data-theme="cyberpunk"] button,
+  .cyberpunk-container button,
+  .cyberpunk-button {
+    min-height: 44px !important;
+    min-width: 44px !important;
+    font-size: 15px !important;
+    padding: 10px 14px !important;
+    touch-action: manipulation !important;
+  }
+
+  /* --- Panels: full width, tighter padding --- */
+  .cyberpunk-panel,
+  .cyberpunk-container > div {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .panel-header {
+    font-size: 16px !important;
+    padding: 10px 12px !important;
+    letter-spacing: 1px !important;
+  }
+
+  /* --- Warp buttons: grid instead of cramped row --- */
+  /* Warp destination buttons get room to breathe */
+  .cyberpunk-container button {
+    margin: 4px !important;
+  }
+
+  /* --- Inputs: prevent iOS zoom, larger tap areas --- */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important; /* Prevents iOS auto-zoom on focus */
+    min-height: 44px !important;
+    padding: 10px 12px !important;
+  }
+
+  /* --- Tables: allow horizontal scroll within container --- */
+  table {
+    font-size: 13px !important;
+    display: block !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* --- Headings: scale down --- */
+  h1 {
+    font-size: 24px !important;
+  }
+  h2 {
+    font-size: 20px !important;
+  }
+  h3 {
+    font-size: 17px !important;
+  }
+
+  /* --- Theme toggle: smaller, out of the way --- */
+  /* The fixed-position toggle stays reachable but compact */
+  button[title*="theme" i],
+  button[title*="BBS" i],
+  button[title*="cyberpunk" i] {
+    top: 8px !important;
+    right: 8px !important;
+    padding: 6px 10px !important;
+    font-size: 11px !important;
+    min-height: 36px !important;
+  }
+
+  /* --- Combat/notification overlays: fit on screen --- */
+  div[style*="position: fixed"] {
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100vh - 32px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* --- Reduce glow effects for performance on mobile --- */
+  * {
+    text-shadow: none !important;
+  }
+  .cyberpunk-container {
+    text-shadow: 0 0 4px currentColor !important;
+  }
+
+  /* --- Cargo/commodity grids: stack on mobile --- */
+  /* Any flex row with gap becomes a column for readability */
+  div[style*="display: flex"][style*="gap"] {
+    flex-wrap: wrap !important;
+  }
+}
+
+/* --- Small phones (iPhone SE, etc.) --- */
+@media (max-width: 375px) {
+  .cyberpunk-container {
+    padding: 6px !important;
+  }
+
+  .panel-header {
+    font-size: 14px !important;
+  }
+
+  body {
+    font-size: 13px !important;
+  }
+}
+
+/* --- Landscape phones: use horizontal space --- */
+@media (max-width: 768px) and (orientation: landscape) {
+  .cyberpunk-container {
+    padding: 8px 16px !important;
+  }
+}
