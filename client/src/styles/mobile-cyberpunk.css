@@ -158,18 +158,19 @@
     margin-bottom: 8px !important;
   }
 
-  /* Action buttons row: stack vertically on narrow screens */
-  /* Prevents horizontal overflow and mis-taps */
+  /* Action buttons: 2-column grid on mobile (not stacked) */
+  /* Nav buttons become a compact grid instead of a long vertical list */
   div[style*="display: flex"][style*="gap: 10px"],
   div[style*="display:flex"][style*="gap:10px"] {
-    flex-direction: column !important;
-    align-items: stretch !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
   }
 
   div[style*="display: flex"][style*="gap: 10px"] button,
   div[style*="display:flex"][style*="gap:10px"] button {
     width: 100% !important;
-    margin-bottom: 8px !important;
+    margin: 0 !important;
   }
 
   /* Ship status bar: compact on mobile */
