@@ -7,6 +7,7 @@ import TerminalShell from './components/bbs/TerminalShell';
 import { API_URL } from './config/api';
 import './App.css';
 import './styles/bbs-terminal.css';
+import './styles/mobile-cyberpunk.css';
 
 function AppContent() {
   const [user, setUser] = useState<any>(null);
