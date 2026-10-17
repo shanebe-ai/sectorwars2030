@@ -15,6 +15,11 @@ token: string;
  * Command-driven navigation like the original game.
  * Commands: ?/help, d, m, p, i, q, and more.
  */
+const REGION_INFO: Record<string, string> = {
+  'TerraSpace': 'Federation safe zone - no combat',
+  'Frontier': 'Uncharted space - proceed with caution',
+};
+
 export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }: BbsTerminalProps) {
   const [lines, setLines] = useState<string[]>([]);
   const [input, setInput] = useState('');
@@ -80,7 +85,11 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
     } else {
       setAlert(null);
     }
-    out.push(`\x1b[33mSector \x1b[0m: \x1b[32m${s.sectorNumber}\x1b[0m` + (s.name ? ` \x1b[36m(${s.name})\x1b[0m` : '') + (s.region ? ` in \x1b[36m${s.region}\x1b[0m` : ''));
+    out.push(`\x1b[33mSector \x1b[0m: \x1b[32m${s.sectorNumber}\x1b[0m` + (s.name ? ` \x1b[36m(${s.name})\x1b[0m` : ''));
+    if (s.region) {
+      const regionDesc = REGION_INFO[s.region];
+      out.push(`\x1b[36mRegion  \x1b[0m: \x1b[32m${s.region}\x1b[0m` + (regionDesc ? ` - \x1b[33m${regionDesc}\x1b[0m` : ''));
+    }
     if (s.portType) {
       out.push(`\x1b[36mPorts   \x1b[0m: \x1b[32m${s.portType}\x1b[0m (Class ${s.portClass || '?'})`);
     }
