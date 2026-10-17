@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { API_URL } from '../../config/api';
 import AnsiText from './AnsiText';
-import AnsiArt, { MINE_ALERT_ART, COMBAT_ALERT_ART } from './AnsiArt';
+import AnsiArt, { STARDOCK_ART, PORT_ART, MINE_ALERT_ART, COMBAT_ALERT_ART } from './AnsiArt';
 
 interface BbsTerminalProps {
   player: any;
@@ -27,6 +27,7 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [alert, setAlert] = useState<'mine' | 'combat' | null>(null);
+  const [portArt, setPortArt] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -198,7 +199,19 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
   const handlePort = async () => {
     if (!sector?.portType) {
       addLines(['\x1b[31mNo port in this sector.\x1b[0m', '']);
+      setPortArt(null);
       return;
+    }
+    // Show ANSI art for the port
+    const isStardock = sector.portType.toLowerCase().includes('stardock');
+    if (isStardock) {
+      setPortArt(STARDOCK_ART);
+    } else {
+      const artKey = sector.portType.toLowerCase().includes('fuel') ? 'fuel'
+        : sector.portType.toLowerCase().includes('organic') ? 'organics'
+        : sector.portType.toLowerCase().includes('equip') ? 'equipment'
+        : null;
+      setPortArt(artKey ? PORT_ART[artKey] : null);
     }
     addLines([
       '',
@@ -256,6 +269,10 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
     addLines([`\x1b[36m> ${raw}\x1b[0m`]);
     setHistory(prev => [raw, ...prev].slice(0, 50));
     setHistoryIndex(-1);
+    // Clear port art unless this is the port command
+    if (verb !== 'p' && verb !== 'port') {
+      setPortArt(null);
+    }
 
     const parts = cmd.split(/\s+/);
     const verb = parts[0];
@@ -356,6 +373,7 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
       ))}
       {alert === 'mine' && <AnsiArt art={MINE_ALERT_ART} color="#ff3333" animated />}
       {alert === 'combat' && <AnsiArt art={COMBAT_ALERT_ART} color="#ff3333" animated />}
+      {portArt && <AnsiArt art={portArt} color="#ff00ff" />}
       <div style={{ display: 'flex', alignItems: 'center' }}>
         <span style={{ color: '#33ff33', marginRight: '8px' }}>&gt;</span>
         <input
