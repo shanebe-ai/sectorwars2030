@@ -131,3 +131,52 @@
     padding: 8px 16px !important;
   }
 }
+
+/* --- Smart mobile UX: warp grid and action prioritization --- */
+@media (max-width: 768px) {
+  /* Warp buttons: 2-column grid for thumb-friendly tapping */
+  /* The warp section becomes a proper grid instead of a wrapping row */
+  div[style*="display: flex"][style*="flexWrap: wrap"],
+  div[style*="display:flex"][style*="flex-wrap:wrap"] {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  div[style*="display: flex"][style*="flexWrap: wrap"] button,
+  div[style*="display:flex"][style*="flex-wrap:wrap"] button {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 14px 8px !important;
+    font-size: 16px !important;
+    font-weight: bold !important;
+  }
+
+  /* Sector info: tighter, scannable */
+  /* Reduce vertical rhythm so more fits on screen */
+  .cyberpunk-container > div > div {
+    margin-bottom: 8px !important;
+  }
+
+  /* Action buttons row: stack vertically on narrow screens */
+  /* Prevents horizontal overflow and mis-taps */
+  div[style*="display: flex"][style*="gap: 10px"],
+  div[style*="display:flex"][style*="gap:10px"] {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  div[style*="display: flex"][style*="gap: 10px"] button,
+  div[style*="display:flex"][style*="gap:10px"] button {
+    width: 100% !important;
+    margin-bottom: 8px !important;
+  }
+
+  /* Ship status bar: compact on mobile */
+  /* The top status info should not dominate the screen */
+  div[style*="fontSize: 11px"],
+  div[style*="font-size: 11px"] {
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+  }
+}
