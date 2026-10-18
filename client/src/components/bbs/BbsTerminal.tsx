@@ -269,13 +269,14 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
     addLines([`\x1b[36m> ${raw}\x1b[0m`]);
     setHistory(prev => [raw, ...prev].slice(0, 50));
     setHistoryIndex(-1);
+
+    const parts = cmd.split(/\s+/);
+    const verb = parts[0];
+
     // Clear port art unless this is the port command
     if (verb !== 'p' && verb !== 'port') {
       setPortArt(null);
     }
-
-    const parts = cmd.split(/\s+/);
-    const verb = parts[0];
 
     // TW2002 style: typing just a number warps to that sector
     if (/^\d+$/.test(verb)) {
