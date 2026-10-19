@@ -11,6 +11,7 @@ import PlayerSearchPanel from './PlayerSearchPanel';
 import CombatNotification from './CombatNotification';
 import ThemeToggle from './bbs/ThemeToggle';
 import BbsTerminal from './bbs/BbsTerminal';
+import ShipArt from './bbs/ShipArt';
 import { useTheme } from '../themes/ThemeContext';
 import { API_URL } from '../config/api';
 import { useSocketNotifications } from '../hooks/useSocketNotifications';
@@ -556,6 +557,9 @@ token={token}
             </div>
           </div>
         </div>
+
+        {/* Player ship art */}
+        <ShipArt shipType={player.shipType} maxWidth={420} />
 
         {/* Sector Navigation */}
         <SectorView
