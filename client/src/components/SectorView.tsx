@@ -87,6 +87,22 @@ interface AlienPlanet {
   fighters: number;
 }
 
+interface NpcTrafficShip {
+  id: number;
+  name: string;
+  shipName: string;
+  shipType: string;
+}
+
+interface DynamicEventInfo {
+  id: number;
+  type: 'ion_storm' | 'incursion' | 'port_strike';
+  state: 'brewing' | 'active' | 'resolved';
+  regionSectors: number[];
+  brewingEndsAt: string;
+  activeEndsAt: string | null;
+}
+
 interface Sector {
   sectorNumber: number;
   name: string | null;
@@ -109,6 +125,8 @@ interface Sector {
   hostileFighterCount?: number;
   alienShips?: AlienShip[];
   alienPlanet?: AlienPlanet | null;
+  npcShips?: NpcTrafficShip[];
+  dynamicEvents?: DynamicEventInfo[];
 }
 
 interface CombatTarget {
@@ -188,6 +206,10 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
     return stored ? new Set(JSON.parse(stored)) : new Set();
   });
   const [misfireAlert, setMisfireAlert] = useState<string | null>(null);
+  const [hailResult, setHailResult] = useState<string | null>(null);
+  const [hailingNpc, setHailingNpc] = useState<number | null>(null);
+  const [engagingIncursion, setEngagingIncursion] = useState(false);
+  const [incursionResult, setIncursionResult] = useState<string | null>(null);
   const [shaking, setShaking] = useState(false);
   const [destinationSector, setDestinationSector] = useState('');
   const [plottedPath, setPlottedPath] = useState<PlottedPath | null>(null);
@@ -423,6 +445,11 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
           setShaking(true);
           // Stop shaking after 3 seconds (alert stays visible until next warp)
           setTimeout(() => setShaking(false), 3000);
+        } else if (data.stormMessage) {
+          // Ion storm effects (extra turn, storm misfire, salvage)
+          setMisfireAlert(data.stormMessage);
+          setShaking(true);
+          setTimeout(() => setShaking(false), 3000);
         } else {
           // Clear any previous misfire alert on successful warp
           setMisfireAlert(null);
@@ -459,6 +486,58 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
       }
     } finally {
       setMoving(false);
+    }
+  };
+
+  const handleHailNpc = async (npcId: number) => {
+    setHailingNpc(npcId);
+    setHailResult(null);
+    try {
+      const response = await fetch(`${API_URL}/api/npcs/hail`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ npcId }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setHailResult(data.message);
+      } else {
+        setHailResult(data.error || 'The hail goes unanswered.');
+      }
+    } catch {
+      setHailResult('The hail goes unanswered. (Comms failure)');
+    } finally {
+      setHailingNpc(null);
+    }
+  };
+
+  const handleEngageIncursion = async () => {
+    setEngagingIncursion(true);
+    setIncursionResult(null);
+    try {
+      const response = await fetch(`${API_URL}/api/events/incursion/attack`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({}),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setIncursionResult(data.message);
+        if (onPlayerUpdate) onPlayerUpdate();
+        loadSectorDetails();
+      } else {
+        setIncursionResult(data.error || 'Could not engage the incursion.');
+      }
+    } catch {
+      setIncursionResult('Could not engage the incursion. (Comms failure)');
+    } finally {
+      setEngagingIncursion(false);
     }
   };
 
@@ -1312,6 +1391,72 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
           {misfireAlert}
         </div>
       )}
+
+      {/* Dynamic Events (storms, incursions, strikes touching this sector) */}
+      {sector.dynamicEvents && sector.dynamicEvents.map(evt => {
+        const copy: Record<string, { icon: string; active: string; brewing: string; color: string }> = {
+          ion_storm: {
+            icon: '🌀',
+            active: 'ION STORM ACTIVE: warps through this region may misfire, cost extra turns, or fail. Storm sectors also cough up salvage.',
+            brewing: 'ION STORM FORECAST: a storm is building over this region. Reroute, or ride it out when it lands.',
+            color: '#00ccff'
+          },
+          incursion: {
+            icon: '👾',
+            active: 'ALIEN INCURSION: a hostile force holds this sector. Ports trade at emergency rates until it clears. Salvage rights to whoever clears it.',
+            brewing: 'ALIEN MOVEMENT DETECTED: sensors show a force massing near this sector. An incursion is coming.',
+            color: '#ff3333'
+          },
+          port_strike: {
+            icon: '✊',
+            active: 'PORT ON STRIKE: the dockworkers have walked out. No trading at this port until the strike resolves.',
+            brewing: 'STRIKE VOTE CALLED: dockworkers at this port are about to walk out. Trade stops when the strike begins.',
+            color: '#ffaa00'
+          }
+        };
+        const c = copy[evt.type];
+        if (!c) return null;
+        const isActive = evt.state === 'active';
+        return (
+          <div key={evt.id} style={{
+            margin: '20px 20px 0 20px',
+            padding: '15px',
+            background: 'rgba(0, 0, 0, 0.35)',
+            border: `2px solid ${c.color}`,
+            color: c.color,
+            fontWeight: 'bold',
+            fontSize: '14px',
+            textAlign: 'center',
+            boxShadow: `0 0 20px ${c.color}55`
+          }}>
+            <div>{c.icon} {isActive ? c.active : c.brewing}</div>
+            {evt.type === 'incursion' && isActive && (
+              <button
+                onClick={handleEngageIncursion}
+                disabled={engagingIncursion || player.turnsRemaining < 1}
+                style={{
+                  marginTop: '10px',
+                  padding: '8px 20px',
+                  background: 'linear-gradient(135deg, #ff0066 0%, #9d00ff 100%)',
+                  color: 'white',
+                  border: 'none',
+                  cursor: engagingIncursion || player.turnsRemaining < 1 ? 'not-allowed' : 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  opacity: engagingIncursion || player.turnsRemaining < 1 ? 0.5 : 1
+                }}
+              >
+                {engagingIncursion ? 'ENGAGING...' : '⚔️ ENGAGE INCURSION'}
+              </button>
+            )}
+            {incursionResult && evt.type === 'incursion' && (
+              <div style={{ marginTop: '10px', fontSize: '13px', color: 'var(--text-primary)' }}>
+                {incursionResult}
+              </div>
+            )}
+          </div>
+        );
+      })}
 
       {/* Success Message */}
       {successMessage && (
@@ -2692,6 +2837,66 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                   )}
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* NPC Trader Traffic */}
+          {sector.npcShips && sector.npcShips.length > 0 && (
+            <div style={{
+              padding: '15px',
+              background: 'rgba(0, 255, 255, 0.05)',
+              border: '1px solid var(--neon-cyan)',
+              marginBottom: '15px'
+            }}>
+              <div style={{ color: 'var(--neon-cyan)', fontWeight: 'bold', marginBottom: '10px' }}>
+                🚀 TRADER TRAFFIC ({sector.npcShips.length})
+              </div>
+              {sector.npcShips.map(npc => (
+                <div key={npc.id} style={{
+                  padding: '10px',
+                  background: 'rgba(0, 255, 255, 0.08)',
+                  marginBottom: '8px',
+                  fontSize: '13px',
+                  color: 'var(--text-primary)',
+                  border: '1px solid rgba(0, 255, 255, 0.25)'
+                }}>
+                  <div style={{ color: 'var(--neon-cyan)', fontWeight: 'bold' }}>
+                    {npc.name} — {npc.shipName}
+                  </div>
+                  <div style={{ fontSize: '11px', opacity: 0.9, marginTop: '4px' }}>
+                    Independent trader • Ship class: {npc.shipType.replace(/_/g, ' ')}
+                  </div>
+                  <button
+                    onClick={() => handleHailNpc(npc.id)}
+                    disabled={hailingNpc === npc.id}
+                    style={{
+                      marginTop: '8px',
+                      padding: '6px 12px',
+                      background: 'linear-gradient(135deg, #00cccc 0%, #0099cc 100%)',
+                      color: '#000',
+                      border: 'none',
+                      cursor: hailingNpc === npc.id ? 'not-allowed' : 'pointer',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      opacity: hailingNpc === npc.id ? 0.5 : 1
+                    }}
+                  >
+                    {hailingNpc === npc.id ? 'HAILING...' : '📡 HAIL FOR MARKET TIPS'}
+                  </button>
+                </div>
+              ))}
+              {hailResult && (
+                <div style={{
+                  padding: '10px',
+                  background: 'rgba(0, 0, 0, 0.3)',
+                  border: '1px solid rgba(0, 255, 255, 0.4)',
+                  fontSize: '13px',
+                  fontStyle: 'italic',
+                  color: 'var(--text-primary)'
+                }}>
+                  {hailResult}
+                </div>
+              )}
             </div>
           )}
 

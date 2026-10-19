@@ -112,6 +112,26 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
     if (s.players && s.players.length > 0) {
       out.push(`\x1b[36mTraders \x1b[0m: ${s.players.map((p: any) => p.username).join(', ')}`);
     }
+    if (s.npcShips && s.npcShips.length > 0) {
+      out.push(`\x1b[36mTraffic \x1b[0m: ${s.npcShips.map((n: any) => `${n.name} (${n.shipName})`).join(', ')}`);
+    }
+    if (s.dynamicEvents && s.dynamicEvents.length > 0) {
+      s.dynamicEvents.forEach((e: any) => {
+        if (e.type === 'ion_storm') {
+          out.push(e.state === 'active'
+            ? `\x1b[31m*** ION STORM ACTIVE: warps may misfire, cost extra turns, or fail. Salvage drifts here. ***\x1b[0m`
+            : `\x1b[33m*** ION STORM FORECAST: a storm is building over this region. ***\x1b[0m`);
+        } else if (e.type === 'incursion') {
+          out.push(e.state === 'active'
+            ? `\x1b[31m*** ALIEN INCURSION: hostile force holds this sector. Ports trade at a penalty. ***\x1b[0m`
+            : `\x1b[33m*** ALIEN MOVEMENT DETECTED: an incursion is coming to this sector. ***\x1b[0m`);
+        } else if (e.type === 'port_strike') {
+          out.push(e.state === 'active'
+            ? `\x1b[31m*** PORT ON STRIKE: no trading at this port until the strike resolves. ***\x1b[0m`
+            : `\x1b[33m*** STRIKE VOTE CALLED: dockworkers at this port are about to walk out. ***\x1b[0m`);
+        }
+      });
+    }
     if (s.beacons && s.beacons.length > 0) {
       s.beacons.forEach((b: any) => {
         out.push(`\x1b[36mBeacon  \x1b[0m: "${b.message}" - ${b.ownerName || 'Unknown'}`);
@@ -177,6 +197,9 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
         // Use the fresh player data, not the stale prop
         const newSectorNum = data.player.currentSector;
         addLines([`\x1b[32mArrived at sector ${newSectorNum}.\x1b[0m`, '']);
+        if (data.stormMessage) {
+          addLines([`\x1b[33m${data.stormMessage}\x1b[0m`, '']);
+        }
         // Fetch sector with the new sector number directly
         try {
           const sres = await fetch(`${API_URL}/api/sectors/${newSectorNum}`, {
