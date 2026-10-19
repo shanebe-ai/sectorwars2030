@@ -5,7 +5,7 @@ import { playBlip, playPowerOn } from '../../audio/retroSfx';
  * Toggle button for switching between cyberpunk and BBS terminal themes.
  * Fixed position in the top-right corner.
  */
-export default function ThemeToggle() {
+export default function ThemeToggle({ className }: { className?: string }) {
   const { theme, toggleTheme } = useTheme();
 
   const handleToggle = () => {
@@ -19,6 +19,7 @@ export default function ThemeToggle() {
 
   return (
     <button
+      className={className}
       onClick={handleToggle}
       title={theme === 'bbs' ? 'Switch to cyberpunk theme (current: BBS)' : 'Switch to BBS terminal mode (current: Cyberpunk)'}
       style={{

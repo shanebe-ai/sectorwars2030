@@ -16,6 +16,20 @@ token: string;
  * Command-driven navigation like the original game.
  * Commands: ?/help, d, m, p, i, q, and more.
  */
+// Phones and tablets: don't pop the on screen keyboard unless asked,
+// since it covers most of the terminal. The tap keypad drives the game instead.
+const isTouchDevice = () =>
+  typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+
+const KEYPAD_COMMANDS: { cmd: string; label: string }[] = [
+  { cmd: 'd', label: 'D Scan' },
+  { cmd: 'i', label: 'I Ship' },
+  { cmd: 'p', label: 'P Port' },
+  { cmd: 'b', label: 'B Bounty' },
+  { cmd: 'k', label: 'K Market' },
+  { cmd: '?', label: '? Help' },
+];
+
 const REGION_INFO: Record<string, string> = {
   'TerraSpace': 'Federation safe zone - no combat',
   'Frontier': 'Uncharted space - proceed with caution',
@@ -29,6 +43,7 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [alert, setAlert] = useState<'mine' | 'combat' | null>(null);
   const [image, setImage] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -70,7 +85,7 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
     fetchSector().then(s => {
       if (s) displaySector(s);
     });
-    inputRef.current?.focus();
+    if (!isTouchDevice()) inputRef.current?.focus();
   }, []);
 
   useEffect(() => {
@@ -323,6 +338,18 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
     }
   };
 
+  // Keypad taps run one command at a time so double taps don't double warp
+  const runKeypadCommand = async (cmd: string) => {
+    if (busy) return;
+    if (cmd === 'q' && !window.confirm('Quit to login?')) return;
+    setBusy(true);
+    try {
+      await handleCommand(cmd);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleCommand(input);
@@ -349,6 +376,7 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
 
   return (
     <div
+      className="bbs-terminal"
       style={{
         fontFamily: "'VT323', 'IBM Plex Mono', monospace",
         fontSize: '22px',
@@ -359,7 +387,9 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
         color: '#33ff33',
         cursor: 'text',
       }}
-      onClick={() => inputRef.current?.focus()}
+      onClick={() => {
+        if (!isTouchDevice()) inputRef.current?.focus();
+      }}
     >
       {lines.map((line, i) => (
         <div key={i} style={{ whiteSpace: 'pre-wrap' }}>
@@ -369,7 +399,7 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
       {alert === 'mine' && <AnsiArt art={MINE_ALERT_ART} color="#ff3333" animated />}
       {alert === 'combat' && <AnsiArt art={COMBAT_ALERT_ART} color="#ff3333" animated />}
       {image && <ShipArt shipType={image} />}
-      <div style={{ display: 'flex', alignItems: 'center' }}>
+      <div className="bbs-prompt" style={{ display: 'flex', alignItems: 'center' }}>
         <span style={{ color: '#33ff33', marginRight: '8px' }}>&gt;</span>
         <input
           ref={inputRef}
@@ -387,8 +417,39 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
             caretColor: '#33ff33',
           }}
           autoComplete="off"
+          autoCapitalize="off"
+          autoCorrect="off"
+          enterKeyHint="go"
           spellCheck={false}
+          aria-label="Command"
         />
+      </div>
+      {/* Mobile tap keypad: warps for the current sector plus common commands */}
+      <div className="tw-mobile-only bbs-keypad" onClick={(e) => e.stopPropagation()}>
+        {sector?.warps?.length > 0 && (
+          <div className="bbs-keypad-warps">
+            <span className="bbs-keypad-label">WARP</span>
+            {sector.warps.map((w: { destination: number }, idx: number) => (
+              <button
+                type="button"
+                key={`${w.destination}-${idx}`}
+                disabled={busy}
+                onClick={() => runKeypadCommand(String(w.destination))}
+              >
+                {w.destination}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="bbs-keypad-cmds">
+          {KEYPAD_COMMANDS.map(k => (
+            <button type="button" key={k.cmd} disabled={busy} onClick={() => runKeypadCommand(k.cmd)}>
+              {k.label}
+            </button>
+          ))}
+          <button type="button" onClick={() => inputRef.current?.focus()}>⌨ Type</button>
+          <button type="button" disabled={busy} onClick={() => runKeypadCommand('q')}>Q Quit</button>
+        </div>
       </div>
       <div ref={bottomRef} />
     </div>
