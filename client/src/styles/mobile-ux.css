@@ -388,12 +388,16 @@
     padding: 56px 10px 0 !important;
     font-size: 19px !important;
     min-height: 100dvh !important;
+    display: flex;
+    flex-direction: column;
   }
 
-  /* Tap keypad sticks to the bottom of the screen */
+  /* Tap keypad sticks to the bottom of the screen, even when the
+     terminal has only a few lines (margin-top: auto pushes it down) */
   .bbs-keypad {
     position: sticky;
     bottom: 0;
+    margin-top: auto !important;
     z-index: 10;
     margin: 10px -10px 0;
     padding: 8px 10px calc(8px + var(--tw-safe-bottom));
