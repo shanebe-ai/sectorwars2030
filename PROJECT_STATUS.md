@@ -45,6 +45,10 @@
 
 **Trade Robbery System** (Completed, verified 2026-10-10): "Rob (25%)" button in the Trade Inbox on pending offers. 25% success steals the offered goods; 75% failure triggers combat with the victim. Same-sector and corporation-member protections enforced. Confirm dialog explains the odds before attempting.
 
+**Dynamic Events System** (Completed 2026-10-19): The universe acts on its own. A 5-minute tick (dynamicEventService) seeds ion storms (warp misfires, extra turns, failed jumps, salvage on entry), alien incursions (fightable through combatService rounds, alien salvage, hunter leaderboard credit, spread if ignored, port trade penalty), and port strikes (trade blocked, demand drift at neighbouring ports, restock surge and price dip on resolution). Lifecycle is brewing (TNN forecast, 30 min minimum) then active then resolved. Max 2 concurrent per universe, never in TerraSpace (sectors 1-10), events never destroy player assets. Migration 032 adds dynamic_events and dynamic_event_settings (grants included). Admin endpoints under /api/events/admin: history, force-start, force-resolve, cooldown. Client: sector banner with incursion engage button, port strike notice, BBS terminal event lines.
+
+**NPC Traffic System** (Completed 2026-10-19): Eight named NPC traders per universe (npcService, migration 033 adds npc_ships) warp between ports via pathfinding, buy and sell small amounts through port_economy so prices move with zero humans online, appear in sector details as npcShips (cyber traffic panel and BBS traffic line), and answer POST /api/npcs/hail with a market tip drawn from live drift data. No combat or robbery against NPCs in v1; NPCs are never destroyed.
+
 ### ❌ NEEDS IMPROVEMENT
 **Mobile Responsiveness**: Desktop-focused, needs mobile optimization
 **Player Profiles**: No dedicated profile view for other players
