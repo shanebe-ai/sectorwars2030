@@ -5,6 +5,8 @@ import { autoLogSector } from '../services/shipLogService';
 import { emitSectorEvent } from '../index';
 import { checkMinesOnEntry } from '../services/mineService';
 import { getAlienShipsInSector, getAlienPlanetInSector, unlockAlienComms } from '../services/alienService';
+import { getNpcShipsInSector } from '../services/npcService';
+import { getEventsForSector, getStormForMove, rollStormEffect } from '../services/dynamicEventService';
 
 /**
  * Get sector details including warps
@@ -299,6 +301,36 @@ export const getSectorDetails = async (req: Request, res: Response) => {
       // 031 was not applied.
     }
 
+    // NPC trader ships in this sector (persistent named traffic).
+    let npcShips: Array<{ id: number; name: string; shipName: string; shipType: string }> = [];
+    try {
+      const npcs = await getNpcShipsInSector(universeId, parseInt(sectorNumber as string));
+      npcShips = npcs.map(n => ({
+        id: n.id,
+        name: n.name,
+        shipName: n.shipName,
+        shipType: n.shipType
+      }));
+    } catch {
+      npcShips = [];
+    }
+
+    // Dynamic events touching this sector (storms, incursions, strikes).
+    let dynamicEvents: Array<any> = [];
+    try {
+      const events = await getEventsForSector(universeId, parseInt(sectorNumber as string));
+      dynamicEvents = events.map(e => ({
+        id: e.id,
+        type: e.type,
+        state: e.state,
+        regionSectors: e.regionSectors,
+        brewingEndsAt: e.brewingEndsAt,
+        activeEndsAt: e.activeEndsAt
+      }));
+    } catch {
+      dynamicEvents = [];
+    }
+
     // Auto-log sector when viewing current sector (for initial spawn and returning visits)
     if (parseInt(sectorNumber as string) === currentSector) {
       // Get planet name if exists
@@ -342,6 +374,8 @@ export const getSectorDetails = async (req: Request, res: Response) => {
         minesCount: sector.mines_count,
         anomaly: sectorAnomaly,
         derelict: sectorDerelict,
+        npcShips,
+        dynamicEvents,
         warps,
         players,
         planets,
@@ -689,6 +723,46 @@ export const moveToSector = async (req: Request, res: Response) => {
 
     console.log(`[Move] user=${userId} requested move to sector ${destinationSector}`);
 
+    // Ion storm check: if the route touches an active storm, roll the
+    // effect before moving. A failed jump costs the turn and ends here.
+    // Storms never destroy anything; the worst case is lost turns and
+    // a longer trip.
+    let stormEffect: 'none' | 'extra_turn' | 'misfire' | 'fail' = 'none';
+    let stormRegion: number[] = [];
+    let stormSalvageChance = 0.25;
+    try {
+      const preMove = await pool.query(
+        'SELECT id, universe_id, current_sector, turns_remaining FROM players WHERE user_id = $1',
+        [userId]
+      );
+      if (preMove.rows.length > 0 && preMove.rows[0].turns_remaining > 0) {
+        const storm = await getStormForMove(
+          preMove.rows[0].universe_id,
+          preMove.rows[0].current_sector,
+          destinationSector
+        );
+        if (storm) {
+          stormRegion = storm.regionSectors;
+          stormSalvageChance = storm.params?.salvageChance ?? 0.25;
+          stormEffect = rollStormEffect();
+          if (stormEffect === 'fail') {
+            await pool.query(
+              'UPDATE players SET turns_remaining = turns_remaining - 1 WHERE id = $1',
+              [preMove.rows[0].id]
+            );
+            return res.status(400).json({
+              error: 'Ion storm turbulence scrambled your nav computer and the jump failed, costing a turn. The storm is the only thing out here having a good day.',
+              stormEffect: 'fail'
+            });
+          }
+        }
+      }
+    } catch (stormError) {
+      console.error('Error checking ion storm for move:', stormError);
+      stormEffect = 'none';
+      stormRegion = [];
+    }
+
     const client = await pool.connect();
 
     try {
@@ -778,6 +852,13 @@ export const moveToSector = async (req: Request, res: Response) => {
         // Anomalies table may not exist yet if migration 031 was not applied.
       }
 
+      // Ion storm: a turbulent route burns an extra turn.
+      let stormMessage: string | null = null;
+      if (stormEffect === 'extra_turn') {
+        turnCost += 1;
+        stormMessage = '⚠ ION STORM: turbulence on the route burned an extra turn.';
+      }
+
       // Check the player can afford the (possibly surcharged) turn cost
       if (player.turns_remaining < turnCost) {
         await client.query('ROLLBACK');
@@ -791,7 +872,31 @@ export const moveToSector = async (req: Request, res: Response) => {
       let actualDestination = destinationSector;
       let misfireMessage = null;
 
-      if (misfired) {
+      if (stormEffect === 'misfire') {
+        // Ion storm misfire: the jump lands in a sector adjacent to the
+        // intended destination instead. Annoying, never a trap.
+        const destSectorId = destResult.rows[0].id;
+        const adjacentResult = await client.query(
+          `SELECT DISTINCT
+             CASE
+               WHEN sw.sector_id = $1 THEN sw.destination_sector_number
+               ELSE (SELECT sector_number FROM sectors WHERE id = sw.sector_id)
+             END as destination
+           FROM sector_warps sw
+           JOIN sectors s ON sw.sector_id = s.id
+           WHERE s.universe_id = $2 AND (sw.sector_id = $1 OR sw.destination_sector_number = $3)`,
+          [destSectorId, player.universe_id, destinationSector]
+        );
+        const candidates = adjacentResult.rows
+          .map((r: any) => r.destination as number)
+          .filter((n: number) => typeof n === 'number' && n !== destinationSector && n !== player.current_sector);
+        if (candidates.length > 0) {
+          actualDestination = candidates[Math.floor(Math.random() * candidates.length)];
+          stormMessage = `⚠ ION STORM threw your jump off course! Intended destination: Sector ${destinationSector}, actual arrival: Sector ${actualDestination}`;
+        } else {
+          stormMessage = '⚠ ION STORM battered the jump, but your nav computer held the course.';
+        }
+      } else if (misfired) {
         // Get a random sector from the universe (excluding current sector)
         const randomSectorResult = await client.query(
           `SELECT sector_number FROM sectors
@@ -913,6 +1018,25 @@ export const moveToSector = async (req: Request, res: Response) => {
 
       const updatedPlayer = updateResult.rows[0];
 
+      // Ion storm salvage: storm sectors occasionally cough up cargo
+      // from ships that misjumped before you. Credits for v1, always
+      // a bonus, never a cost.
+      let stormSalvage: number | null = null;
+      if (stormRegion.includes(actualDestination) && Math.random() < stormSalvageChance) {
+        stormSalvage = 400 + Math.floor(Math.random() * 1200);
+        try {
+          await pool.query(
+            'UPDATE players SET credits = credits + $1 WHERE id = $2',
+            [stormSalvage, player.id]
+          );
+          updatedPlayer.credits = parseInt(updatedPlayer.credits) + stormSalvage;
+          stormMessage = (stormMessage ? stormMessage + ' ' : '') +
+            `Your crew pulls storm salvage worth ${stormSalvage} credits from a wreck the storm shook loose.`;
+        } catch {
+          stormSalvage = null;
+        }
+      }
+
       // Check for trade aliens in the destination sector and generate offers
       try {
         const { generateTradeOfferOnEntry } = await import('../services/alienTradingService');
@@ -992,6 +1116,9 @@ export const moveToSector = async (req: Request, res: Response) => {
         turnCost,
         misfired,
         misfireMessage,
+        stormEffect: stormEffect !== 'none' ? stormEffect : null,
+        stormMessage,
+        stormSalvage,
         mineResult: mineResult || null
       });
     } catch (error) {

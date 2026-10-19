@@ -1,8 +1,9 @@
 import { pool } from '../db/connection';
 import { emitSectorEvent } from '../index';
+import { getStrikeForSector, getIncursionPenalty } from './dynamicEventService';
 
 // Base prices for commodities (mid-point prices)
-const BASE_PRICES = {
+export const BASE_PRICES = {
   fuel: 20,      // Range: ~10-35
   organics: 35,  // Range: ~18-60
   equipment: 55, // Range: ~28-95
@@ -21,7 +22,7 @@ const RARE_PORT_BONUS = 1.3; // 30% better prices at rare ports
 
 // Port type definitions: S = Sells to players, B = Buys from players
 // Format: [fuel, organics, equipment]
-const PORT_TYPES: Record<string, { fuel: 'S' | 'B'; organics: 'S' | 'B'; equipment: 'S' | 'B' }> = {
+export const PORT_TYPES: Record<string, { fuel: 'S' | 'B'; organics: 'S' | 'B'; equipment: 'S' | 'B' }> = {
   BBS: { fuel: 'B', organics: 'B', equipment: 'S' },
   BSB: { fuel: 'B', organics: 'S', equipment: 'B' },
   SBB: { fuel: 'S', organics: 'B', equipment: 'B' },
@@ -36,6 +37,7 @@ export interface PortInfo {
   sectorNumber: number;
   portType: string;
   portClass: number;
+  onStrike?: boolean;
   commodities: {
     fuel: { action: 'buy' | 'sell'; quantity: number; price: number };
     organics: { action: 'buy' | 'sell'; quantity: number; price: number };
@@ -126,6 +128,11 @@ export const getPortInfo = async (
     throw new Error('Invalid port type');
   }
 
+  // Dynamic events: an active strike freezes this port's book, and an
+  // active incursion makes its prices worse for players.
+  const strike = await getStrikeForSector(universeId, sectorNumber);
+  const incursionPenalty = await getIncursionPenalty(universeId, sectorNumber);
+
   // Calculate prices based on port type and stock percentage
   // S = Port SELLS to player (cheap - they have excess)
   // B = Port BUYS from player (expensive - they need it)
@@ -153,13 +160,15 @@ export const getPortInfo = async (
     if (action === 'S') {
       // Port SELLS to player = player BUYS at LOW price
       // Lower stock = slightly higher buy price
-      const price = basePrice * PRICE_MULTIPLIERS.SELL_TO_PLAYER * stockMultiplier * driftMultiplier * eventMultiplier;
+      // Incursion penalty: buying costs more while the sector is contested
+      const price = basePrice * PRICE_MULTIPLIERS.SELL_TO_PLAYER * stockMultiplier * driftMultiplier * eventMultiplier * (1 + incursionPenalty);
       // SSS sells even cheaper (better for player)
       return Math.round(price / rareBonus);
     } else {
       // Port BUYS from player = player SELLS at HIGH price
       // Higher stock demand (high pct) = even higher sell price
-      const price = basePrice * PRICE_MULTIPLIERS.BUY_FROM_PLAYER * stockMultiplier * driftMultiplier * eventMultiplier;
+      // Incursion penalty: the port pays less while the sector is contested
+      const price = basePrice * PRICE_MULTIPLIERS.BUY_FROM_PLAYER * stockMultiplier * driftMultiplier * eventMultiplier * (1 - incursionPenalty);
       // BBB buys even higher (better for player)
       return Math.round(price * rareBonus);
     }
@@ -169,6 +178,7 @@ export const getPortInfo = async (
     sectorNumber: sector.sector_number,
     portType: sector.port_type,
     portClass: sector.port_class || 1,
+    onStrike: !!strike,
     commodities: {
       fuel: {
         action: portConfig.fuel === 'S' ? 'buy' : 'sell',
@@ -255,6 +265,16 @@ export const executeTrade = async (
       throw new Error('Invalid port type');
     }
 
+    // Port strike: the workforce has walked out. No trading until the
+    // strike resolves, and prices stay frozen where they stood.
+    const strike = await getStrikeForSector(player.universe_id, player.current_sector);
+    if (strike) {
+      throw new Error('This port is on strike. The dockworkers have walked out and no trading is possible until the strike resolves.');
+    }
+
+    // Alien incursion: ports in a contested sector trade at a penalty.
+    const incursionPenalty = await getIncursionPenalty(player.universe_id, player.current_sector);
+
     // Verify the trade action is valid for this port
     const portAction = portConfig[commodity]; // 'S' or 'B'
     const expectedPlayerAction = portAction === 'S' ? 'buy' : 'sell';
@@ -301,11 +321,11 @@ export const executeTrade = async (
     let pricePerUnit: number;
     if (action === 'buy') {
       // Player BUYS from port (port SELLS) = LOW price
-      const price = basePrice * PRICE_MULTIPLIERS.SELL_TO_PLAYER * stockMultiplier * driftMultiplier * eventMultiplier;
+      const price = basePrice * PRICE_MULTIPLIERS.SELL_TO_PLAYER * stockMultiplier * driftMultiplier * eventMultiplier * (1 + incursionPenalty);
       pricePerUnit = Math.round(price / rareBonus);
     } else {
       // Player SELLS to port (port BUYS) = HIGH price
-      const price = basePrice * PRICE_MULTIPLIERS.BUY_FROM_PLAYER * stockMultiplier * driftMultiplier * eventMultiplier;
+      const price = basePrice * PRICE_MULTIPLIERS.BUY_FROM_PLAYER * stockMultiplier * driftMultiplier * eventMultiplier * (1 - incursionPenalty);
       pricePerUnit = Math.round(price * rareBonus);
     }
 
@@ -517,6 +537,13 @@ export const buyColonists = async (
     if (!player.port_type || player.port_type === 'STARDOCK') {
       await client.query('ROLLBACK');
       return { success: false, quantity: 0, totalCost: 0, error: 'Colonists can only be purchased at trading ports' };
+    }
+
+    // Port strike: no colonist sales while the workforce is out either.
+    const strike = await getStrikeForSector(player.universe_id, player.current_sector);
+    if (strike) {
+      await client.query('ROLLBACK');
+      return { success: false, quantity: 0, totalCost: 0, error: 'This port is on strike. No colonist sales until the strike resolves.' };
     }
 
     // Check turns
