@@ -28,11 +28,15 @@ import bountyRoutes from './routes/bounty';
 import genesisRoutes from './routes/genesis';
 import leaderboardRoutes from './routes/leaderboard';
 import playerTradingRoutes from './routes/playerTrading';
+import eventRoutes from './routes/events';
+import npcRoutes from './routes/npcs';
 import { startPortRegeneration } from './services/portService';
 import { startFighterMaintenance } from './services/maintenanceService';
 import { startEconomyTick } from './services/economyService';
 import { startDerelictTick } from './services/derelictService';
 import { startAnomalyTick } from './services/anomalyService';
+import { startDynamicEventTick } from './services/dynamicEventService';
+import { startNpcTick } from './services/npcService';
 import { startAlienShipMovement, startAlienAggression } from './services/alienService';
 import { cleanupExpiredOffers } from './services/alienTradingService';
 import { cleanupExpiredPlayerTrades } from './services/playerTradingService';
@@ -175,6 +179,12 @@ app.use('/api/leaderboard', leaderboardRoutes);
 // Player-to-player trading routes (offers, inbox, accept, rob)
 app.use('/api/player-trading', playerTradingRoutes);
 
+// Dynamic event routes (storms, incursions, strikes, admin controls)
+app.use('/api/events', eventRoutes);
+
+// NPC trader routes (hails)
+app.use('/api/npcs', npcRoutes);
+
 // WebSocket connection handling
 io.on('connection', (socket) => {
   console.log(`[WS] Client connected: ${socket.id}`);
@@ -278,6 +288,12 @@ httpServer.listen(PORT, () => {
 
   // Start anomaly tick (every 5 minutes: dissipation, radiation decay, formation)
   startAnomalyTick(5 * 60 * 1000);
+
+  // Start dynamic event tick (every 5 minutes: seed, advance, resolve events)
+  startDynamicEventTick(5 * 60 * 1000);
+
+  // Start NPC traffic tick (every 5 minutes: NPC traders move and trade)
+  startNpcTick(5 * 60 * 1000);
 
   // Start alien ship movement (every 5 minutes)
   startAlienShipMovement(5 * 60 * 1000);
