@@ -177,6 +177,8 @@ See [server/src/db/schema.sql](server/src/db/schema.sql) for complete schema.
   - Beacons: Personal markers with custom messages
 - **Genesis Torpedoes**: Create new planets anywhere (₡50,000 each)
 - **Ship Log**: Auto-logging of discoveries (ports, planets, StarDocks, dead-ends)
+- **Dynamic events**: The universe acts on its own: ion storms that scramble warps (misfires, extra turns, failed jumps, salvage on entry), alien incursions you can fight for alien salvage and hunter leaderboard credit, and port strikes that close a port and push demand prices up at neighbouring ports. Everything is forecast on TNN first, never targets TerraSpace, max two at a time
+- **NPC trader traffic**: Eight named independent traders per universe warp between ports and trade small amounts through the living economy, so stock and prices move even with no players online. Hail them in sector for market tips drawn from live prices
 
 ### Modern Enhancements
 - **Web-based interface**: Accessible from any browser
@@ -287,6 +289,11 @@ Format: `[Fuel][Organics][Equipment]`
   - [x] Dynamic connection limits: edge sectors max 6, middle sectors max 8 (allows natural hub formation)
   - [x] Connectivity verification from actual inserted warps (prevents isolated sectors)
   - [x] Automatic connection of unreachable sectors during universe generation
+- [x] **Dynamic Events & NPC Traffic (2026-10-19)**
+  - [x] Ion storms, alien incursions, and port strikes on a 5-minute event tick with TNN forecasts
+  - [x] Event banner in sector view, incursion engage button, port strike notice, BBS terminal event lines
+  - [x] Admin event endpoints: history, force start, force resolve, seeding cooldown
+  - [x] Named NPC traders moving and trading between ports; hails return live market tips
 
 ### In Progress 🚧
 - [ ] Mobile responsive design improvements

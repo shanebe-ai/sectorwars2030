@@ -314,6 +314,83 @@ Knowledge is survival.
 
 ---
 
+## 🌩️ When the Universe Fights Back
+
+### The Void Has Weather Now
+
+Here is something the recruiting posters leave out: the universe does not wait for you to make the first move anymore. It moves on its own. Storms roll in. Alien fleets mass at the border. Dockworkers down tools and walk. TerraCorp calls them **dynamic events**. Pilots call them Tuesday.
+
+Every event is announced on **TNN** before it lands. A forecast is a promise: you always get a warning window, at least 30 minutes, to reposition, stock up, or run. What you do with the warning is your problem.
+
+**The standing rules, carved into every Guild hall wall:**
+- **Nothing ever hits TerraSpace.** Sectors 1 through 10 stay quiet. New pilots learn the ropes in peace.
+- **No more than two events at once.** The universe is dramatic, not sadistic.
+- **Events never destroy your ship, your cargo, or your credits outright.** They cost you turns, positioning, and pride. That is all. That is enough.
+
+### Ion Storms: Ride It or Route Around It
+
+An ion storm parks itself over a cluster of sectors for a few hours and starts chewing on warp physics. Jumps into, out of, or through the storm become *unreliable*:
+
+- **Misfire** - You arrive in a sector next to the one you aimed for. Annoying. Survivable.
+- **Turbulence** - The jump holds, but burns an extra turn.
+- **Dead jump** - The nav computer gives up entirely. You lose the turn and go nowhere.
+
+Here is the part the cautious pilots never learn: **storm sectors cough up salvage.** Wrecks from ships that misjumped before you shake loose in the turbulence. Fly the storm edge with empty holds and a steady nerve and the void pays *you* for the privilege.
+
+### Alien Incursions: Salvage Rights to Whoever Clears It
+
+Sometimes the Alien Question stops being a question. A hostile force plants itself in a sector and sits there, daring the universe to do something about it.
+
+While an incursion holds a sector, **every port in it trades at emergency rates**—you pay more, they pay less. Business as usual for everyone except you.
+
+**Engaging is your choice, and it pays:**
+- Fight the incursion force with your fighters and shields, same as boarding a ghost ship
+- Win, and the **alien salvage** is yours: equipment, organics, and a fat credit recovery
+- The kill goes on the **Hunter Leaderboard**, right next to the bounty hunters
+- Lose, and you limp away with your ship intact and your pride in tatters. Events don't kill pilots. Pilots kill pilots.
+
+Ignore an incursion for too long and it **spreads** to a neighbouring sector. TNN will name and shame the region that let it happen. Don't be that region.
+
+### Port Strikes: The Detour Is the Payday
+
+Dockworkers are the invisible backbone of the trading lanes, and every so often they remember it. When a port's workforce walks out:
+
+- **The port is closed.** No buying. No selling. No colonists. Prices freeze exactly where they stood, so nobody games the book.
+- **Neighbouring ports smell blood.** Their buy prices for the struck port's specialty goods climb. Traders who reroute get paid for the detour.
+- **When it settles, the port restocks to full and its prices dip** while the crews celebrate. First ship through the door gets the deal of the week.
+
+Strikes never hit Stardock. The shipyard stays open. Nobody gets stranded without a way home—that's policy, not mercy.
+
+---
+
+## 🚢 Traffic: You Are Not Alone Out Here
+
+### The Lanes Are Full of Lifers
+
+Watch a busy sector long enough and you'll learn the names. The independent traders—the lifers who were hauling freight before TerraCorp had a logo and will be hauling it long after your corp dissolves.
+
+**You'll get to know them:**
+- **Mara Voss**, flying the *Rustbucket Gospel*, a freighter held together by spite and welds
+- **Old Man Ferreira** in *Patience*, who has never once been in a hurry and never once been broke
+- **Captain Ilya Sorren** of the *Ledger of Sorrows*, who counts every credit twice and trusts no one once
+- **The Widow Anaya**, *Black Lace*, who won her ship in a card game she refuses to discuss
+- **Brother Cadmus**, *Tithe Runner*, preaching the gospel of compound interest
+- **Juno Park**, *Lucky Streak*, the only scout pilot who treats the lanes like a casino
+- **Silas Grange**, *Grange's Folly*, a cautionary tale with a cargo hold
+- **Mother Okonkwo**, *Full Belly*, who feeds half the frontier and charges the other half double
+
+They warp port to port on their own routes, buying low and selling high in small, steady amounts. **Their trading moves real prices.** A port's shelves drain and its drift shifts even at 4 AM with no human pilot online, because the lifers never sleep. The market you wake up to is not the market you left.
+
+### Hail Them. Seriously.
+
+Pull into a sector with a lifer and **hail them**. They trade gossip the way they trade cargo—constantly, and at a fair price (free).
+
+A hail gets you a **market tip drawn from live prices**: which port is paying over the odds and for what, which sector is drowning in surplus and practically giving it away. It's the cheapest intel in the galaxy, and half the veteran pilots plan their routes around it.
+
+One courtesy note: lifers are **not targets**. You can't rob them, and you can't shoot them. Half of them are better connected than your corporation, and the other half are somebody's grandmother. Leave them be and they'll keep the economy breathing for you.
+
+---
+
 ## 🏢 Corporations & Alliances
 
 ### The Corporation System
@@ -561,7 +638,7 @@ But every pilot knows the legends. The names whispered in Corporate Chat. The be
 ```
 ╔═══════════════════════════════════════════════════════╗
 ║  END TRANSMISSION                                     ║
-║  Document: PILOT_SURVIVAL_GUIDE_v3.7.2030            ║
+║  Document: PILOT_SURVIVAL_GUIDE_v3.8.2030            ║
 ║  Classification: UNCLASSIFIED                         ║
 ║  TerraCorp Independent Traders Guild                  ║
 ║  "The Void Provides. If You're Smart Enough."        ║
