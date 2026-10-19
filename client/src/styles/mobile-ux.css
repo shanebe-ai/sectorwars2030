@@ -1,0 +1,459 @@
+/* TradeWars 2030 - Mobile UX layer for cyber and BBS modes
+ *
+ * Phone layout built on purpose made class names (tw-*, bbs-*) instead of
+ * matching inline styles. Loaded after mobile-cyberpunk.css so these rules
+ * win where both apply. Desktop only ever sees the hide rule below.
+ */
+
+:root {
+  --tw-hud-h: 64px;
+  --tw-nav-h: 60px;
+  --tw-safe-top: env(safe-area-inset-top, 0px);
+  --tw-safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Mobile only pieces never show on desktop */
+@media (min-width: 769px) {
+  .tw-mobile-only {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .tw-desktop-only,
+  .tw-mobile-hide {
+    display: none !important;
+  }
+
+  /* ======================================================================
+   * CYBER MODE
+   * ====================================================================== */
+
+  /* Room for the fixed HUD on top and the nav bar at the bottom */
+  .cyberpunk-container.tw-dashboard {
+    padding-top: calc(var(--tw-hud-h) + var(--tw-safe-top) + 8px) !important;
+    padding-bottom: calc(var(--tw-nav-h) + var(--tw-safe-bottom) + 16px) !important;
+  }
+
+  /* The desktop header is replaced by the HUD and bottom nav */
+  .tw-dash-header {
+    display: none !important;
+  }
+
+  /* --- HUD --- */
+  .cyberpunk-container > .tw-mobile-hud {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 950;
+    height: calc(var(--tw-hud-h) + var(--tw-safe-top));
+    padding: calc(6px + var(--tw-safe-top)) 10px 6px;
+    margin: 0 !important;
+    background: rgba(0, 0, 0, 0.94);
+    border-bottom: 1px solid var(--neon-cyan);
+    box-shadow: 0 2px 12px rgba(0, 255, 255, 0.15);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .cyberpunk-container > .tw-mobile-hud > div {
+    margin: 0 !important;
+  }
+
+  .tw-hud-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .tw-hud-corp {
+    color: var(--neon-cyan);
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+
+  .cyberpunk-container .tw-mobile-hud .tw-hud-sector {
+    flex: none;
+    min-height: 0 !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 2px 8px !important;
+    font-size: 13px !important;
+    font-weight: bold;
+    color: var(--neon-green);
+    background: rgba(0, 255, 0, 0.1);
+    border: 1px solid var(--neon-green);
+    border-radius: 3px;
+    cursor: pointer;
+  }
+
+  .tw-hud-stats {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1.2fr 1fr 1fr;
+    gap: 4px;
+  }
+
+  .tw-hud-stats span {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.1;
+    min-width: 0;
+  }
+
+  .tw-hud-stats b {
+    color: var(--neon-cyan);
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  .tw-hud-stats small {
+    color: var(--neon-green);
+    font-size: 9px;
+    letter-spacing: 1px;
+    opacity: 0.8;
+  }
+
+  /* --- Ship and cargo details: collapsed by default on phones --- */
+  .tw-ship-details {
+    display: none;
+  }
+
+  .tw-ship-details.is-open {
+    display: block;
+  }
+
+  .cyberpunk-container .tw-ship-toggle {
+    display: block;
+    width: 100%;
+    margin: 0 0 8px !important;
+    min-height: 40px !important;
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+    letter-spacing: 1px;
+    text-align: left;
+    color: var(--neon-cyan);
+    background: rgba(0, 255, 255, 0.06);
+    border: 1px solid rgba(0, 255, 255, 0.4);
+    cursor: pointer;
+  }
+
+  .tw-ship-details div[style*="grid-template-columns"] {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .tw-ship-details .stat-box,
+  .tw-ship-details .cargo-box {
+    padding: 8px 4px !important;
+  }
+
+  .tw-ship-details .stat-box-label,
+  .tw-ship-details .cargo-label {
+    font-size: 10px !important;
+    letter-spacing: 0 !important;
+  }
+
+  .tw-ship-details .stat-box-value,
+  .tw-ship-details .cargo-value {
+    font-size: 16px !important;
+  }
+
+  .tw-ship-details .cyberpunk-panel {
+    margin-bottom: 10px !important;
+  }
+
+  /* The HUD hides the sector title when jumping to it */
+  .tw-sector-anchor {
+    scroll-margin-top: calc(var(--tw-hud-h) + var(--tw-safe-top) + 8px);
+  }
+
+  /* --- Tighter panels so more of the sector fits on screen --- */
+  .tw-dashboard .cyberpunk-panel {
+    padding: 10px !important;
+    margin: 0 0 10px !important;
+  }
+
+  .tw-dashboard .cyberpunk-panel > .panel-header {
+    padding: 4px 2px 8px !important;
+    margin-bottom: 4px !important;
+  }
+
+  .tw-dashboard .cyberpunk-panel > div[style*="padding: 20px"] {
+    padding: 8px 0 !important;
+  }
+
+  /* --- Quick actions at the top of the sector panel --- */
+  .tw-quick-actions {
+    padding: 10px 12px 4px;
+    border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+  }
+
+  .tw-quick-label {
+    color: var(--neon-green);
+    font-size: 11px;
+    letter-spacing: 2px;
+    margin: 0 0 6px !important;
+  }
+
+  .tw-quick-actions .tw-quick-warps {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .cyberpunk-container .tw-quick-actions button {
+    width: 100%;
+    margin: 0 !important;
+    min-width: 0 !important;
+    min-height: 48px !important;
+    padding: 8px 4px !important;
+    font-size: 17px !important;
+    font-weight: bold;
+    color: var(--neon-green);
+    background: rgba(0, 255, 0, 0.1);
+    border: 1px solid var(--neon-green);
+    cursor: pointer;
+  }
+
+  .cyberpunk-container .tw-quick-actions button.is-visited {
+    border-color: rgba(0, 120, 0, 0.9);
+    color: rgba(0, 255, 0, 0.7);
+  }
+
+  .cyberpunk-container .tw-quick-actions button:disabled {
+    opacity: 0.5;
+  }
+
+  .cyberpunk-container .tw-quick-actions button.tw-quick-port {
+    margin-bottom: 10px !important;
+    color: var(--neon-cyan);
+    background: rgba(0, 255, 255, 0.12);
+    border-color: var(--neon-cyan);
+    font-size: 15px !important;
+    letter-spacing: 1px;
+  }
+
+  /* --- Bottom nav --- */
+  .cyberpunk-container .tw-bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 960;
+    height: calc(var(--tw-nav-h) + var(--tw-safe-bottom));
+    padding-bottom: var(--tw-safe-bottom);
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    background: rgba(0, 0, 0, 0.96);
+    border-top: 1px solid var(--neon-cyan);
+    box-shadow: 0 -2px 12px rgba(0, 255, 255, 0.15);
+  }
+
+  .cyberpunk-container .tw-bottom-nav button {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    margin: 0 !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: var(--tw-nav-h);
+    padding: 4px 2px !important;
+    font-size: 11px !important;
+    font-weight: bold;
+    letter-spacing: 1px;
+    color: var(--neon-cyan);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+  }
+
+  .cyberpunk-container .tw-bottom-nav button:active {
+    background: rgba(0, 255, 255, 0.12);
+  }
+
+  .tw-nav-icon {
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  .tw-nav-badge {
+    position: absolute;
+    top: 6px;
+    left: calc(50% + 6px);
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border-radius: 9px;
+    background: var(--neon-pink);
+    color: #000;
+    font-size: 10px;
+    line-height: 18px;
+    text-align: center;
+  }
+
+  /* --- "More" bottom sheet --- */
+  .tw-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1050;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: flex-end;
+  }
+
+  .tw-sheet {
+    width: 100%;
+    padding: 14px 12px calc(14px + var(--tw-safe-bottom));
+    background: #05080c;
+    border-top: 2px solid var(--neon-cyan);
+    box-shadow: 0 -4px 24px rgba(0, 255, 255, 0.25);
+  }
+
+  .tw-sheet-title {
+    color: var(--neon-cyan);
+    font-size: 14px;
+    letter-spacing: 2px;
+    margin-bottom: 10px !important;
+  }
+
+  .tw-sheet .tw-sheet-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  .cyberpunk-container .tw-sheet button {
+    width: 100%;
+    margin: 0 !important;
+    min-height: 50px !important;
+    padding: 10px 8px !important;
+    font-size: 14px !important;
+    font-weight: bold;
+    letter-spacing: 1px;
+    color: var(--neon-cyan);
+    background: rgba(0, 255, 255, 0.08);
+    border: 1px solid rgba(0, 255, 255, 0.5);
+    cursor: pointer;
+  }
+
+  .cyberpunk-container .tw-sheet button.tw-sheet-danger {
+    color: var(--neon-pink);
+    border-color: var(--neon-pink);
+    background: rgba(255, 20, 147, 0.08);
+  }
+
+  /* --- Sector toasts: full width under the HUD, stacked --- */
+  .cyberpunk-container div.tw-toast-stack.tw-toast-stack {
+    display: flex !important;
+    flex-direction: column !important;
+    top: calc(var(--tw-hud-h) + var(--tw-safe-top) + 6px) !important;
+    left: 8px !important;
+    right: 8px !important;
+    max-width: none !important;
+    gap: 6px !important;
+  }
+
+  /* --- Popup panels: use the whole phone width --- */
+  div[style*="position: fixed"] > div[style*="width: 90%"],
+  div[style*="position: fixed"] > div[style*="width: 95%"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: calc(100dvh - 24px) !important;
+    overflow-y: auto !important;
+  }
+
+  /* ======================================================================
+   * BBS MODE
+   * ====================================================================== */
+
+  [data-theme="bbs"] .bbs-terminal {
+    padding: 56px 10px 0 !important;
+    font-size: 19px !important;
+    min-height: 100dvh !important;
+  }
+
+  /* Tap keypad sticks to the bottom of the screen */
+  .bbs-keypad {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    margin: 10px -10px 0;
+    padding: 8px 10px calc(8px + var(--tw-safe-bottom));
+    background: #0a0f0a;
+    border-top: 1px solid rgba(51, 255, 51, 0.5);
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.8);
+  }
+
+  .bbs-keypad-warps {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .bbs-keypad-label {
+    color: #ffb000;
+    font-size: 18px;
+    margin-right: 2px;
+  }
+
+  .bbs-keypad-cmds {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+
+  [data-theme="bbs"] .bbs-keypad button {
+    min-height: 44px !important;
+    margin: 0 !important;
+    padding: 0 4px !important;
+    font-size: 18px !important;
+    white-space: nowrap;
+    touch-action: manipulation;
+  }
+
+  [data-theme="bbs"] .bbs-keypad-warps button {
+    min-width: 56px;
+    font-size: 22px !important;
+    color: #33ffff !important;
+    border-color: #33ffff !important;
+  }
+
+  /* Hover styles stick after a tap on phones, so show a press state instead */
+  [data-theme="bbs"] .bbs-keypad button:hover {
+    background: transparent !important;
+    color: #33ff33 !important;
+  }
+
+  [data-theme="bbs"] .bbs-keypad-warps button:hover {
+    color: #33ffff !important;
+  }
+
+  [data-theme="bbs"] .bbs-keypad button:active {
+    background: #33ff33 !important;
+    color: #000 !important;
+  }
+
+  [data-theme="bbs"] .bbs-keypad button:disabled {
+    opacity: 0.4;
+  }
+}

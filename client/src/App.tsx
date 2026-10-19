@@ -8,6 +8,7 @@ import { API_URL } from './config/api';
 import './App.css';
 import './styles/bbs-terminal.css';
 import './styles/mobile-cyberpunk.css';
+import './styles/mobile-ux.css';
 
 function AppContent() {
   const [user, setUser] = useState<any>(null);

@@ -1266,6 +1266,42 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
         ► SECTOR {sector.sectorNumber} {sector.name ? `- ${sector.name.toUpperCase()}` : ''}
       </div>
 
+      {/* Mobile quick actions: warps and docking right under the sector title */}
+      {(sector.warps.length > 0 || sector.hasPort) && (
+        <div className="tw-mobile-only tw-quick-actions">
+          {sector.portType === 'STARDOCK' && (
+            <button type="button" className="tw-quick-port" onClick={() => setShowStarDock(true)}>
+              🚀 DOCK
+            </button>
+          )}
+          {sector.hasPort && sector.portType !== 'STARDOCK' && (
+            <button type="button" className="tw-quick-port" onClick={() => setShowTrading(true)}>
+              ⇄ TRADE {sector.portType}
+            </button>
+          )}
+          {sector.warps.length > 0 && (
+            <>
+              <div className="tw-quick-label">WARP TO</div>
+              <div className="tw-quick-warps">
+                {[...sector.warps]
+                  .sort((a, b) => (a.destination === previousSector ? -1 : b.destination === previousSector ? 1 : 0))
+                  .map((warp, idx) => (
+                    <button
+                      type="button"
+                      key={`${warp.destination}-${idx}`}
+                      onClick={() => moveToSector(warp.destination)}
+                      disabled={moving}
+                      className={visitedSectors.has(warp.destination) ? 'is-visited' : undefined}
+                    >
+                      {moving ? '⟳' : warp.destination === previousSector ? '◄' : '►'} {warp.destination}
+                    </button>
+                  ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {/* BBS mode: classic TW2002 sector readout */}
       {theme === 'bbs' && sector && (
         <div style={{ padding: '0 20px', borderBottom: '1px solid rgba(51,255,51,0.2)' }}>
@@ -1637,7 +1673,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
           fontSize: '14px',
           lineHeight: '1.4'
         }}>
-          <div style={{ textAlign: 'center', marginBottom: '15px' }}>
+          <div className="tw-mobile-hide" style={{ textAlign: 'center', marginBottom: '15px' }}>
             <div style={{ color: 'var(--neon-cyan)', fontSize: '12px', marginBottom: '5px' }}>
               ═══════════ SECTOR SCAN ═══════════
             </div>
@@ -1650,14 +1686,14 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
           </div>
 
           {/* Ship ASCII */}
-          <div style={{ textAlign: 'center', margin: '15px 0', color: 'var(--neon-yellow)' }}>
+          <div className="tw-mobile-hide" style={{ textAlign: 'center', margin: '15px 0', color: 'var(--neon-yellow)' }}>
             <div style={{ fontSize: '16px' }}>&gt;===&gt;</div>
             <div style={{ fontSize: '10px', marginTop: '3px' }}>YOUR SHIP</div>
           </div>
 
           {/* Warp connections visual */}
           {sector.warps.length > 0 && (
-            <div style={{ marginTop: '15px', color: 'var(--neon-green)', fontSize: '12px' }}>
+            <div className="tw-mobile-hide" style={{ marginTop: '15px', color: 'var(--neon-green)', fontSize: '12px' }}>
               <div style={{ textAlign: 'center', marginBottom: '8px' }}>
                 ─── WARP CONNECTIONS ───
               </div>
