@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { API_URL } from '../../config/api';
 import AnsiText from './AnsiText';
-import AnsiArt, { STARDOCK_ART, PORT_ART, MINE_ALERT_ART, COMBAT_ALERT_ART } from './AnsiArt';
+import AnsiArt, { MINE_ALERT_ART, COMBAT_ALERT_ART } from './AnsiArt';
+import ShipArt from './ShipArt';
 
 interface BbsTerminalProps {
   player: any;
@@ -27,7 +28,7 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [alert, setAlert] = useState<'mine' | 'combat' | null>(null);
-  const [portArt, setPortArt] = useState<string | null>(null);
+  const [image, setImage] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -138,6 +139,7 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
   };
 
   const showInfo = () => {
+    setImage(player.shipType || null);
     addLines([
       '',
       `\x1b[33mSHIP INFO:\x1b[0m`,
@@ -199,20 +201,12 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
   const handlePort = async () => {
     if (!sector?.portType) {
       addLines(['\x1b[31mNo port in this sector.\x1b[0m', '']);
-      setPortArt(null);
+      setImage(null);
       return;
     }
-    // Show ANSI art for the port
+    // Show pixel art for stardocks
     const isStardock = sector.portType.toLowerCase().includes('stardock');
-    if (isStardock) {
-      setPortArt(STARDOCK_ART);
-    } else {
-      const artKey = sector.portType.toLowerCase().includes('fuel') ? 'fuel'
-        : sector.portType.toLowerCase().includes('organic') ? 'organics'
-        : sector.portType.toLowerCase().includes('equip') ? 'equipment'
-        : null;
-      setPortArt(artKey ? PORT_ART[artKey] : null);
-    }
+    setImage(isStardock ? 'stardock' : null);
     addLines([
       '',
       `\x1b[33mPORT: ${sector.portType} (Class ${sector.portClass || '?'})\x1b[0m`,
@@ -273,9 +267,9 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
     const parts = cmd.split(/\s+/);
     const verb = parts[0];
 
-    // Clear port art unless this is the port command
-    if (verb !== 'p' && verb !== 'port') {
-      setPortArt(null);
+    // Clear displayed image unless this command sets one
+    if (verb !== 'p' && verb !== 'port' && verb !== 'i' && verb !== 'info') {
+      setImage(null);
     }
 
     // TW2002 style: typing just a number warps to that sector
@@ -374,7 +368,7 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
       ))}
       {alert === 'mine' && <AnsiArt art={MINE_ALERT_ART} color="#ff3333" animated />}
       {alert === 'combat' && <AnsiArt art={COMBAT_ALERT_ART} color="#ff3333" animated />}
-      {portArt && <AnsiArt art={portArt} color="#ff00ff" />}
+      {image && <ShipArt shipType={image} />}
       <div style={{ display: 'flex', alignItems: 'center' }}>
         <span style={{ color: '#33ff33', marginRight: '8px' }}>&gt;</span>
         <input
