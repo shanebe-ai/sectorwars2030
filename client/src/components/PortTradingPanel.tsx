@@ -15,6 +15,7 @@ interface Port {
   sectorNumber: number;
   portType: string;
   portClass: number;
+  onStrike?: boolean;
   commodities: {
     fuel: CommodityInfo;
     organics: CommodityInfo;
@@ -299,6 +300,22 @@ export default function PortTradingPanel({
           <span>► TRADING PORT [{port.portType}]</span>
           <span style={{ fontSize: '12px', opacity: 0.7 }}>SECTOR {port.sectorNumber}</span>
         </div>
+
+        {/* Port strike notice */}
+        {port.onStrike && (
+          <div style={{
+            margin: '10px 20px 0 20px',
+            padding: '12px',
+            background: 'rgba(255, 170, 0, 0.15)',
+            border: '2px solid #ffaa00',
+            color: '#ffaa00',
+            fontWeight: 'bold',
+            fontSize: '13px',
+            textAlign: 'center'
+          }}>
+            ✊ PORT ON STRIKE: the dockworkers have walked out. Trading is closed until the strike resolves. Neighbouring ports are paying extra for rerouted cargo.
+          </div>
+        )}
 
         {/* BBS mode: terminal port display */}
         {theme === 'bbs' && <BbsPortDisplay port={port} />}
