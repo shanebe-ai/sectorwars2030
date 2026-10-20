@@ -1,0 +1,26 @@
+name: Database backup
+
+# Nightly pg_dump of the game database on the server, plus a manual
+# "Run workflow" button. Uses the same SSH secrets as the deploy.
+on:
+  schedule:
+    - cron: '17 7 * * *' # 07:17 UTC, about 3am Toronto
+  workflow_dispatch:
+
+concurrency:
+  group: database-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Back up database on the server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          script: |
+            set -e
+            bash /home/tradewars/server/scripts/backup-db.sh
