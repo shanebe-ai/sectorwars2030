@@ -1,10 +1,10 @@
-# TradeWars 2030 - Project Status
+# Sector Wars 2030: Moral Decay, Project Status
 
 ## 🤖 AI Context Section
 
 **Purpose**: This document serves as the primary context for AI assistants working on this project. Read this first to understand the full project state.
 
-**Project**: TradeWars 2030 - Modern web remake of the classic BBS game TradeWars 2002
+**Project**: Sector Wars 2030: Moral Decay (formerly TradeWars 2030), a modern web remake of the classic BBS game TradeWars 2002
 **Repository**: shanebe-ai/tradewars2030
 **Author**: Shane Bennett (shanebe-ai, shanebe@live.com)
 **Tech Stack**: React 19 + Vite + TypeScript (frontend), Node.js + Express + TypeScript + Socket.io (backend), PostgreSQL (database)
@@ -117,7 +117,7 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
 ### 5. Client Frontend
 - **Login/Registration UI** ([client/src/components/Login.tsx](client/src/components/Login.tsx)) ✅
   - Beautiful cyberpunk-themed interface
-  - ASCII art TradeWars 2030 logo
+  - ASCII art Sector Wars 2030 logo
   - Toggle between login/register modes
   - Form validation
   - Error handling and display
