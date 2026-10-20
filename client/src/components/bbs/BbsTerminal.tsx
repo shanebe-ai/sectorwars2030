@@ -14,7 +14,7 @@ token: string;
 /**
  * Full TW2002-style BBS terminal interface.
  * Command-driven navigation like the original game.
- * Commands: ?/help, d, m, p, i, q, and more.
+ * Commands: ?/help, d, m, p, i, season, q, and more.
  */
 // Phones and tablets: don't pop the on screen keyboard unless asked,
 // since it covers most of the terminal. The tap keypad drives the game instead.
@@ -78,7 +78,7 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
     // Initial display
     addLines([
       '',
-      '\x1b[33mTRADEWARS 2030 - BBS TERMINAL MODE\x1b[0m',
+      '\x1b[33mSECTOR WARS 2030 - BBS TERMINAL MODE\x1b[0m',
       '\x1b[32mType ? for help.\x1b[0m',
       '',
     ]);
@@ -168,6 +168,7 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
       ' \x1b[32mp\x1b[0m - Port info',
       ' \x1b[32mb\x1b[0m - Bounty board',
       ' \x1b[32mk\x1b[0m - Market board',
+      ' \x1b[32mseason\x1b[0m - Current season and Hall of Fame',
       ' \x1b[32mq\x1b[0m - Quit to login',
       '',
     ]);
@@ -294,6 +295,36 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
     }
   };
 
+  const handleSeason = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/seasons/universe/${player.universeId}`);
+      const data = await res.json();
+      addLines(['', '\x1b[33mSEASON:\x1b[0m']);
+      if (!data.available || !data.current) {
+        addLines(['  \x1b[36mNo season running.\x1b[0m']);
+      } else {
+        const msLeft = new Date(data.current.endsAt).getTime() - new Date(data.serverTime).getTime();
+        const hoursLeft = Math.max(0, Math.floor(msLeft / 3600000));
+        const left = hoursLeft >= 48 ? `${Math.floor(hoursLeft / 24)} days` : `${hoursLeft} hours`;
+        addLines([
+          `  \x1b[32m${data.current.name}\x1b[0m ends in \x1b[33m${left}\x1b[0m`,
+          '  Final net worth ranks go to the Hall of Fame. Nothing is reset.',
+        ]);
+      }
+      const hall = (data.hallOfFame || []).slice(0, 3);
+      if (hall.length > 0) {
+        addLines(['', '\x1b[33mHALL OF FAME:\x1b[0m']);
+        hall.forEach((h: any) => {
+          const podium = h.standings.map((s: any) => `#${s.rank} ${s.corpName}`).join(', ') || 'No ranked traders';
+          addLines([`  \x1b[32m${h.season.name}\x1b[0m: ${podium}`]);
+        });
+      }
+      addLines(['']);
+    } catch (e) {
+      addLines(['\x1b[31mError fetching season.\x1b[0m', '']);
+    }
+  };
+
   const handleCommand = async (raw: string) => {
     const cmd = raw.trim().toLowerCase();
     if (!cmd) return;
@@ -349,6 +380,10 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
       case 'k':
       case 'market':
         await handleMarket();
+        break;
+      case 'season':
+      case 'seasons':
+        await handleSeason();
         break;
       case 'q':
       case 'quit':
