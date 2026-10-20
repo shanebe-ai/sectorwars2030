@@ -13,6 +13,7 @@ import ThemeToggle from './bbs/ThemeToggle';
 import BbsTerminal from './bbs/BbsTerminal';
 import ShipArt from './bbs/ShipArt';
 import { useTheme } from '../themes/ThemeContext';
+import { playPowerOn } from '../audio/retroSfx';
 import { API_URL } from '../config/api';
 import { useSocketNotifications } from '../hooks/useSocketNotifications';
 
@@ -36,6 +37,9 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
   const [unreadLogCount, setUnreadLogCount] = useState(0);
   const [loginNotification, setLoginNotification] = useState<any>(null);
   const [sectorRefreshKey, setSectorRefreshKey] = useState(0);
+  // Mobile only UI: "more" menu sheet and collapsible ship details
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showShipDetails, setShowShipDetails] = useState(false);
 
   // Fetch unread message and log counts
   const fetchUnreadCounts = async () => {
@@ -113,7 +117,19 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
     }));
   };
 
-  const { theme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
+
+  // Open a panel from the mobile "more" menu, closing the menu first
+  const openFromMenu = (open: () => void) => {
+    setShowMoreMenu(false);
+    open();
+  };
+
+  const scrollToSector = () => {
+    document.getElementById('tw-sector')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const cargoUsed = (player.cargoFuel || 0) + (player.cargoOrganics || 0) + (player.cargoEquipment || 0) + (player.colonists || 0);
 
   // BBS mode: full terminal interface like the original TW2002
   if (theme === 'bbs') {
@@ -132,8 +148,8 @@ token={token}
 
   return (
     <>
-      <ThemeToggle />
-    <div className="cyberpunk-container">
+      <ThemeToggle className="tw-desktop-only" />
+    <div className="cyberpunk-container tw-dashboard">
       {/* Login Notification (Escape Pod Alert) */}
       {loginNotification && (
         <div style={{
@@ -183,7 +199,7 @@ token={token}
 
       {/* Real-time Sector Notifications */}
       {notifications.length > 0 && (
-        <div style={{
+        <div className="tw-toast-stack" style={{
           position: 'fixed',
           top: '20px',
           right: '20px',
@@ -328,9 +344,26 @@ token={token}
         }
       `}</style>
 
+      {/* Mobile HUD: the numbers you check every turn, always on screen */}
+      <div className="tw-mobile-only tw-mobile-hud">
+        <div className="tw-hud-top">
+          <span className="tw-hud-corp">► {player.corpName}</span>
+          <button type="button" className="tw-hud-sector" onClick={scrollToSector}>
+            SECTOR {player.currentSector}
+          </button>
+        </div>
+        <div className="tw-hud-stats">
+          <span><b>₡{player.credits.toLocaleString()}</b><small>CREDITS</small></span>
+          <span><b>{player.turnsRemaining}</b><small>TURNS</small></span>
+          <span><b>{cargoUsed}/{player.shipHoldsMax}</b><small>HOLDS</small></span>
+          <span><b>{player.shipFighters}</b><small>FTRS</small></span>
+          <span><b>{player.shipShields}</b><small>SHLD</small></span>
+        </div>
+      </div>
+
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         {/* Header */}
-        <div style={{
+        <div className="tw-dash-header" style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -352,7 +385,7 @@ token={token}
               {player.shipType.toUpperCase()} • SECTOR {player.currentSector}
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div className="tw-desktop-only" style={{ display: 'flex', gap: '10px' }}>
             <button
               onClick={() => setShowShipLog(true)}
               className="cyberpunk-button"
@@ -491,6 +524,17 @@ token={token}
           </div>
         </div>
 
+        {/* Mobile: ship details collapse behind a toggle so the sector is first */}
+        <button
+          type="button"
+          className="tw-mobile-only tw-ship-toggle"
+          onClick={() => setShowShipDetails(v => !v)}
+          aria-expanded={showShipDetails}
+        >
+          {showShipDetails ? '▼ HIDE SHIP & CARGO' : '► SHOW SHIP & CARGO'}
+        </button>
+
+        <div className={`tw-ship-details${showShipDetails ? ' is-open' : ''}`}>
         {/* Player Stats */}
         <div className="cyberpunk-panel" style={{ marginBottom: '30px' }}>
           <div className="panel-header">► SHIP STATUS</div>
@@ -560,8 +604,10 @@ token={token}
 
         {/* Player ship art */}
         <ShipArt shipType={player.shipType} maxWidth={420} />
+        </div>
 
         {/* Sector Navigation */}
+        <div id="tw-sector" className="tw-sector-anchor">
         <SectorView
           currentSector={player.currentSector}
           token={token}
@@ -587,7 +633,47 @@ token={token}
           onSectorChange={handleSectorChange}
           refreshKey={sectorRefreshKey}
         />
+        </div>
       </div>
+
+      {/* Mobile bottom navigation */}
+      <nav className="tw-mobile-only tw-bottom-nav" aria-label="Game menu">
+        <button type="button" onClick={scrollToSector}>
+          <span className="tw-nav-icon">◎</span>SECTOR
+        </button>
+        <button type="button" onClick={() => setShowShipLog(true)}>
+          <span className="tw-nav-icon">📋</span>LOG
+          {unreadLogCount > 0 && <span className="tw-nav-badge">{unreadLogCount > 9 ? '9+' : unreadLogCount}</span>}
+        </button>
+        <button type="button" onClick={() => setShowMessaging(true)}>
+          <span className="tw-nav-icon">✉</span>COMMS
+          {unreadMessageCount > 0 && <span className="tw-nav-badge">{unreadMessageCount > 9 ? '9+' : unreadMessageCount}</span>}
+        </button>
+        <button type="button" onClick={() => setShowCorporation(true)}>
+          <span className="tw-nav-icon">★</span>CORP
+        </button>
+        <button type="button" onClick={() => setShowMoreMenu(true)} aria-expanded={showMoreMenu}>
+          <span className="tw-nav-icon">☰</span>MORE
+        </button>
+      </nav>
+
+      {showMoreMenu && (
+        <div className="tw-mobile-only tw-sheet-backdrop" onClick={() => setShowMoreMenu(false)}>
+          <div className="tw-sheet" role="dialog" aria-label="More options" onClick={(e) => e.stopPropagation()}>
+            <div className="tw-sheet-title">► MENU</div>
+            <div className="tw-sheet-grid">
+              <button type="button" onClick={() => openFromMenu(() => setShowPlayerSearch(true))}>🔍 SEARCH</button>
+              <button type="button" onClick={() => openFromMenu(() => setShowLeaderboard(true))}>🏆 RANKINGS</button>
+              <button type="button" onClick={() => openFromMenu(() => setShowMarketBoard(true))}>📈 MARKET</button>
+              <button type="button" onClick={() => openFromMenu(() => setShowBountyBoard(true))}>🎯 BOUNTIES</button>
+              <button type="button" onClick={() => openFromMenu(() => setShowUniverseInfo(true))}>ℹ INFO</button>
+              <button type="button" onClick={() => openFromMenu(() => { playPowerOn(); toggleTheme(); })}>▣ BBS MODE</button>
+              <button type="button" className="tw-sheet-danger" onClick={() => openFromMenu(onLogout)}>◄ LOGOUT</button>
+              <button type="button" onClick={() => setShowMoreMenu(false)}>✕ CLOSE</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Messaging Panel */}
       {showMessaging && (
