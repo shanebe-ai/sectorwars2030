@@ -30,6 +30,8 @@ import leaderboardRoutes from './routes/leaderboard';
 import playerTradingRoutes from './routes/playerTrading';
 import eventRoutes from './routes/events';
 import npcRoutes from './routes/npcs';
+import seasonRoutes from './routes/seasons';
+import { apiLimiter, parseTrustProxy } from './middleware/rateLimit';
 import { startPortRegeneration } from './services/portService';
 import { startFighterMaintenance } from './services/maintenanceService';
 import { startEconomyTick } from './services/economyService';
@@ -37,6 +39,7 @@ import { startDerelictTick } from './services/derelictService';
 import { startAnomalyTick } from './services/anomalyService';
 import { startDynamicEventTick } from './services/dynamicEventService';
 import { startNpcTick } from './services/npcService';
+import { startSeasonTick } from './services/seasonService';
 import { startAlienShipMovement, startAlienAggression } from './services/alienService';
 import { cleanupExpiredOffers } from './services/alienTradingService';
 import { cleanupExpiredPlayerTrades } from './services/playerTradingService';
@@ -78,6 +81,11 @@ const io = new Server(httpServer, {
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
+// Trust X-Forwarded-For from a local proxy (nginx) so rate limits see
+// the real client IP. Override with TRUST_PROXY (true, false, a hop
+// count, or an Express trust proxy list).
+app.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY));
+
 // Middleware
 app.use(cors({
   origin: allowedOrigins,
@@ -102,9 +110,12 @@ app.get('/health', async (req, res) => {
   }
 });
 
+// Rate limit the whole API (health check above stays unlimited)
+app.use('/api', apiLimiter);
+
 // API Routes
 app.get('/api', (req, res) => {
-  res.json({ message: 'TradeWars 2030 API Server', version: '1.0.0' });
+  res.json({ message: 'Sector Wars 2030: Moral Decay API Server', version: '1.0.0' });
 });
 
 // Auth routes
@@ -184,6 +195,9 @@ app.use('/api/events', eventRoutes);
 
 // NPC trader routes (hails)
 app.use('/api/npcs', npcRoutes);
+
+// Season routes (current season, Hall of Fame, admin controls)
+app.use('/api/seasons', seasonRoutes);
 
 // WebSocket connection handling
 io.on('connection', (socket) => {
@@ -267,7 +281,7 @@ if (process.env.NODE_ENV !== 'test' && process.env.JEST_WORKER_ID === undefined)
 httpServer.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════════════╗
-║   TradeWars 2030 - Server                     ║
+║   Sector Wars 2030 - Server                   ║
 ║   Port: ${PORT}                                    ║
 ║   Host: 0.0.0.0 (all interfaces)              ║
 ║   Environment: ${process.env.NODE_ENV || 'development'}                ║
@@ -294,6 +308,9 @@ httpServer.listen(PORT, () => {
 
   // Start NPC traffic tick (every 5 minutes: NPC traders move and trade)
   startNpcTick(5 * 60 * 1000);
+
+  // Start season tick (every 5 minutes: end warnings, season end and archive)
+  startSeasonTick(5 * 60 * 1000);
 
   // Start alien ship movement (every 5 minutes)
   startAlienShipMovement(5 * 60 * 1000);

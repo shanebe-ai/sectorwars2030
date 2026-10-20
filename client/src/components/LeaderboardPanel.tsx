@@ -1,6 +1,42 @@
 import { useState, useEffect } from 'react';
 import { API_URL } from '../config/api';
 
+interface SeasonInfo {
+  id: number;
+  seasonNumber: number;
+  name: string;
+  status: 'active' | 'ended';
+  startsAt: string;
+  endsAt: string;
+  endedAt: string | null;
+}
+
+interface SeasonStanding {
+  rank: number;
+  username: string | null;
+  corpName: string;
+  networth: number;
+}
+
+interface SeasonsResponse {
+  available: boolean;
+  current: SeasonInfo | null;
+  hallOfFame: Array<{ season: SeasonInfo; standings: SeasonStanding[] }>;
+  serverTime: string;
+}
+
+// "12d 4h", "5h 20m", "under 1m"
+const formatTimeLeft = (ms: number) => {
+  if (ms <= 0) return 'ending now';
+  const minutes = Math.floor(ms / 60000);
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor((minutes % 1440) / 60);
+  const mins = minutes % 60;
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${mins}m`;
+  return mins > 0 ? `${mins}m` : 'under 1m';
+};
+
 interface LeaderboardPanelProps {
   universeId: number;
   token: string;
@@ -8,16 +44,36 @@ interface LeaderboardPanelProps {
 }
 
 export default function LeaderboardPanel({ universeId, token, onClose }: LeaderboardPanelProps) {
-  const [category, setCategory] = useState<'networth' | 'experience' | 'kills' | 'planets'>('networth');
+  const [category, setCategory] = useState<'networth' | 'experience' | 'kills' | 'planets' | 'hall'>('networth');
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [seasons, setSeasons] = useState<SeasonsResponse | null>(null);
+  const [clockOffset, setClockOffset] = useState(0);
+
+  useEffect(() => {
+    // Seasons are optional: if the call fails the panel works as before.
+    fetch(`${API_URL}/api/seasons/universe/${universeId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: SeasonsResponse | null) => {
+        if (data && data.available) {
+          setSeasons(data);
+          setClockOffset(new Date(data.serverTime).getTime() - Date.now());
+        }
+      })
+      .catch(() => {});
+  }, [universeId]);
 
   useEffect(() => {
     loadLeaderboard();
   }, [category]);
 
   const loadLeaderboard = async () => {
+    if (category === 'hall') {
+      setLoading(false);
+      setError('');
+      return;
+    }
     setLoading(true);
     setError('');
     try {
@@ -133,30 +189,98 @@ export default function LeaderboardPanel({ universeId, token, onClose }: Leaderb
                 {cat === 'planets' && '🌍 Planets'}
               </button>
             ))}
+            {seasons && (
+              <button
+                onClick={() => setCategory('hall')}
+                style={{
+                  padding: '8px 16px',
+                  background: category === 'hall' ? 'rgba(255, 215, 0, 0.15)' : 'transparent',
+                  border: `1px solid ${category === 'hall' ? '#FFD700' : 'rgba(255, 215, 0, 0.4)'}`,
+                  color: category === 'hall' ? '#FFD700' : 'rgba(255, 215, 0, 0.7)',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  textTransform: 'uppercase',
+                  fontWeight: category === 'hall' ? 'bold' : 'normal'
+                }}
+              >
+                🏛 Hall of Fame
+              </button>
+            )}
           </div>
+
+          {seasons && (
+            <div data-testid="season-strip" style={{
+              marginTop: '12px',
+              fontSize: '12px',
+              color: seasons.current ? 'var(--neon-yellow)' : 'var(--text-secondary)'
+            }}>
+              {seasons.current
+                ? `◆ ${seasons.current.name.toUpperCase()} · ENDS IN ${formatTimeLeft(new Date(seasons.current.endsAt).getTime() - (Date.now() + clockOffset)).toUpperCase()} · FINAL NET WORTH RANKS GO TO THE HALL OF FAME`
+                : '◇ NO SEASON RUNNING'}
+            </div>
+          )}
         </div>
 
         {/* Content */}
         <div style={{ flex: 1, overflow: 'auto', padding: '20px' }}>
-          {loading && (
+          {category === 'hall' && seasons && (
+            <div data-testid="hall-of-fame">
+              {seasons.hallOfFame.length === 0 && (
+                <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '40px' }}>
+                  No finished seasons yet. Champions appear here when a season ends.
+                </div>
+              )}
+              {seasons.hallOfFame.map(({ season, standings }) => (
+                <div key={season.id} style={{
+                  border: '1px solid rgba(255, 215, 0, 0.3)',
+                  padding: '12px 16px',
+                  marginBottom: '12px'
+                }}>
+                  <div style={{ color: '#FFD700', fontWeight: 'bold', marginBottom: '8px' }}>
+                    {season.name.toUpperCase()}
+                    <span style={{ color: 'var(--text-secondary)', fontWeight: 'normal', fontSize: '11px', marginLeft: '10px' }}>
+                      ended {new Date(season.endedAt || season.endsAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  {standings.length === 0 && (
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>No ranked traders</div>
+                  )}
+                  {standings.map((s) => (
+                    <div key={s.rank} style={{ display: 'flex', gap: '12px', fontSize: '13px', padding: '3px 0' }}>
+                      <span style={{ color: getRankColor(s.rank), width: '28px' }}>
+                        {s.rank === 1 ? '🥇' : s.rank === 2 ? '🥈' : s.rank === 3 ? '🥉' : `#${s.rank}`}
+                      </span>
+                      <span style={{ color: 'var(--neon-purple)', flex: 1 }}>{s.corpName}</span>
+                      <span style={{ color: 'var(--neon-green)' }}>{s.username}</span>
+                      <span style={{ color: 'var(--neon-yellow)', minWidth: '70px', textAlign: 'right' }}>
+                        ₡{formatNumber(Number(s.networth))}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {category !== 'hall' && loading && (
             <div style={{ textAlign: 'center', color: 'var(--neon-cyan)', padding: '40px' }}>
               Loading...
             </div>
           )}
 
-          {error && (
+          {category !== 'hall' && error && (
             <div style={{ color: 'var(--neon-pink)', padding: '20px', textAlign: 'center' }}>
               {error}
             </div>
           )}
 
-          {!loading && !error && leaderboard.length === 0 && (
+          {category !== 'hall' && !loading && !error && leaderboard.length === 0 && (
             <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '40px' }}>
               No players found
             </div>
           )}
 
-          {!loading && !error && leaderboard.length > 0 && (
+          {category !== 'hall' && !loading && !error && leaderboard.length > 0 && (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{
