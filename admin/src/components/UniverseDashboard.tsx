@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import CreateUniverseModal from './CreateUniverseModal';
+import SeasonControls from './SeasonControls';
 import { API_URL } from '../config/api';
 
 interface Universe {
@@ -73,7 +74,7 @@ export default function UniverseDashboard({ token, user, onLogout }: UniverseDas
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-black)' }}>
       <div className="admin-header">
-        <div className="admin-title">TradeWars 2030 - Admin Panel</div>
+        <div className="admin-title">Sector Wars 2030 - Admin Panel</div>
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
           <span style={{ color: 'var(--neon-cyan)', fontSize: '14px' }}>
             ADMIN: {user.username}
@@ -163,6 +164,8 @@ export default function UniverseDashboard({ token, user, onLogout }: UniverseDas
                     <span className="stat-row-value">{new Date(universe.created_at).toLocaleDateString()}</span>
                   </div>
                 </div>
+
+                <SeasonControls universeId={universe.id} token={token} />
 
                 <div className="action-buttons">
                   <button
