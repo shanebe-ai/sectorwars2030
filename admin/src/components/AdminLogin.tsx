@@ -154,7 +154,7 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
           <div style={{ marginTop: '30px', fontSize: '12px', textAlign: 'center', color: 'var(--neon-purple)', opacity: 0.7 }}>
             <div>► RESTRICTED AREA</div>
             <div>► AUTHORIZED PERSONNEL ONLY</div>
-            <div>► SECTOR WARS 2030 CONTROL PANEL</div>
+            <div>► SECTOR WARS 2030: MORAL DECAY CONTROL PANEL</div>
           </div>
         </div>
       </div>
