@@ -1,26 +1,45 @@
-# TradeWars 2030
+# Sector Wars 2030: Moral Decay
 
-A modern, real-time browser game inspired by TradeWars 2002, with React clients, a Node/Express server, PostgreSQL persistence, Socket.io multiplayer state, authentication, an admin application, and AI-assisted dialogue.
+A browser remake of TradeWars 2002, the old BBS space trading game. Built with React, Node/Express, PostgreSQL and Socket.io, plus an admin app. It used to be called TradeWars 2030 and the repo still has the old name.
 
-## Product tour
+You can play it two ways. **Cyber mode** is the full color version. **BBS mode** is a green screen terminal with the classic TW2002 commands. Both work on desktop and phone.
 
-Screenshots from a local demo run (200-sector universe, September 2026).
+## Screenshots
 
-**Login**: cyberpunk-styled entry point for pilots.
+Taken from a local test run in October 2026.
 
-![TradeWars 2030 login screen](docs/screenshots/shot-1-login.png)
+**Login**
 
-**In-game dashboard**: ship status, cargo manifest, and sector overview for the active corporation.
+![Login screen](docs/screenshots/desktop-login.png)
 
-![TradeWars 2030 in-game dashboard](docs/screenshots/shot-3-dashboard.png)
+**Dashboard in cyber mode.** Ship status, cargo and your ship.
 
-**Sector view during play**: sector scan with warp connections, planets in sector (Earth, owned by Terra Corp), and ships present.
+![Dashboard in cyber mode](docs/screenshots/desktop-cyber-dashboard.png)
 
-![TradeWars 2030 sector view during play](docs/screenshots/shot-4-sector-space.png)
+**Planets.** Every planet has pixel art. Frontier planets are dead and gritty and use the old TW2002 planet classes. Earth, Mars and the alien homeworlds still look alive.
 
-**Admin panel**: create and manage universes without touching SQL.
+![A glacial planet in the sector view](docs/screenshots/desktop-cyber-sector-planet.png)
 
-![TradeWars 2030 admin panel](docs/screenshots/shot-5-admin.png)
+**Stardock.** Buy ships, fighters and shields.
+
+![Stardock](docs/screenshots/desktop-cyber-stardock.png)
+
+**BBS mode.** TW2002 style commands on a green screen.
+
+![BBS mode showing Earth in sector 1](docs/screenshots/desktop-bbs-terminal.png)
+
+**On a phone.** Login, cyber mode, an alien homeworld and BBS mode with the tap keypad.
+
+<p>
+  <img src="docs/screenshots/mobile-login.png" alt="Login on a phone" width="24%">
+  <img src="docs/screenshots/mobile-cyber-sector.png" alt="Cyber mode on a phone" width="24%">
+  <img src="docs/screenshots/mobile-cyber-alien-homeworld.png" alt="Alien homeworld on a phone" width="24%">
+  <img src="docs/screenshots/mobile-bbs-terminal.png" alt="BBS mode on a phone" width="24%">
+</p>
+
+**Admin panel.** Set up universes and seasons without touching SQL.
+
+![Admin panel](docs/screenshots/desktop-admin.png)
 
 ## Architecture
 

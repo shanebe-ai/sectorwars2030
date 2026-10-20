@@ -1,4 +1,4 @@
-# TradeWars 2030 - Complete Manual Testing Guide
+# Sector Wars 2030: Moral Decay, Manual Testing Guide
 
 **Date**: 2026-01-12
 **Status**: Ready for multiplayer testing
@@ -95,7 +95,7 @@ npm run dev
 **Expected Output**:
 ```
 ╔════════════════════════════════════════════════╗
-║   TradeWars 2030 - Server                     ║
+║   Sector Wars 2030 - Server                   ║
 ║   Port: 3000                                   ║
 ║   Host: 0.0.0.0 (all interfaces)              ║
 ║   Environment: development                     ║
