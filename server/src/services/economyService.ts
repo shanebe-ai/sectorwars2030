@@ -35,9 +35,9 @@ export const runEconomyTick = async (): Promise<void> => {
     // Ports recover a fraction of their deficit each tick.
     await client.query(`
       UPDATE sectors
-      SET port_fuel_qty = port_fuel_qty + GREATEST(0, (1000 - port_fuel_qty) * $1)::INTEGER,
-          port_organics_qty = port_organics_qty + GREATEST(0, (1000 - port_organics_qty) * $1)::INTEGER,
-          port_equipment_qty = port_equipment_qty + GREATEST(0, (1000 - port_equipment_qty) * $1)::INTEGER
+      SET port_fuel_qty = port_fuel_qty + GREATEST(0, (1000 - port_fuel_qty) * $1::NUMERIC)::INTEGER,
+          port_organics_qty = port_organics_qty + GREATEST(0, (1000 - port_organics_qty) * $1::NUMERIC)::INTEGER,
+          port_equipment_qty = port_equipment_qty + GREATEST(0, (1000 - port_equipment_qty) * $1::NUMERIC)::INTEGER
       WHERE port_type IS NOT NULL
     `, [RESTOCK_FRACTION]);
 

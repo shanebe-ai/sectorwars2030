@@ -461,3 +461,13 @@
     opacity: 0.4;
   }
 }
+
+/* Login banner: scale the ASCII logo down to the screen width so the
+ * full SECTOR WARS name shows on phones instead of being cut off. */
+@media (max-width: 768px) {
+  pre.ascii-art {
+    font-size: min(11px, calc((100vw - 56px) / 56)) !important;
+    max-width: 100%;
+    overflow: hidden;
+  }
+}
