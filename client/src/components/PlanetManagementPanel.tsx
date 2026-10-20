@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAutoScroll } from '../hooks/useAutoScroll';
+import ShipArt from './bbs/ShipArt';
+import { planetArtKey, planetClassLabel } from './bbs/artCatalog';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -486,6 +488,14 @@ export default function PlanetManagementPanel({
             🚀 TAKE OFF
           </button>
         </div>
+
+        <ShipArt
+          shipType={planetArtKey(planet)}
+          maxWidth={560}
+          alt={planet.name}
+          caption={planetClassLabel(planet)}
+          compact
+        />
 
         {/* Messages */}
         {error && (

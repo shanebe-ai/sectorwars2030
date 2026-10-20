@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { API_URL } from '../config/api';
 import { useAutoScroll } from '../hooks/useAutoScroll';
+import ShipArt from './bbs/ShipArt';
 
 interface Ship {
   id: number;
@@ -637,6 +638,8 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
           </button>
         </div>
 
+        <ShipArt shipType="stardock" maxWidth={560} alt="Stardock" compact />
+
         {/* Player Stats */}
         <div style={{
           display: 'grid',
@@ -744,6 +747,7 @@ export default function StarDockPanel({ sectorNumber, token, onClose, onPurchase
                 }}
               >
                 <div>
+                  <ShipArt shipType={ship.name} maxWidth={320} alt={ship.displayName} compact />
                   <div style={{
                     color: ship.isCurrentShip ? 'var(--neon-cyan)' : 'var(--text-primary)',
                     fontWeight: 'bold',
