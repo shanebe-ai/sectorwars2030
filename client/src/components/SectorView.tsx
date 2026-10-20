@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import PortTradingPanel from './PortTradingPanel';
 import PlanetManagementPanel from './PlanetManagementPanel';
 import StarDockPanel from './StarDockPanel';
+import ShipArt from './bbs/ShipArt';
+import { planetArtKey, planetClassLabel } from './bbs/artCatalog';
 import CombatPanel from './CombatPanel';
 import AlienTradePanel from './AlienTradePanel';
 import TradeOfferModal from './TradeOfferModal';
@@ -2199,6 +2201,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
               <div style={{ color: 'var(--neon-cyan)', fontWeight: 'bold', marginBottom: '8px' }}>
                 🚀 STARDOCK DETECTED
               </div>
+              <ShipArt shipType="stardock" maxWidth={520} alt="Stardock" compact />
               <div style={{ color: 'var(--text-primary)', fontSize: '14px' }}>
                 <div>Purchase ships, fighters, and shields</div>
                 <div style={{ marginTop: '5px', fontSize: '12px', opacity: 0.7 }}>
@@ -2280,6 +2283,13 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                   color: 'var(--text-primary)',
                   border: '1px solid rgba(138, 43, 226, 0.3)'
                 }}>
+                  <ShipArt
+                    shipType={planetArtKey(planet)}
+                    maxWidth={420}
+                    alt={planet.name}
+                    caption={planetClassLabel(planet)}
+                    compact
+                  />
                   <div style={{ 
                     display: 'flex', 
                     justifyContent: 'space-between', 
@@ -2947,6 +2957,13 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
               <div style={{ color: '#9d00ff', fontWeight: 'bold', marginBottom: '10px' }}>
                 🛸 ALIEN PLANET DETECTED
               </div>
+              <ShipArt
+                shipType={planetArtKey(sector.alienPlanet)}
+                maxWidth={420}
+                alt={sector.alienPlanet.name}
+                caption={planetClassLabel(sector.alienPlanet)}
+                compact
+              />
               <div style={{
                 padding: '10px',
                 background: 'rgba(0, 0, 0, 0.5)',

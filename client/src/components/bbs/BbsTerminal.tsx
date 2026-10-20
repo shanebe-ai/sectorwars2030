@@ -3,6 +3,7 @@ import { API_URL } from '../../config/api';
 import AnsiText from './AnsiText';
 import AnsiArt, { MINE_ALERT_ART, COMBAT_ALERT_ART } from './AnsiArt';
 import ShipArt from './ShipArt';
+import { planetArtKey, planetClassLabel } from './artCatalog';
 
 interface BbsTerminalProps {
   player: any;
@@ -25,6 +26,7 @@ const KEYPAD_COMMANDS: { cmd: string; label: string }[] = [
   { cmd: 'd', label: 'D Scan' },
   { cmd: 'i', label: 'I Ship' },
   { cmd: 'p', label: 'P Port' },
+  { cmd: 'l', label: 'L Planet' },
   { cmd: 'b', label: 'B Bounty' },
   { cmd: 'k', label: 'K Market' },
   { cmd: '?', label: '? Help' },
@@ -43,6 +45,7 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [alert, setAlert] = useState<'mine' | 'combat' | null>(null);
   const [image, setImage] = useState<string | null>(null);
+  const [imageCaption, setImageCaption] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -113,6 +116,18 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
     if (s.planets && s.planets.length > 0) {
       out.push(`\x1b[36mPlanets \x1b[0m: ${s.planets.map((p: any) => p.name + (p.ownerName ? ` (${p.ownerName})` : ' (unclaimed)')).join(', ')}`);
     }
+    if (s.alienPlanet) {
+      out.push(`\x1b[36mPlanets \x1b[0m: \x1b[35m${s.alienPlanet.name}\x1b[0m (${s.alienPlanet.alienRace}, citadel ${s.alienPlanet.citadelLevel})`);
+    }
+    // Pixel art for whatever dominates the sector: planet first, then stardock
+    const artPlanet = s.alienPlanet || (s.planets && s.planets[0]);
+    if (artPlanet) {
+      setImage(planetArtKey(artPlanet));
+      setImageCaption(`${artPlanet.name} : ${planetClassLabel(artPlanet)}`);
+    } else if (s.portType && String(s.portType).toLowerCase().includes('stardock')) {
+      setImage('stardock');
+      setImageCaption(null);
+    }
     if (s.fightersCount > 0) {
       out.push(`\x1b[36mFighters\x1b[0m: \x1b[32m${s.fightersCount}\x1b[0m` + (s.hasHostileFighters ? ` \x1b[31m[HOSTILE: ${s.hostileFighterCount}]\x1b[0m` : ''));
     }
@@ -166,6 +181,7 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
       ' \x1b[32m<n>\x1b[0m - Move to sector (just the number)',
       ' \x1b[32mi\x1b[0m - Ship and player info',
       ' \x1b[32mp\x1b[0m - Port info',
+      ' \x1b[32ml\x1b[0m - Planet scan (planets in this sector)',
       ' \x1b[32mb\x1b[0m - Bounty board',
       ' \x1b[32mk\x1b[0m - Market board',
       ' \x1b[32mseason\x1b[0m - Current season and Hall of Fame',
@@ -174,8 +190,32 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
     ]);
   };
 
+  const showPlanets = async () => {
+    const s = sector || await fetchSector();
+    const planets: any[] = [
+      ...((s && s.planets) || []),
+      ...(s && s.alienPlanet ? [s.alienPlanet] : []),
+    ];
+    if (planets.length === 0) {
+      addLines(['\x1b[31mNo planets in this sector.\x1b[0m', '']);
+      return;
+    }
+    setImage(planetArtKey(planets[0]));
+    setImageCaption(`${planets[0].name} : ${planetClassLabel(planets[0])}`);
+    const out = ['', '\x1b[33mPLANET SCAN:\x1b[0m'];
+    planets.forEach((p, i) => {
+      const owner = p.alienRace
+        ? `\x1b[35m${p.alienRace}\x1b[0m`
+        : p.ownerName ? `\x1b[32m${p.ownerName}\x1b[0m` : '\x1b[33munclaimed\x1b[0m';
+      out.push(` ${i + 1}. \x1b[32m${p.name}\x1b[0m  ${planetClassLabel(p)}  Owner: ${owner}`);
+    });
+    out.push('', '\x1b[36mUse cyberpunk mode to land and manage planets.\x1b[0m', '');
+    addLines(out);
+  };
+
   const showInfo = () => {
     setImage(player.shipType || null);
+    setImageCaption(null);
     addLines([
       '',
       `\x1b[33mSHIP INFO:\x1b[0m`,
@@ -246,6 +286,7 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
     // Show pixel art for stardocks
     const isStardock = sector.portType.toLowerCase().includes('stardock');
     setImage(isStardock ? 'stardock' : null);
+    setImageCaption(null);
     addLines([
       '',
       `\x1b[33mPORT: ${sector.portType} (Class ${sector.portClass || '?'})\x1b[0m`,
@@ -339,6 +380,7 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
     // Clear displayed image unless this command sets one
     if (verb !== 'p' && verb !== 'port' && verb !== 'i' && verb !== 'info') {
       setImage(null);
+      setImageCaption(null);
     }
 
     // TW2002 style: typing just a number warps to that sector
@@ -371,6 +413,11 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
       case 'p':
       case 'port':
         await handlePort();
+        break;
+      case 'l':
+      case 'land':
+      case 'planet':
+        await showPlanets();
         break;
       case 'b':
       case 'bounty':
@@ -456,7 +503,7 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
       ))}
       {alert === 'mine' && <AnsiArt art={MINE_ALERT_ART} color="#ff3333" animated />}
       {alert === 'combat' && <AnsiArt art={COMBAT_ALERT_ART} color="#ff3333" animated />}
-      {image && <ShipArt shipType={image} />}
+      {image && <ShipArt shipType={image} caption={imageCaption || undefined} />}
       <div className="bbs-prompt" style={{ display: 'flex', alignItems: 'center' }}>
         <span style={{ color: '#33ff33', marginRight: '8px' }}>&gt;</span>
         <input
