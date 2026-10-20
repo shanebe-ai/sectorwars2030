@@ -86,6 +86,16 @@ export default function Login({ onLogin }: LoginProps) {
         }}>
           {logo}
         </pre>
+        <div className="login-subtitle" style={{
+          textAlign: 'center',
+          marginBottom: '24px',
+          color: 'var(--neon-pink)',
+          letterSpacing: '6px',
+          fontSize: '16px',
+          fontWeight: 'bold'
+        }}>
+          ◆ MORAL DECAY ◆
+        </div>
 
         <div className="cyberpunk-panel" style={{
           maxWidth: '500px',

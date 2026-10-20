@@ -78,7 +78,7 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
     // Initial display
     addLines([
       '',
-      '\x1b[33mSECTOR WARS 2030 - BBS TERMINAL MODE\x1b[0m',
+      '\x1b[33mSECTOR WARS 2030: MORAL DECAY - BBS TERMINAL MODE\x1b[0m',
       '\x1b[32mType ? for help.\x1b[0m',
       '',
     ]);

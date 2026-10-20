@@ -115,7 +115,7 @@ app.use('/api', apiLimiter);
 
 // API Routes
 app.get('/api', (req, res) => {
-  res.json({ message: 'Sector Wars 2030 API Server', version: '1.0.0' });
+  res.json({ message: 'Sector Wars 2030: Moral Decay API Server', version: '1.0.0' });
 });
 
 // Auth routes
