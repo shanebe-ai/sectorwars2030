@@ -4,6 +4,8 @@ import {
   getUniverseById,
   listUniverses,
   deleteUniverse,
+  updateUniverse,
+  UniverseMetadataUpdate,
 } from '../services/universeService';
 
 /**
@@ -151,5 +153,88 @@ export const removeUniverse = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Delete universe error:', error);
     res.status(500).json({ error: 'Failed to delete universe' });
+  }
+};
+
+/**
+ * PATCH /api/universes/:id
+ * Edit a universe's metadata (name and description only, admin only).
+ * Gameplay settings in the request body are ignored.
+ */
+export const editUniverse = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    // Only admins can edit universes
+    if (!req.user.isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const universeId = parseInt(req.params.id);
+
+    if (isNaN(universeId)) {
+      return res.status(400).json({ error: 'Invalid universe ID' });
+    }
+
+    const { name, description } = req.body || {};
+
+    const hasName = name !== undefined;
+    const hasDescription = description !== undefined;
+
+    if (!hasName && !hasDescription) {
+      return res.status(400).json({ error: 'Nothing to update: provide a name and/or a description' });
+    }
+
+    const updates: UniverseMetadataUpdate = {};
+
+    if (hasName) {
+      if (typeof name !== 'string') {
+        return res.status(400).json({ error: 'Universe name must be a string' });
+      }
+
+      const trimmedName = name.trim();
+
+      if (trimmedName.length === 0) {
+        return res.status(400).json({ error: 'Universe name is required' });
+      }
+
+      if (trimmedName.length > 100) {
+        return res.status(400).json({ error: 'Universe name must be 100 characters or fewer' });
+      }
+
+      updates.name = trimmedName;
+    }
+
+    if (hasDescription) {
+      if (description !== null && typeof description !== 'string') {
+        return res.status(400).json({ error: 'Description must be a string' });
+      }
+
+      if (typeof description === 'string' && description.length > 2000) {
+        return res.status(400).json({ error: 'Description must be 2000 characters or fewer' });
+      }
+
+      updates.description = description;
+    }
+
+    const updated = await updateUniverse(universeId, updates);
+
+    if (!updated) {
+      return res.status(404).json({ error: 'Universe not found' });
+    }
+
+    console.log(`Admin ${req.user.username} updated universe ID: ${universeId}`);
+
+    const universe = await getUniverseById(universeId);
+
+    res.json({
+      message: 'Universe updated successfully',
+      universe,
+    });
+  } catch (error) {
+    console.error('Edit universe error:', error);
+    res.status(500).json({ error: 'Failed to update universe' });
   }
 };

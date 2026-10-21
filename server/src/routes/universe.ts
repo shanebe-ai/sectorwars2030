@@ -4,6 +4,7 @@ import {
   getUniverses,
   getUniverse,
   removeUniverse,
+  editUniverse,
 } from '../controllers/universeController';
 import { authenticateToken } from '../middleware/auth';
 
@@ -15,6 +16,7 @@ router.get('/:id', getUniverse); // Get specific universe
 
 // Protected routes (require authentication)
 router.post('/', authenticateToken, createUniverse); // Create universe (admin only)
+router.patch('/:id', authenticateToken, editUniverse); // Edit universe metadata (admin only)
 router.delete('/:id', authenticateToken, removeUniverse); // Delete universe (admin only)
 
 export default router;

@@ -159,6 +159,7 @@ Modern web-based multiplayer space trading game with ASCII art, cyberpunk aesthe
   - Sol (Earth) sector always at position 1
 - **Universe API** ([server/src/controllers/universeController.ts](server/src/controllers/universeController.ts)) ✅
   - POST /api/universes - Create universe (admin only)
+  - PATCH /api/universes/:id - Edit universe name and description (admin only)
   - GET /api/universes - List all universes with stats
   - GET /api/universes/:id - Get specific universe
   - DELETE /api/universes/:id - Delete universe (admin only)

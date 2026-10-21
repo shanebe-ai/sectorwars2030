@@ -730,3 +730,41 @@ export async function deleteUniverse(universeId: number) {
 
   return result.rows.length > 0;
 }
+
+export interface UniverseMetadataUpdate {
+  name?: string;
+  description?: string | null;
+}
+
+/**
+ * Update a universe's metadata (name and description only).
+ * Gameplay settings (sectors, players, turns, credits, ship, active state)
+ * are deliberately not editable through this function.
+ * Returns the updated universe row, or null if the universe does not exist.
+ */
+export async function updateUniverse(universeId: number, updates: UniverseMetadataUpdate) {
+  const fields: string[] = [];
+  const values: any[] = [];
+
+  if (updates.name !== undefined) {
+    values.push(updates.name);
+    fields.push(`name = $${values.length}`);
+  }
+
+  if (updates.description !== undefined) {
+    values.push(updates.description);
+    fields.push(`description = $${values.length}`);
+  }
+
+  if (fields.length === 0) {
+    return null;
+  }
+
+  values.push(universeId);
+  const result = await query(
+    `UPDATE universes SET ${fields.join(', ')} WHERE id = $${values.length} RETURNING *`,
+    values
+  );
+
+  return result.rows[0] || null;
+}

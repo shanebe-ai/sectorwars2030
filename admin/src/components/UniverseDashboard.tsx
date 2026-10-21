@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import CreateUniverseModal from './CreateUniverseModal';
+import EditUniverseModal from './EditUniverseModal';
 import SeasonControls from './SeasonControls';
 import { API_URL } from '../config/api';
 
@@ -29,6 +30,7 @@ export default function UniverseDashboard({ token, user, onLogout }: UniverseDas
   const [universes, setUniverses] = useState<Universe[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingUniverse, setEditingUniverse] = useState<Universe | null>(null);
   const [error, setError] = useState('');
 
   const fetchUniverses = async () => {
@@ -169,6 +171,13 @@ export default function UniverseDashboard({ token, user, onLogout }: UniverseDas
 
                 <div className="action-buttons">
                   <button
+                    onClick={() => setEditingUniverse(universe)}
+                    className="cyberpunk-button cyberpunk-button-secondary"
+                    style={{ flex: 1, padding: '10px', fontSize: '12px' }}
+                  >
+                    ✎ EDIT
+                  </button>
+                  <button
                     onClick={() => handleDelete(universe.id, universe.name)}
                     className="cyberpunk-button cyberpunk-button-danger"
                     style={{ flex: 1, padding: '10px', fontSize: '12px' }}
@@ -188,6 +197,18 @@ export default function UniverseDashboard({ token, user, onLogout }: UniverseDas
           onClose={() => setShowCreateModal(false)}
           onSuccess={() => {
             setShowCreateModal(false);
+            fetchUniverses();
+          }}
+        />
+      )}
+
+      {editingUniverse && (
+        <EditUniverseModal
+          token={token}
+          universe={editingUniverse}
+          onClose={() => setEditingUniverse(null)}
+          onSuccess={() => {
+            setEditingUniverse(null);
             fetchUniverses();
           }}
         />
