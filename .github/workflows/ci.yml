@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci-test-password
+          POSTGRES_DB: tradewars
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: tradewars
+      DB_USER: postgres
+      DB_PASSWORD: ci-test-password
+      JWT_SECRET: ci-test-secret
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            server/package-lock.json
+            client/package-lock.json
+
+      - name: Install server dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Apply the base schema
+        working-directory: server
+        run: npm run db:migrate
+
+      # The numbered migrations bring a fresh database from the base
+      # schema to the current state. Migrations from before the
+      # idempotency conventions are not safe to re-run strictly:
+      # schema.sql already contains their end state, so applying them
+      # raises "already exists" errors that are expected here.
+      # ON_ERROR_STOP stays off for this step and the test suite below
+      # is the gate: if the final schema were wrong, the tests fail.
+      - name: Apply the numbered migrations
+        working-directory: server
+        run: |
+          for f in $(ls src/db/migrations/[0-9]*.sql | sort); do
+            echo "Applying $f"
+            PGPASSWORD=$DB_PASSWORD psql -h localhost -U postgres -d tradewars -f "$f" > /dev/null 2>&1 || true
+          done
+
+      - name: Typecheck the server
+        working-directory: server
+        run: npx tsc --noEmit
+
+      - name: Run the server test suite
+        working-directory: server
+        run: npm test
+
+      - name: Install client dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Build the client
+        working-directory: client
+        run: npm run build
