@@ -5,7 +5,7 @@
 **Purpose**: This document serves as the primary context for AI assistants working on this project. Read this first to understand the full project state.
 
 **Project**: Sector Wars 2030: Moral Decay (formerly TradeWars 2030), a modern web remake of the classic BBS game TradeWars 2002
-**Repository**: shanebe-ai/tradewars2030
+**Repository**: shanebe-ai/sectorwars2030
 **Author**: Shane Bennett (shanebe-ai, shanebe@live.com)
 **Tech Stack**: React 19 + Vite + TypeScript (frontend), Node.js + Express + TypeScript + Socket.io (backend), PostgreSQL (database)
 **Ports**: Backend (3000), Client (5173), Admin (5174)
