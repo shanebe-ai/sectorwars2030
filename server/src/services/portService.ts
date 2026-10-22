@@ -1,6 +1,6 @@
 import { pool } from '../db/connection';
 import { emitSectorEvent } from '../index';
-import { getStrikeForSector, getIncursionPenalty, getTradeBoomBonus, applyTradeBoom } from './dynamicEventService';
+import { getStrikeForSector, getIncursionPenalty, getTradeBoomBonus, applyTradeBoom, recordContractDelivery } from './dynamicEventService';
 
 // Base prices for commodities (mid-point prices)
 export const BASE_PRICES = {
@@ -442,6 +442,20 @@ export const executeTrade = async (
          updated_at = NOW()`,
       [player.universe_id, player.current_sector, commodity, actualQuantity, driftDelta]
     );
+
+    // TerraCorp contract: a sale of the contract commodity at the
+    // contract port counts toward the delivery goal. Pricing above is
+    // untouched; the contract pool at settlement is the only bonus.
+    if (action === 'sell') {
+      await recordContractDelivery(
+        client,
+        player.universe_id,
+        player.current_sector,
+        player.id,
+        commodity,
+        actualQuantity
+      );
+    }
 
     // Get updated player and port data
     const updatedPlayerResult = await client.query(

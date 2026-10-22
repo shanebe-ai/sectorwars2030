@@ -100,12 +100,16 @@ interface NpcTrafficShip {
 
 interface DynamicEventInfo {
   id: number;
-  type: 'ion_storm' | 'incursion' | 'port_strike' | 'trade_boom' | 'salvage_field';
+  type: 'ion_storm' | 'incursion' | 'port_strike' | 'trade_boom' | 'salvage_field' | 'contract';
   state: 'brewing' | 'active' | 'resolved';
   regionSectors: number[];
   brewingEndsAt: string;
   activeEndsAt: string | null;
   commodity?: string;
+  contractGoal?: number;
+  contractPool?: number;
+  contractDelivered?: number;
+  contractPlayerDelivered?: number;
 }
 
 interface Sector {
@@ -1468,7 +1472,21 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
             color: '#ffcc33'
           }
         };
-        const c = copy[evt.type];
+        // Contract banners are built from the live numbers on the
+        // event payload (goal, pool, deliveries, own share), so they
+        // override the static copy table.
+        const contractDelivered = evt.contractDelivered ?? 0;
+        const contractMine = evt.contractPlayerDelivered ?? 0;
+        const contractShare = contractDelivered > 0 && contractMine > 0
+          ? Math.floor((contractMine / contractDelivered) * 100)
+          : 0;
+        const contractCopy = evt.type === 'contract' ? {
+          icon: '📜',
+          active: `TERRACORP CONTRACT: sell ${boomGood} to this port and it counts toward the ${evt.contractGoal ?? ''} unit goal. ${contractDelivered} units delivered so far. The ${evt.contractPool ?? 0} credit pool splits by share.${contractMine > 0 ? ` You have delivered ${contractMine} units (${contractShare}% of deliveries).` : ''}`,
+          brewing: `TERRACORP CONTRACT COMING: this port will split a ${evt.contractPool ?? 0} credit pool for ${evt.contractGoal ?? ''} units of ${boomGood} delivered after the contract opens. Sales before it opens do not count.`,
+          color: '#66ccff'
+        } : null;
+        const c = contractCopy ?? copy[evt.type];
         if (!c) return null;
         const isActive = evt.state === 'active';
         return (

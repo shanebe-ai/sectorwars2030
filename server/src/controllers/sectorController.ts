@@ -6,7 +6,7 @@ import { emitSectorEvent } from '../index';
 import { checkMinesOnEntry } from '../services/mineService';
 import { getAlienShipsInSector, getAlienPlanetInSector, unlockAlienComms } from '../services/alienService';
 import { getNpcShipsInSector } from '../services/npcService';
-import { getEventsForSector, getStormForMove, rollStormEffect } from '../services/dynamicEventService';
+import { getEventsForSector, getStormForMove, rollStormEffect, getContractProgress } from '../services/dynamicEventService';
 
 /**
  * Get sector details including warps
@@ -322,14 +322,27 @@ export const getSectorDetails = async (req: Request, res: Response) => {
     let dynamicEvents: Array<any> = [];
     try {
       const events = await getEventsForSector(universeId, parseInt(sectorNumber as string));
-      dynamicEvents = events.map(e => ({
-        id: e.id,
-        type: e.type,
-        state: e.state,
-        regionSectors: e.regionSectors,
-        brewingEndsAt: e.brewingEndsAt,
-        activeEndsAt: e.activeEndsAt,
-        commodity: e.type === 'trade_boom' ? e.params.commodity : undefined
+      dynamicEvents = await Promise.all(events.map(async e => {
+        const base = {
+          id: e.id,
+          type: e.type,
+          state: e.state,
+          regionSectors: e.regionSectors,
+          brewingEndsAt: e.brewingEndsAt,
+          activeEndsAt: e.activeEndsAt,
+          commodity: e.type === 'trade_boom' || e.type === 'contract' ? e.params.commodity : undefined
+        };
+        if (e.type !== 'contract') return base;
+        // Contract banners show live progress: goal, pool, total
+        // delivered, and the viewing player's own delivered units.
+        const progress = await getContractProgress(e.id, playerId);
+        return {
+          ...base,
+          contractGoal: e.params.goal,
+          contractPool: e.params.pool,
+          contractDelivered: progress.totalDelivered,
+          contractPlayerDelivered: progress.playerDelivered
+        };
       }));
     } catch {
       dynamicEvents = [];

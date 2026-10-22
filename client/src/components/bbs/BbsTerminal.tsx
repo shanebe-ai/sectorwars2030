@@ -168,6 +168,11 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
           out.push(e.state === 'active'
             ? `\x1b[32m*** SALVAGE FIELD: fresh derelicts are drifting across this region. First finder takes all. ***\x1b[0m`
             : `\x1b[33m*** SALVAGE FIELD FORECAST: a debris field is condensing over this region. ***\x1b[0m`);
+        } else if (e.type === 'contract') {
+          const good = e.commodity === 'fuel' ? 'FUEL ORE' : e.commodity === 'organics' ? 'ORGANICS' : e.commodity === 'equipment' ? 'EQUIPMENT' : 'CARGO';
+          out.push(e.state === 'active'
+            ? `\x1b[32m*** TERRACORP CONTRACT: deliver ${good} to this port. The credit pool splits by share delivered. ***\x1b[0m`
+            : `\x1b[33m*** TERRACORP CONTRACT FORECAST: this port will split a credit pool for ${good} delivered once the contract opens. ***\x1b[0m`);
         }
       });
     }

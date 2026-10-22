@@ -14,7 +14,7 @@ import { spawnEventDerelicts } from './derelictService';
 // - Warnings always precede effects: every event brews first.
 // - Events never destroy a player's ship, cargo, or credits outright.
 
-export type DynamicEventType = 'ion_storm' | 'incursion' | 'port_strike' | 'trade_boom' | 'salvage_field';
+export type DynamicEventType = 'ion_storm' | 'incursion' | 'port_strike' | 'trade_boom' | 'salvage_field' | 'contract';
 export type DynamicEventState = 'brewing' | 'active' | 'resolved';
 export type StormEffect = 'none' | 'extra_turn' | 'misfire' | 'fail';
 
@@ -50,12 +50,24 @@ const SALVAGE_FIELD_MIN_SECTORS = 4;
 const SALVAGE_FIELD_MAX_SECTORS = 8;
 const SALVAGE_FIELD_MIN_DERELICTS = 5;
 const SALVAGE_FIELD_MAX_DERELICTS = 8;
+// TerraCorp contract terms. The goal is sized from the game's actual
+// cargo holds: starter ships carry 20, working freighters 125 to 250,
+// and the biggest liners 500, so 500 units is two to four full hauler
+// loads. A small crew can meet it inside one active window, and it is
+// far beyond a solo starter ship errand.
+export const CONTRACT_GOAL_UNITS = 500;
+const CONTRACT_BASE_POOL = 50000;
+const CONTRACT_POOL_RATE = 0.05; // pool also pays 5% of the goal's market value
+const CONTRACT_MISS_RATE = 0.5; // a missed goal still pays out at half rate
+// Mirrors BASE_PRICES in portService; kept in step by hand so the pool
+// math uses the same market values the ports trade at.
+const COMMODITY_BASE_PRICES: Record<string, number> = { fuel: 20, organics: 35, equipment: 55 };
 const COMMODITIES = ['fuel', 'organics', 'equipment'] as const;
 
 const randInt = (min: number, max: number): number =>
   Math.floor(Math.random() * (max - min + 1)) + min;
 
-export const EVENT_TYPES: DynamicEventType[] = ['ion_storm', 'incursion', 'port_strike', 'trade_boom', 'salvage_field'];
+export const EVENT_TYPES: DynamicEventType[] = ['ion_storm', 'incursion', 'port_strike', 'trade_boom', 'salvage_field', 'contract'];
 
 const toEvent = (row: any): DynamicEvent => ({
   id: row.id,
@@ -331,6 +343,17 @@ const tnnForecast = (event: DynamicEvent, sectorName: string | null): { subject:
         body: `TNN Salvage Desk: long range scans show a fresh debris field condensing around Sector ${firstSector}, across sectors ${sectorList(event.regionSectors)}. When it settles in ${minutes} minute${minutes === 1 ? '' : 's'}, whatever is tangled in it is up for grabs. Salvage crews, sharpen your hooks.`,
       };
     }
+    case 'contract': {
+      const minutes = Math.max(
+        1,
+        Math.round((new Date(event.brewingEndsAt).getTime() - new Date(event.createdAt).getTime()) / 60000)
+      );
+      const label = commodityLabel(event.params.commodity);
+      return {
+        subject: `TNN Contract Desk: TerraCorp Needs ${label}`,
+        body: `TNN Contract Desk: TerraCorp is stocking up and paying haulers to do the lifting. Deliver ${event.params.goal} units of ${label} to the port in Sector ${firstSector} and everyone who delivers splits a ${event.params.pool} credit pool by share. Deliveries start counting when the contract opens in ${minutes} minute${minutes === 1 ? '' : 's'}. Miss the goal and the pool still pays, at half rate.`,
+      };
+    }
   }
 };
 
@@ -364,6 +387,13 @@ const tnnStart = (event: DynamicEvent): { subject: string; body: string } => {
         subject: 'TNN Salvage Desk: Debris Field Live',
         body: `TNN Salvage Desk: the debris field around Sector ${firstSector} has settled. Derelicts are drifting in sectors ${sectorList(event.regionSectors)}. First finder takes all, and whatever is still out there when the field breaks up drifts beyond reach.`,
       };
+    case 'contract': {
+      const label = commodityLabel(event.params.commodity);
+      return {
+        subject: 'TNN Contract Desk: TerraCorp Contract Open',
+        body: `TNN Contract Desk: the TerraCorp contract at Sector ${firstSector} is open. Every unit of ${label} sold to that port counts toward the ${event.params.goal} unit goal, and the ${event.params.pool} credit pool splits by share delivered. Haulers, start your runs.`,
+      };
+    }
   }
 };
 
@@ -397,6 +427,31 @@ const tnnResolution = (event: DynamicEvent): { subject: string; body: string } =
         subject: 'TNN Salvage Desk: Field Swept Clean',
         body: `TNN Salvage Desk: the debris field around Sector ${firstSector} has broken up. Unclaimed wrecks have drifted beyond reach. What was pulled out of it stays pulled.`,
       };
+    case 'contract': {
+      const label = commodityLabel(event.params.commodity);
+      const s = event.params.settlement as ContractSettlement | undefined;
+      const goal = event.params.goal ?? CONTRACT_GOAL_UNITS;
+      const poolCredits = event.params.pool ?? 0;
+      if (!s || s.totalDelivered <= 0) {
+        return {
+          subject: 'TNN Contract Desk: Contract Expires Empty',
+          body: `TNN Contract Desk: the TerraCorp contract at Sector ${firstSector} expired with no deliveries at all. The ${poolCredits} credit pool goes unclaimed. TerraCorp will buy elsewhere.`,
+        };
+      }
+      const topLine = s.topContributorName
+        ? ` Top hauler: ${s.topContributorName} with ${s.topContributorAmount} units.`
+        : '';
+      if (s.goalMet) {
+        return {
+          subject: 'TNN Contract Desk: Contract Fulfilled',
+          body: `TNN Contract Desk: haulers delivered ${s.totalDelivered} units of ${label} to Sector ${firstSector}, past the ${goal} unit goal. The ${poolCredits} credit pool has been split by share.${topLine}`,
+        };
+      }
+      return {
+        subject: 'TNN Contract Desk: Contract Falls Short',
+        body: `TNN Contract Desk: the TerraCorp contract at Sector ${firstSector} closed at ${s.totalDelivered} of ${goal} units of ${label}. Contributors are paid pro rata at half rate, ${s.distributed} credits split by share.${topLine}`,
+      };
+    }
   }
 };
 
@@ -494,6 +549,31 @@ export const createEvent = async (
       .filter((n) => n > TERRASPACE_MAX_SECTOR);
     if (regionSectors.length === 0) return null;
     params = { derelictCount: randInt(SALVAGE_FIELD_MIN_DERELICTS, SALVAGE_FIELD_MAX_DERELICTS) };
+  } else if (type === 'contract') {
+    // TerraCorp contract: one port outside TerraSpace, never Stardock,
+    // that buys at least one commodity. The contract counts units of
+    // one of those commodities sold to that port while it is active.
+    const portRes = await client.query(
+      `SELECT id, sector_number, name, port_type FROM sectors
+       WHERE universe_id = $1 AND sector_number > $2
+         AND port_type IS NOT NULL AND port_type != 'STARDOCK'
+         AND port_type LIKE '%B%'
+       ORDER BY RANDOM() LIMIT 1`,
+      [universeId, TERRASPACE_MAX_SECTOR]
+    );
+    if (portRes.rows.length === 0) return null;
+    const port = portRes.rows[0];
+    const letters = String(port.port_type).split('');
+    const bought = COMMODITIES.filter((_, i) => letters[i] === 'B');
+    if (bought.length === 0) return null;
+    const commodity = bought[randInt(0, bought.length - 1)];
+    const goal = CONTRACT_GOAL_UNITS;
+    const poolCredits =
+      CONTRACT_BASE_POOL + Math.floor(goal * (COMMODITY_BASE_PRICES[commodity] ?? 0) * CONTRACT_POOL_RATE);
+    regionSectors = [port.sector_number];
+    targetPortId = port.id;
+    portSectorName = port.name;
+    params = { commodity, goal, pool: poolCredits };
   } else {
     // Port strike: a real port outside TerraSpace, never Stardock.
     const portRes = await client.query(
@@ -547,6 +627,144 @@ export const createEvent = async (
   }
 
   return event;
+};
+
+export interface ContractSettlement {
+  goalMet: boolean;
+  totalDelivered: number;
+  goal: number;
+  pool: number;
+  distributed: number;
+  contributorCount: number;
+  topContributorName: string | null;
+  topContributorAmount: number;
+}
+
+/**
+ * Count one delivery toward a TerraCorp contract: a player sold the
+ * contract commodity at the contract port while the contract is
+ * active. Called from the port sell path with the trade's own client,
+ * so the count lands or rolls back with the sale itself. No active
+ * contract on that sector and commodity means no counting, which is
+ * what keeps brewing, resolved, other ports, and other commodities
+ * out of the tally.
+ */
+export const recordContractDelivery = async (
+  client: any,
+  universeId: number,
+  sectorNumber: number,
+  playerId: number,
+  commodity: string,
+  quantity: number
+): Promise<void> => {
+  if (quantity <= 0) return;
+  const eventRes = await client.query(
+    `SELECT id FROM dynamic_events
+     WHERE universe_id = $1 AND type = 'contract' AND state = 'active'
+       AND region_sectors @> $2::jsonb
+       AND params->>'commodity' = $3
+     ORDER BY created_at ASC
+     LIMIT 1`,
+    [universeId, JSON.stringify([sectorNumber]), commodity]
+  );
+  if (eventRes.rows.length === 0) return;
+  await client.query(
+    `INSERT INTO dynamic_event_contributions (event_id, player_id, amount)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (event_id, player_id)
+     DO UPDATE SET amount = dynamic_event_contributions.amount + EXCLUDED.amount`,
+    [eventRes.rows[0].id, playerId, quantity]
+  );
+};
+
+/**
+ * Contract progress for displays: total units delivered so far, and
+ * one player's own delivered units when asked.
+ */
+export const getContractProgress = async (
+  eventId: number,
+  playerId?: number
+): Promise<{ totalDelivered: number; playerDelivered: number }> => {
+  try {
+    const totalRes = await query(
+      `SELECT COALESCE(SUM(amount), 0) AS total
+       FROM dynamic_event_contributions WHERE event_id = $1`,
+      [eventId]
+    );
+    let playerDelivered = 0;
+    if (playerId) {
+      const playerRes = await query(
+        `SELECT amount FROM dynamic_event_contributions
+         WHERE event_id = $1 AND player_id = $2`,
+        [eventId, playerId]
+      );
+      playerDelivered = playerRes.rows.length > 0 ? playerRes.rows[0].amount : 0;
+    }
+    return { totalDelivered: parseInt(totalRes.rows[0].total, 10) || 0, playerDelivered };
+  } catch {
+    return { totalDelivered: 0, playerDelivered: 0 };
+  }
+};
+
+/**
+ * Settle a TerraCorp contract: split the pool between contributors by
+ * share of units delivered, at full rate when the goal was met and
+ * half rate when it was missed, so effort is never wasted. Each
+ * payout is claimed through the paid_credits null guard before the
+ * player is credited, which is what makes settling exactly once even
+ * if resolution runs twice. Credits only ever go up here; settlement
+ * touches nothing else a player owns.
+ */
+export const settleContract = async (client: any, event: DynamicEvent): Promise<ContractSettlement> => {
+  const goal = event.params.goal ?? CONTRACT_GOAL_UNITS;
+  const poolCredits = event.params.pool ?? 0;
+
+  const contribRes = await client.query(
+    `SELECT c.player_id, c.amount,
+            COALESCE(u.username, p.corp_name, 'Unknown Trader') AS name
+     FROM dynamic_event_contributions c
+     JOIN players p ON p.id = c.player_id
+     LEFT JOIN users u ON u.id = p.user_id
+     WHERE c.event_id = $1 AND c.amount > 0
+     ORDER BY c.amount DESC, c.player_id ASC`,
+    [event.id]
+  );
+
+  const totalDelivered = contribRes.rows.reduce((sum: number, r: any) => sum + r.amount, 0);
+  const goalMet = totalDelivered >= goal;
+  const distributable = Math.floor(poolCredits * (goalMet ? 1 : CONTRACT_MISS_RATE));
+
+  let distributed = 0;
+  for (const row of contribRes.rows) {
+    const share = totalDelivered > 0 ? Math.floor((distributable * row.amount) / totalDelivered) : 0;
+    const claim = await client.query(
+      `UPDATE dynamic_event_contributions
+       SET paid_credits = $1
+       WHERE event_id = $2 AND player_id = $3 AND paid_credits IS NULL
+       RETURNING player_id`,
+      [share, event.id, row.player_id]
+    );
+    if ((claim.rowCount ?? 0) === 0) continue;
+    if (share > 0) {
+      await client.query(
+        `UPDATE players SET credits = credits + $1 WHERE id = $2`,
+        [share, row.player_id]
+      );
+    }
+    distributed += share;
+  }
+
+  const top = contribRes.rows[0];
+  return {
+    goalMet,
+    totalDelivered,
+    goal,
+    pool: poolCredits,
+    distributed,
+    contributorCount: contribRes.rows.length,
+    topContributorName: top ? top.name : null,
+    topContributorAmount: top ? top.amount : 0,
+  };
 };
 
 /**
@@ -605,6 +823,18 @@ const applyResolutionEffects = async (client: any, event: DynamicEvent): Promise
     await client.query(
       `DELETE FROM derelicts WHERE event_id = $1 AND state = 'spotted'`,
       [event.id]
+    );
+    return;
+  }
+
+  if (event.type === 'contract') {
+    // Settle the pool. The settlement summary rides along in params
+    // so the TNN resolution can report the outcome and top hauler.
+    const settlement = await settleContract(client, event);
+    event.params = { ...event.params, settlement };
+    await client.query(
+      `UPDATE dynamic_events SET params = $1, updated_at = NOW() WHERE id = $2`,
+      [JSON.stringify(event.params), event.id]
     );
     return;
   }
