@@ -3,6 +3,7 @@ import { API_URL } from '../config/api';
 import { useAutoScroll } from '../hooks/useAutoScroll';
 import { useTheme } from '../themes/ThemeContext';
 import BbsPortDisplay from './bbs/BbsPortDisplay';
+import BlackMarketPanel from './BlackMarketPanel';
 import { playTrade } from '../audio/retroSfx';
 
 interface CommodityInfo {
@@ -669,6 +670,23 @@ export default function PortTradingPanel({
             )}
           </div>
         )}
+
+        {/* Smuggling: black market, customs auction, cargo scanner */}
+        <BlackMarketPanel
+          sectorNumber={sectorNumber}
+          token={token}
+          onTradeComplete={(updatedPlayer: any) => {
+            setPlayer({
+              credits: updatedPlayer.credits,
+              cargoFuel: updatedPlayer.cargoFuel,
+              cargoOrganics: updatedPlayer.cargoOrganics,
+              cargoEquipment: updatedPlayer.cargoEquipment,
+              turnsRemaining: updatedPlayer.turnsRemaining,
+              shipHoldsMax: updatedPlayer.shipHoldsMax,
+            });
+            onTradeComplete(updatedPlayer);
+          }}
+        />
 
         {/* Close Button */}
         <div style={{ padding: '0 20px 20px' }}>

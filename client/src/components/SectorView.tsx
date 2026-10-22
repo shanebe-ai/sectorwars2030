@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import PortTradingPanel from './PortTradingPanel';
+import DerelictStashPanel from './DerelictStashPanel';
 import PlanetManagementPanel from './PlanetManagementPanel';
 import StarDockPanel from './StarDockPanel';
 import ShipArt from './bbs/ShipArt';
@@ -2264,6 +2265,9 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
             </div>
           )}
 
+          {/* Smuggling: derelict stash (renders only when a derelict is here) */}
+          <DerelictStashPanel token={token} refreshKey={refreshKey} onActionComplete={() => onPlayerUpdate?.()} />
+
           {sector.planets && sector.planets.length > 0 && (
             <div style={{
               padding: '15px',
@@ -2743,6 +2747,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                   <div>
                     <div style={{ color: 'var(--neon-cyan)' }}>
                       {p.corpName}{p.id === currentPlayerId && <span style={{ color: 'var(--neon-green)', marginLeft: '8px' }}>(YOU)</span>}
+                      {p.flagged && <span style={{ color: '#ff3c3c', marginLeft: '8px', fontWeight: 'bold' }}>⚑ FLAGGED BY CUSTOMS</span>}
                     </div>
                     <div style={{ fontSize: '11px', opacity: 0.8 }}>
                       {p.shipType.toUpperCase()} • Pilot: {p.username} • ⚔{p.fighters}
@@ -3635,7 +3640,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                         fontSize: '12px',
                         color: 'var(--text-primary)'
                       }}>
-                        <div><strong>{ship.corpName}</strong> ({ship.username})</div>
+                        <div><strong>{ship.corpName}</strong> ({ship.username}){ship.flagged && <span style={{ color: '#ff3c3c', marginLeft: '8px', fontWeight: 'bold' }}>⚑ FLAGGED BY CUSTOMS</span>}</div>
                         <div style={{ fontSize: '11px', opacity: 0.8 }}>
                           {ship.shipType.toUpperCase()} • ⚔{ship.fighters} • 🛡{ship.shields}
                         </div>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import CreateUniverseModal from './CreateUniverseModal';
 import EditUniverseModal from './EditUniverseModal';
 import SeasonControls from './SeasonControls';
+import PatrolControls from './PatrolControls';
 import { API_URL } from '../config/api';
 
 interface Universe {
@@ -168,6 +169,7 @@ export default function UniverseDashboard({ token, user, onLogout }: UniverseDas
                 </div>
 
                 <SeasonControls universeId={universe.id} token={token} />
+                <PatrolControls universeId={universe.id} token={token} />
 
                 <div className="action-buttons">
                   <button

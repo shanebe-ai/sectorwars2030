@@ -7,6 +7,7 @@ interface BountyEntry {
   totalAmount: number;
   contractCount: number;
   lastKnownSector: number | null;
+  targetFlagged?: boolean;
 }
 
 interface HunterEntry {
@@ -182,6 +183,9 @@ export default function BountyBoardPanel({ token, onClose, onBountyPlaced }: Bou
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ color: 'var(--text-main)', fontWeight: 'bold', fontSize: '16px' }}>
                     {entry.targetName}
+                    {entry.targetFlagged && (
+                      <span style={{ color: '#ff3c3c', marginLeft: '8px', fontSize: '13px' }}>⚑ FLAGGED BY CUSTOMS</span>
+                    )}
                   </span>
                   <span style={{ color: 'var(--neon-red)', fontWeight: 'bold', fontSize: '18px' }}>
                     {formatCredits(entry.totalAmount)}
