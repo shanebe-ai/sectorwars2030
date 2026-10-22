@@ -18,7 +18,7 @@ interface EventControlsProps {
   token: string;
 }
 
-const EVENT_TYPES = ['ion_storm', 'incursion', 'port_strike'];
+const EVENT_TYPES = ['ion_storm', 'incursion', 'port_strike', 'trade_boom'];
 
 // Countdown text for a future timestamp, or "due now" once it passes.
 const countdown = (iso: string | null): string => {
