@@ -176,9 +176,10 @@ export const getEventsForSector = async (
 
 /**
  * Warp neighbours of a sector (bidirectional, same lookup the sector
- * details endpoint uses).
+ * details endpoint uses). Exported for other services that need true
+ * warp adjacency (smuggling cover) instead of sector number math.
  */
-const getAdjacentSectors = async (
+export const getAdjacentSectors = async (
   client: any,
   universeId: number,
   sectorNumber: number
@@ -530,9 +531,15 @@ export const advanceEvents = async (client: any): Promise<void> => {
  */
 const maybeSeedEvent = async (client: any, universeId: number): Promise<void> => {
   const settingsRes = await client.query(
-    `SELECT cooldown_until FROM dynamic_event_settings WHERE universe_id = $1`,
+    `SELECT cooldown_until, events_enabled FROM dynamic_event_settings WHERE universe_id = $1`,
     [universeId]
   );
+  if (settingsRes.rows.length > 0 && settingsRes.rows[0].events_enabled === false) {
+    // Events are switched off in this universe. Events already
+    // brewing or active are untouched: advanceEvents still runs for
+    // them and they finish naturally. Only new seeding stops.
+    return;
+  }
   if (
     settingsRes.rows.length > 0 &&
     settingsRes.rows[0].cooldown_until &&
@@ -761,8 +768,9 @@ export const listEvents = async (universeId?: number, limit = 50): Promise<Dynam
 };
 
 /**
- * Admin: force an event to start brewing right now, with a short
- * one minute forecast so the lifecycle still demonstrates itself.
+ * Admin: force an event to start brewing right now. Uses the
+ * standard brewing window, so the TNN forecast still precedes any
+ * effect, exactly like a seeded event.
  */
 export const forceStartEvent = async (
   universeId: number,
@@ -770,7 +778,7 @@ export const forceStartEvent = async (
 ): Promise<DynamicEvent | null> => {
   const client = await pool.connect();
   try {
-    return await createEvent(client, universeId, type, { brewingMinutes: 1 });
+    return await createEvent(client, universeId, type);
   } finally {
     client.release();
   }
@@ -813,6 +821,48 @@ export const setEventCooldown = async (universeId: number, minutes: number): Pro
      DO UPDATE SET cooldown_until = NOW() + ($2 || ' minutes')::INTERVAL, updated_at = NOW()`,
     [universeId, String(minutes)]
   );
+};
+
+export interface DynamicEventSettings {
+  eventsEnabled: boolean;
+  cooldownUntil: string | null;
+}
+
+/**
+ * Admin: current event settings for a universe. A universe with no
+ * settings row runs with the shipped defaults: events enabled, no
+ * seeding cooldown.
+ */
+export const getEventSettings = async (universeId: number): Promise<DynamicEventSettings> => {
+  const result = await query(
+    `SELECT events_enabled, cooldown_until FROM dynamic_event_settings WHERE universe_id = $1`,
+    [universeId]
+  );
+  if (result.rows.length === 0) {
+    return { eventsEnabled: true, cooldownUntil: null };
+  }
+  return {
+    eventsEnabled: result.rows[0].events_enabled !== false,
+    cooldownUntil: result.rows[0].cooldown_until,
+  };
+};
+
+/**
+ * Admin: switch event seeding on or off for a universe. Only seeding
+ * is gated: events already brewing or active finish naturally.
+ */
+export const setEventsEnabled = async (
+  universeId: number,
+  enabled: boolean
+): Promise<DynamicEventSettings> => {
+  await query(
+    `INSERT INTO dynamic_event_settings (universe_id, events_enabled, updated_at)
+     VALUES ($1, $2, NOW())
+     ON CONFLICT (universe_id)
+     DO UPDATE SET events_enabled = $2, updated_at = NOW()`,
+    [universeId, enabled]
+  );
+  return getEventSettings(universeId);
 };
 
 /**

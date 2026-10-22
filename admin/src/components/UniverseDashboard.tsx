@@ -3,6 +3,7 @@ import CreateUniverseModal from './CreateUniverseModal';
 import EditUniverseModal from './EditUniverseModal';
 import SeasonControls from './SeasonControls';
 import PatrolControls from './PatrolControls';
+import EventControls from './EventControls';
 import { API_URL } from '../config/api';
 
 interface Universe {
@@ -170,6 +171,7 @@ export default function UniverseDashboard({ token, user, onLogout }: UniverseDas
 
                 <SeasonControls universeId={universe.id} token={token} />
                 <PatrolControls universeId={universe.id} token={token} />
+                <EventControls universeId={universe.id} token={token} />
 
                 <div className="action-buttons">
                   <button

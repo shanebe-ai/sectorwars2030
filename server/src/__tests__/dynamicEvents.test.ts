@@ -40,8 +40,14 @@ import {
   forceStartEvent,
   forceResolveEvent,
   setEventCooldown,
+  getEventSettings,
+  setEventsEnabled,
   runDynamicEventTick,
 } from '../services/dynamicEventService';
+import {
+  adminGetEventSettings,
+  adminSetEventsEnabled,
+} from '../controllers/eventController';
 import { getPortInfo, executeTrade } from '../services/portService';
 import { moveToSector } from '../controllers/sectorController';
 
@@ -464,12 +470,15 @@ describe('Dynamic Events System', () => {
   });
 
   describe('Admin controls', () => {
-    it('force starts an event with a short forecast', async () => {
+    it('force starts an event with the standard 30 minute forecast', async () => {
       const event = await forceStartEvent(testUniverseId, 'ion_storm');
       expect(event).not.toBeNull();
       expect(event!.state).toBe('brewing');
+      // Warnings precede effects for admin fired events too: the
+      // brewing window is the standard one, not a shortened demo.
       const brewMs = new Date(event!.brewingEndsAt).getTime() - Date.now();
-      expect(brewMs).toBeLessThan(2 * 60 * 1000);
+      expect(brewMs).toBeGreaterThan(25 * 60 * 1000);
+      expect(brewMs).toBeLessThan(35 * 60 * 1000);
     });
 
     it('force resolves a live event with its aftermath', async () => {
@@ -488,6 +497,102 @@ describe('Dynamic Events System', () => {
         [testUniverseId]
       );
       expect(parseInt(rows.rows[0].count, 10)).toBe(0);
+    });
+  });
+
+  describe('Events on/off switch', () => {
+    const countEvents = async (universeId: number): Promise<number> => {
+      const rows = await testPool.query(
+        `SELECT COUNT(*) AS count FROM dynamic_events WHERE universe_id = $1`,
+        [universeId]
+      );
+      return parseInt(rows.rows[0].count, 10);
+    };
+
+    const makeUniverseWithSectors = async (name: string): Promise<number> => {
+      const id = await createTestUniverse(name, 100);
+      for (let s = 11; s <= 20; s++) {
+        await createTestSector(id, s, `${name} Sector ${s}`);
+      }
+      return id;
+    };
+
+    it('defaults a universe with no settings row to enabled', async () => {
+      const fresh = await makeUniverseWithSectors('Events Default Universe');
+      const settings = await getEventSettings(fresh);
+      expect(settings.eventsEnabled).toBe(true);
+      expect(settings.cooldownUntil).toBeNull();
+    });
+
+    it('round trips the toggle through the service', async () => {
+      const universe = await makeUniverseWithSectors('Events Toggle Universe');
+      const off = await setEventsEnabled(universe, false);
+      expect(off.eventsEnabled).toBe(false);
+      expect((await getEventSettings(universe)).eventsEnabled).toBe(false);
+      const on = await setEventsEnabled(universe, true);
+      expect(on.eventsEnabled).toBe(true);
+      expect((await getEventSettings(universe)).eventsEnabled).toBe(true);
+    });
+
+    it('round trips the toggle through the settings endpoints', async () => {
+      const universe = await makeUniverseWithSectors('Events Endpoint Universe');
+
+      const getReq: any = { query: { universeId: String(universe) } };
+      const getRes = mockRes();
+      await adminGetEventSettings(getReq, getRes);
+      expect(getRes.json.mock.calls[0][0].settings.eventsEnabled).toBe(true);
+
+      const postReq: any = { body: { universeId: universe, enabled: false } };
+      const postRes = mockRes();
+      await adminSetEventsEnabled(postReq, postRes);
+      expect(postRes.json.mock.calls[0][0].settings.eventsEnabled).toBe(false);
+
+      const getRes2 = mockRes();
+      await adminGetEventSettings(getReq, getRes2);
+      expect(getRes2.json.mock.calls[0][0].settings.eventsEnabled).toBe(false);
+
+      const badReq: any = { body: { universeId: universe, enabled: 'yes' } };
+      const badRes = mockRes();
+      await adminSetEventsEnabled(badReq, badRes);
+      expect(badRes.status).toHaveBeenCalledWith(400);
+    });
+
+    it('seeds nothing in a disabled universe while an enabled one seeds', async () => {
+      const disabled = await makeUniverseWithSectors('Events Disabled Universe');
+      await setEventsEnabled(disabled, false);
+      const enabled = await makeUniverseWithSectors('Events Enabled Universe');
+
+      // Roll 0: the seed chance passes and the type picker lands on
+      // ion_storm, which only needs one sector outside TerraSpace.
+      jest.spyOn(Math, 'random').mockReturnValue(0);
+      await runDynamicEventTick();
+
+      expect(await countEvents(disabled)).toBe(0);
+      expect(await countEvents(enabled)).toBeGreaterThanOrEqual(1);
+    });
+
+    it('lets a live event finish naturally in a disabled universe', async () => {
+      const universe = await makeUniverseWithSectors('Events Disabled Live Universe');
+      const inserted = await testPool.query(
+        `INSERT INTO dynamic_events
+           (universe_id, type, state, region_sectors, brewing_ends_at, active_ends_at, params)
+         VALUES ($1, 'ion_storm', 'brewing', $2,
+            NOW() - INTERVAL '1 minute', NOW() + INTERVAL '3 hours', '{}')
+         RETURNING id`,
+        [universe, JSON.stringify([12])]
+      );
+      await setEventsEnabled(universe, false);
+
+      await runDynamicEventTick();
+
+      const rows = await testPool.query(
+        `SELECT state FROM dynamic_events WHERE id = $1`,
+        [inserted.rows[0].id]
+      );
+      // Advanced to active on schedule, not force resolved by the switch.
+      expect(rows.rows[0].state).toBe('active');
+      // And no fresh event was seeded alongside it.
+      expect(await countEvents(universe)).toBe(1);
     });
   });
 });

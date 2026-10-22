@@ -7,6 +7,8 @@ import {
   adminForceStart,
   adminForceResolve,
   adminSetCooldown,
+  adminGetEventSettings,
+  adminSetEventsEnabled,
 } from '../controllers/eventController';
 import {
   adminListPatrols,
@@ -33,6 +35,11 @@ router.get('/admin/all', requireAdmin, adminListEvents);
 
 // Admin: force an event to start brewing now { universeId, type }
 router.post('/admin/force-start', requireAdmin, adminForceStart);
+
+// Admin: event settings for a universe (enabled flag, cooldown).
+// Registered before /admin/:id/resolve so "settings" is not read as an id.
+router.get('/admin/settings', requireAdmin, adminGetEventSettings);
+router.post('/admin/settings', requireAdmin, adminSetEventsEnabled);
 
 // Admin: force resolve a live event
 router.post('/admin/:id/resolve', requireAdmin, adminForceResolve);

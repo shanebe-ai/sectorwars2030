@@ -7,6 +7,8 @@ import {
   forceStartEvent,
   forceResolveEvent,
   setEventCooldown,
+  getEventSettings,
+  setEventsEnabled,
   DynamicEventType,
 } from '../services/dynamicEventService';
 
@@ -147,5 +149,45 @@ export const adminSetCooldown = async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Error setting event cooldown:', error);
     res.status(500).json({ error: error.message || 'Failed to set cooldown' });
+  }
+};
+
+/**
+ * GET /api/events/admin/settings?universeId=
+ * Admin: current event settings for a universe (enabled flag and
+ * seeding cooldown).
+ */
+export const adminGetEventSettings = async (req: Request, res: Response) => {
+  try {
+    const universeId = req.query.universeId ? parseInt(req.query.universeId as string) : NaN;
+    if (!universeId) {
+      return res.status(400).json({ error: 'universeId is required' });
+    }
+
+    const settings = await getEventSettings(universeId);
+    res.json({ settings });
+  } catch (error: any) {
+    console.error('Error getting event settings:', error);
+    res.status(500).json({ error: error.message || 'Failed to get event settings' });
+  }
+};
+
+/**
+ * POST /api/events/admin/settings
+ * Admin: switch event seeding on or off in a universe.
+ * Body: { universeId, enabled }
+ */
+export const adminSetEventsEnabled = async (req: Request, res: Response) => {
+  try {
+    const { universeId, enabled } = req.body;
+    if (!universeId || typeof enabled !== 'boolean') {
+      return res.status(400).json({ error: 'universeId and a boolean enabled value are required' });
+    }
+
+    const settings = await setEventsEnabled(parseInt(universeId), enabled);
+    res.json({ settings });
+  } catch (error: any) {
+    console.error('Error setting events enabled:', error);
+    res.status(500).json({ error: error.message || 'Failed to set events enabled' });
   }
 };
