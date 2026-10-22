@@ -38,6 +38,8 @@ import { startEconomyTick } from './services/economyService';
 import { startDerelictTick } from './services/derelictService';
 import { startAnomalyTick } from './services/anomalyService';
 import { startDynamicEventTick } from './services/dynamicEventService';
+import smugglingRoutes from './routes/smuggling';
+import { startSmugglingTick } from './services/smugglingService';
 import { startNpcTick } from './services/npcService';
 import { startSeasonTick } from './services/seasonService';
 import { startAlienShipMovement, startAlienAggression } from './services/alienService';
@@ -192,6 +194,7 @@ app.use('/api/player-trading', playerTradingRoutes);
 
 // Dynamic event routes (storms, incursions, strikes, admin controls)
 app.use('/api/events', eventRoutes);
+app.use('/api/smuggling', smugglingRoutes);
 
 // NPC trader routes (hails)
 app.use('/api/npcs', npcRoutes);
@@ -305,6 +308,7 @@ httpServer.listen(PORT, () => {
 
   // Start dynamic event tick (every 5 minutes: seed, advance, resolve events)
   startDynamicEventTick(5 * 60 * 1000);
+  startSmugglingTick(5 * 60 * 1000);
 
   // Start NPC traffic tick (every 5 minutes: NPC traders move and trade)
   startNpcTick(5 * 60 * 1000);

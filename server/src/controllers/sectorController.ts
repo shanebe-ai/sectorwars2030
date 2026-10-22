@@ -103,6 +103,7 @@ export const getSectorDetails = async (req: Request, res: Response) => {
         p.alignment,
         p.ship_fighters,
         p.ship_shields,
+        p.flagged_until,
         u.username
       FROM players p
       JOIN users u ON p.user_id = u.id
@@ -117,7 +118,9 @@ export const getSectorDetails = async (req: Request, res: Response) => {
       alignment: p.alignment,
       fighters: p.ship_fighters,
       shields: p.ship_shields,
-      username: p.username
+      username: p.username,
+      // Smuggling: flagged pilots are visibly marked, only while flagged.
+      flagged: !!p.flagged_until && new Date(p.flagged_until).getTime() > Date.now()
     }));
 
     // If player is viewing their current sector, record encounters with others there
@@ -522,6 +525,7 @@ export const scanSector = async (req: Request, res: Response) => {
         p.ship_type,
         p.ship_fighters,
         p.ship_shields,
+        p.flagged_until,
         u.username
       FROM players p
       JOIN users u ON p.user_id = u.id
@@ -534,7 +538,8 @@ export const scanSector = async (req: Request, res: Response) => {
       username: s.username,
       shipType: s.ship_type,
       fighters: s.ship_fighters,
-      shields: s.ship_shields
+      shields: s.ship_shields,
+      flagged: !!s.flagged_until && new Date(s.flagged_until).getTime() > Date.now()
     }));
 
     // Get deployed fighters with owner info

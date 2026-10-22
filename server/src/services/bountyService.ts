@@ -25,6 +25,7 @@ export interface BountyBoardEntry {
   totalAmount: number;
   contractCount: number;
   lastKnownSector: number | null;
+  targetFlagged: boolean;
 }
 
 /**
@@ -130,11 +131,12 @@ export const getBountyBoard = async (userId: number): Promise<BountyBoardEntry[]
        p.corp_name AS target_name,
        SUM(b.amount) AS total_amount,
        COUNT(*) AS contract_count,
-       p.current_sector AS last_known_sector
+       p.current_sector AS last_known_sector,
+       (p.flagged_until IS NOT NULL AND p.flagged_until > NOW()) AS target_flagged
      FROM bounties b
      JOIN players p ON p.id = b.target_player_id
      WHERE b.universe_id = $1 AND b.status = 'active'
-     GROUP BY b.target_player_id, p.corp_name, p.current_sector
+     GROUP BY b.target_player_id, p.corp_name, p.current_sector, p.flagged_until
      ORDER BY total_amount DESC`,
     [universeId]
   );
@@ -145,6 +147,7 @@ export const getBountyBoard = async (userId: number): Promise<BountyBoardEntry[]
     totalAmount: parseInt(row.total_amount, 10),
     contractCount: parseInt(row.contract_count, 10),
     lastKnownSector: row.last_known_sector,
+    targetFlagged: !!row.target_flagged,
   }));
 };
 
