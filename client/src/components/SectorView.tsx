@@ -100,7 +100,7 @@ interface NpcTrafficShip {
 
 interface DynamicEventInfo {
   id: number;
-  type: 'ion_storm' | 'incursion' | 'port_strike' | 'trade_boom';
+  type: 'ion_storm' | 'incursion' | 'port_strike' | 'trade_boom' | 'salvage_field';
   state: 'brewing' | 'active' | 'resolved';
   regionSectors: number[];
   brewingEndsAt: string;
@@ -1460,6 +1460,12 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
             active: `${boomGood} BOOM: ports across this region are paying up to 30% more for ${boomGood}. Sell while the rush lasts.`,
             brewing: `${boomGood} BOOM FORECAST: buyers are lining up in this region. Ports start paying up to 30% more for ${boomGood} soon. Fill your holds now.`,
             color: '#33ff99'
+          },
+          salvage_field: {
+            icon: '🛰️',
+            active: 'SALVAGE FIELD: fresh derelicts are drifting across this region. Board them before the field breaks up, unclaimed wrecks drift beyond reach.',
+            brewing: 'SALVAGE FIELD FORECAST: a debris field is condensing over this region. Derelicts drop in when it settles.',
+            color: '#ffcc33'
           }
         };
         const c = copy[evt.type];

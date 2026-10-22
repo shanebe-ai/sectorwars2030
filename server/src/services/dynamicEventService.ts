@@ -1,6 +1,7 @@
 import { pool, query } from '../db/connection';
 import { broadcastTNN } from './broadcastService';
 import { resolveCombatRounds } from './combatService';
+import { spawnEventDerelicts } from './derelictService';
 
 // Dynamic event tick: seed new events, advance brewing events to
 // active, apply resolution effects, and announce everything through
@@ -13,7 +14,7 @@ import { resolveCombatRounds } from './combatService';
 // - Warnings always precede effects: every event brews first.
 // - Events never destroy a player's ship, cargo, or credits outright.
 
-export type DynamicEventType = 'ion_storm' | 'incursion' | 'port_strike' | 'trade_boom';
+export type DynamicEventType = 'ion_storm' | 'incursion' | 'port_strike' | 'trade_boom' | 'salvage_field';
 export type DynamicEventState = 'brewing' | 'active' | 'resolved';
 export type StormEffect = 'none' | 'extra_turn' | 'misfire' | 'fail';
 
@@ -45,12 +46,16 @@ export const TRADE_BOOM_BONUS = 0.3; // ports in a boom pay 30% more for the com
 export const PRICE_DRIFT_BOUND = 0.4; // same bound portService applies to drift
 const TRADE_BOOM_MIN_SECTORS = 8;
 const TRADE_BOOM_MAX_SECTORS = 15;
+const SALVAGE_FIELD_MIN_SECTORS = 4;
+const SALVAGE_FIELD_MAX_SECTORS = 8;
+const SALVAGE_FIELD_MIN_DERELICTS = 5;
+const SALVAGE_FIELD_MAX_DERELICTS = 8;
 const COMMODITIES = ['fuel', 'organics', 'equipment'] as const;
 
 const randInt = (min: number, max: number): number =>
   Math.floor(Math.random() * (max - min + 1)) + min;
 
-export const EVENT_TYPES: DynamicEventType[] = ['ion_storm', 'incursion', 'port_strike', 'trade_boom'];
+export const EVENT_TYPES: DynamicEventType[] = ['ion_storm', 'incursion', 'port_strike', 'trade_boom', 'salvage_field'];
 
 const toEvent = (row: any): DynamicEvent => ({
   id: row.id,
@@ -316,6 +321,16 @@ const tnnForecast = (event: DynamicEvent, sectorName: string | null): { subject:
         body: `TNN Market Watch: buyers are lining up for ${label} around Sector ${firstSector}. Starting in ${minutes} minute${minutes === 1 ? '' : 's'}, ports in sectors ${sectorList(event.regionSectors)} will pay up to 30% more for it. Fill your holds now.`,
       };
     }
+    case 'salvage_field': {
+      const minutes = Math.max(
+        1,
+        Math.round((new Date(event.brewingEndsAt).getTime() - new Date(event.createdAt).getTime()) / 60000)
+      );
+      return {
+        subject: 'TNN Salvage Desk: Debris Field Forming',
+        body: `TNN Salvage Desk: long range scans show a fresh debris field condensing around Sector ${firstSector}, across sectors ${sectorList(event.regionSectors)}. When it settles in ${minutes} minute${minutes === 1 ? '' : 's'}, whatever is tangled in it is up for grabs. Salvage crews, sharpen your hooks.`,
+      };
+    }
   }
 };
 
@@ -344,6 +359,11 @@ const tnnStart = (event: DynamicEvent): { subject: string; body: string } => {
         body: `TNN Market Watch: the ${label} boom is live. Ports in sectors ${sectorList(event.regionSectors)} are paying up to 30% more for ${label} until the rush cools off.`,
       };
     }
+    case 'salvage_field':
+      return {
+        subject: 'TNN Salvage Desk: Debris Field Live',
+        body: `TNN Salvage Desk: the debris field around Sector ${firstSector} has settled. Derelicts are drifting in sectors ${sectorList(event.regionSectors)}. First finder takes all, and whatever is still out there when the field breaks up drifts beyond reach.`,
+      };
   }
 };
 
@@ -372,6 +392,11 @@ const tnnResolution = (event: DynamicEvent): { subject: string; body: string } =
         body: `TNN Market Watch: the ${label} rush around Sector ${firstSector} has cooled off. Ports in the region are back to their usual rates.`,
       };
     }
+    case 'salvage_field':
+      return {
+        subject: 'TNN Salvage Desk: Field Swept Clean',
+        body: `TNN Salvage Desk: the debris field around Sector ${firstSector} has broken up. Unclaimed wrecks have drifted beyond reach. What was pulled out of it stays pulled.`,
+      };
   }
 };
 
@@ -453,6 +478,22 @@ export const createEvent = async (
       .filter((n) => n > TERRASPACE_MAX_SECTOR);
     if (regionSectors.length === 0) return null;
     params = { commodity, bonus: TRADE_BOOM_BONUS };
+  } else if (type === 'salvage_field') {
+    // Salvage field: a small linked region outside TerraSpace. Nothing
+    // spawns while it brews; the derelicts drop in on activation and
+    // the leftovers are swept away at resolution.
+    const sectorRes = await client.query(
+      `SELECT sector_number FROM sectors
+       WHERE universe_id = $1 AND sector_number > $2
+       ORDER BY RANDOM() LIMIT 1`,
+      [universeId, TERRASPACE_MAX_SECTOR]
+    );
+    if (sectorRes.rows.length === 0) return null;
+    const target = randInt(SALVAGE_FIELD_MIN_SECTORS, SALVAGE_FIELD_MAX_SECTORS);
+    regionSectors = (await walkBoomRegion(client, universeId, sectorRes.rows[0].sector_number, target))
+      .filter((n) => n > TERRASPACE_MAX_SECTOR);
+    if (regionSectors.length === 0) return null;
+    params = { derelictCount: randInt(SALVAGE_FIELD_MIN_DERELICTS, SALVAGE_FIELD_MAX_DERELICTS) };
   } else {
     // Port strike: a real port outside TerraSpace, never Stardock.
     const portRes = await client.query(
@@ -512,6 +553,19 @@ export const createEvent = async (
  * Apply the effects that land when an event goes active.
  */
 const applyActivationEffects = async (client: any, event: DynamicEvent): Promise<void> => {
+  if (event.type === 'salvage_field') {
+    // The field settles: derelicts drop into the region, tagged with
+    // this event so resolution can sweep whatever nobody claimed.
+    const wanted = event.params.derelictCount ?? SALVAGE_FIELD_MIN_DERELICTS;
+    const spawned = await spawnEventDerelicts(client, event.universeId, event.regionSectors, event.id, wanted);
+    event.params = { ...event.params, spawnedDerelicts: spawned };
+    await client.query(
+      `UPDATE dynamic_events SET params = $1, updated_at = NOW() WHERE id = $2`,
+      [JSON.stringify(event.params), event.id]
+    );
+    return;
+  }
+
   if (event.type !== 'port_strike') return;
 
   // Neighbouring ports feel the demand: their drift rises for the
@@ -542,6 +596,19 @@ const applyActivationEffects = async (client: any, event: DynamicEvent): Promise
  * Apply the aftermath when an event resolves.
  */
 const applyResolutionEffects = async (client: any, event: DynamicEvent): Promise<void> => {
+  if (event.type === 'salvage_field') {
+    // Sweep the field: delete only this event's derelicts that are
+    // still 'spotted', meaning never boarded or looted. Claimed,
+    // boarded, and fighting wrecks stay exactly where they are, and
+    // derelicts that were drifting before the event (event_id null)
+    // are never touched.
+    await client.query(
+      `DELETE FROM derelicts WHERE event_id = $1 AND state = 'spotted'`,
+      [event.id]
+    );
+    return;
+  }
+
   if (event.type !== 'port_strike') return;
 
   // Restock surge: the struck port comes back full, and its prices

@@ -56,6 +56,48 @@ const rollDefenses = (): { fighters: number; shields: number } => ({
   shields: randInt(100, 300),
 });
 
+// Roll a derelict type: wreck 60%, ghost 30%, liner 10%, and a liner
+// only when no live liner is already drifting in the universe.
+const rollDerelictType = async (
+  client: any,
+  universeId: number
+): Promise<'wreck' | 'ghost' | 'liner'> => {
+  const linerActive = await client.query(
+    `SELECT 1 FROM derelicts
+     WHERE universe_id = $1 AND type = 'liner' AND state != 'claimed' LIMIT 1`,
+    [universeId]
+  );
+  const roll = Math.random();
+  if (roll < 0.6) return 'wreck';
+  if (roll < 0.9 || linerActive.rows.length > 0) return 'ghost';
+  return 'liner';
+};
+
+// Insert one derelict in a sector, or return null when the sector
+// already holds one. eventId tags derelicts spawned by a dynamic
+// event so the event can sweep its own leftovers at resolution; the
+// ambient spawner passes null.
+const insertDerelict = async (
+  client: any,
+  universeId: number,
+  sectorNumber: number,
+  eventId: number | null
+): Promise<'wreck' | 'ghost' | 'liner' | null> => {
+  const type = await rollDerelictType(client, universeId);
+  const loot = type === 'liner' ? {} : rollLoot(type);
+  const expiresAt = `NOW() + INTERVAL '${randInt(12, 24)} hours'`;
+
+  const res = await client.query(
+    `INSERT INTO derelicts
+       (universe_id, sector_number, type, state, loot, expires_at, event_id)
+     VALUES ($1, $2, $3, 'spotted', $4, ${expiresAt}, $5)
+     ON CONFLICT (universe_id, sector_number) DO NOTHING
+     RETURNING id`,
+    [universeId, sectorNumber, type, JSON.stringify(loot), eventId]
+  );
+  return (res.rowCount ?? 0) > 0 ? type : null;
+};
+
 /**
  * Spawn a single derelict in a universe. Picks a weighted type, a legal
  * sector, rolls loot and expiry, then posts a TNN rumor with an
@@ -66,23 +108,6 @@ const spawnDerelict = async (
   universeId: number,
   maxSectors: number
 ): Promise<void> => {
-  // Weighted type roll: wreck 60%, ghost 30%, liner 10%.
-  // Only one liner may drift per universe at a time.
-  const linerActive = await client.query(
-    `SELECT 1 FROM derelicts
-     WHERE universe_id = $1 AND type = 'liner' AND state != 'claimed' LIMIT 1`,
-    [universeId]
-  );
-  const roll = Math.random();
-  let type: 'wreck' | 'ghost' | 'liner' = 'wreck';
-  if (roll < 0.6) {
-    type = 'wreck';
-  } else if (roll < 0.9 || linerActive.rows.length > 0) {
-    type = 'ghost';
-  } else {
-    type = 'liner';
-  }
-
   // Legal sectors: outside TerraSpace, no port, no existing derelict.
   // Ghost ships may share a sector with an anomaly; that is the gamble.
   const sectorRes = await client.query(
@@ -99,16 +124,7 @@ const spawnDerelict = async (
   if (sectorRes.rows.length === 0) return;
   const sectorNumber: number = sectorRes.rows[0].sector_number;
 
-  const loot = type === 'liner' ? {} : rollLoot(type);
-  const expiresAt = `NOW() + INTERVAL '${randInt(12, 24)} hours'`;
-
-  await client.query(
-    `INSERT INTO derelicts
-       (universe_id, sector_number, type, state, loot, expires_at)
-     VALUES ($1, $2, $3, 'spotted', $4, ${expiresAt})
-     ON CONFLICT (universe_id, sector_number) DO NOTHING`,
-    [universeId, sectorNumber, type, JSON.stringify(loot)]
-  );
+  const type = (await insertDerelict(client, universeId, sectorNumber, null)) ?? 'wreck';
 
   // TNN rumor with an approximate location, never the exact sector.
   const jitter = randInt(-5, 5);
@@ -123,6 +139,43 @@ const spawnDerelict = async (
   } catch {
     // Broadcast is best effort; the derelict still spawns.
   }
+};
+
+/**
+ * Spawn derelicts for a salvage field event inside its region. Same
+ * legality rules as ambient spawns (no port, no derelict already
+ * there), each row tagged with the event id so resolution can sweep
+ * the leftovers nobody claimed. Returns how many actually spawned.
+ */
+export const spawnEventDerelicts = async (
+  client: any,
+  universeId: number,
+  regionSectors: number[],
+  eventId: number,
+  count: number
+): Promise<number> => {
+  if (regionSectors.length === 0 || count <= 0) return 0;
+  const eligibleRes = await client.query(
+    `SELECT sector_number FROM sectors
+     WHERE universe_id = $1
+       AND sector_number = ANY($2)
+       AND port_type IS NULL
+       AND sector_number NOT IN (
+         SELECT sector_number FROM derelicts WHERE universe_id = $1
+       )`,
+    [universeId, regionSectors]
+  );
+  const eligible: number[] = eligibleRes.rows.map((r: any) => r.sector_number);
+  for (let i = eligible.length - 1; i > 0; i--) {
+    const j = randInt(0, i);
+    [eligible[i], eligible[j]] = [eligible[j], eligible[i]];
+  }
+  let spawned = 0;
+  for (const sectorNumber of eligible) {
+    if (spawned >= count) break;
+    if (await insertDerelict(client, universeId, sectorNumber, eventId)) spawned++;
+  }
+  return spawned;
 };
 
 /**

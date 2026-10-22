@@ -164,6 +164,10 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
           out.push(e.state === 'active'
             ? `\x1b[32m*** ${good} BOOM: ports in this region pay up to 30% more for ${good}. ***\x1b[0m`
             : `\x1b[33m*** ${good} BOOM FORECAST: ports here start paying up to 30% more for ${good} soon. ***\x1b[0m`);
+        } else if (e.type === 'salvage_field') {
+          out.push(e.state === 'active'
+            ? `\x1b[32m*** SALVAGE FIELD: fresh derelicts are drifting across this region. First finder takes all. ***\x1b[0m`
+            : `\x1b[33m*** SALVAGE FIELD FORECAST: a debris field is condensing over this region. ***\x1b[0m`);
         }
       });
     }
