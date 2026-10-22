@@ -1,6 +1,6 @@
 import { pool } from '../db/connection';
 import { emitSectorEvent } from '../index';
-import { getStrikeForSector, getIncursionPenalty } from './dynamicEventService';
+import { getStrikeForSector, getIncursionPenalty, getTradeBoomBonus, applyTradeBoom } from './dynamicEventService';
 
 // Base prices for commodities (mid-point prices)
 export const BASE_PRICES = {
@@ -132,6 +132,12 @@ export const getPortInfo = async (
   // active incursion makes its prices worse for players.
   const strike = await getStrikeForSector(universeId, sectorNumber);
   const incursionPenalty = await getIncursionPenalty(universeId, sectorNumber);
+  // Active trade boom: the port pays more for the boomed commodity.
+  const boomByCommodity: Record<string, number> = {
+    fuel: await getTradeBoomBonus(universeId, sectorNumber, 'fuel'),
+    organics: await getTradeBoomBonus(universeId, sectorNumber, 'organics'),
+    equipment: await getTradeBoomBonus(universeId, sectorNumber, 'equipment'),
+  };
 
   // Calculate prices based on port type and stock percentage
   // S = Port SELLS to player (cheap - they have excess)
@@ -152,9 +158,12 @@ export const getPortInfo = async (
     const rareBonus = isRarePort ? RARE_PORT_BONUS : 1.0;
 
     // Living economy: drift from trade volume, plus event multiplier
-    const drift = Math.max(-0.4, Math.min(0.4, driftByCommodity[commodity] || 0));
-    const driftMultiplier = 1 + drift;
     const eventState = eventByCommodity[commodity] || 'none';
+    // A boom only lifts what the port pays (B), stays inside the drift
+    // bound, and skips ports already in scarcity or surplus.
+    const boom = action === 'B' ? boomByCommodity[commodity] || 0 : 0;
+    const drift = applyTradeBoom(driftByCommodity[commodity] || 0, eventState, boom);
+    const driftMultiplier = 1 + drift;
     const eventMultiplier = eventState === 'scarcity' ? 2.0 : eventState === 'surplus' ? 0.5 : 1.0;
 
     if (action === 'S') {
@@ -311,11 +320,14 @@ export const executeTrade = async (
        WHERE universe_id = $1 AND sector_number = $2 AND commodity = $3`,
       [player.universe_id, player.current_sector, commodity]
     );
-    const drift = economyRow.rows.length > 0
-      ? Math.max(-0.4, Math.min(0.4, parseFloat(economyRow.rows[0].drift) || 0))
-      : 0;
-    const driftMultiplier = 1 + drift;
     const eventState = economyRow.rows.length > 0 ? economyRow.rows[0].event_state : 'none';
+    // Trade boom: same rule as getPortInfo, only when the port is buying.
+    const boom = action === 'sell'
+      ? await getTradeBoomBonus(player.universe_id, player.current_sector, commodity)
+      : 0;
+    const rawDrift = economyRow.rows.length > 0 ? parseFloat(economyRow.rows[0].drift) || 0 : 0;
+    const drift = applyTradeBoom(rawDrift, eventState, boom);
+    const driftMultiplier = 1 + drift;
     const eventMultiplier = eventState === 'scarcity' ? 2.0 : eventState === 'surplus' ? 0.5 : 1.0;
 
     let pricePerUnit: number;

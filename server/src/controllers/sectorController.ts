@@ -318,7 +318,7 @@ export const getSectorDetails = async (req: Request, res: Response) => {
       npcShips = [];
     }
 
-    // Dynamic events touching this sector (storms, incursions, strikes).
+    // Dynamic events touching this sector (storms, incursions, strikes, booms).
     let dynamicEvents: Array<any> = [];
     try {
       const events = await getEventsForSector(universeId, parseInt(sectorNumber as string));
@@ -328,7 +328,8 @@ export const getSectorDetails = async (req: Request, res: Response) => {
         state: e.state,
         regionSectors: e.regionSectors,
         brewingEndsAt: e.brewingEndsAt,
-        activeEndsAt: e.activeEndsAt
+        activeEndsAt: e.activeEndsAt,
+        commodity: e.type === 'trade_boom' ? e.params.commodity : undefined
       }));
     } catch {
       dynamicEvents = [];

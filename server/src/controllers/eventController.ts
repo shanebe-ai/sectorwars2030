@@ -10,6 +10,7 @@ import {
   getEventSettings,
   setEventsEnabled,
   DynamicEventType,
+  EVENT_TYPES,
 } from '../services/dynamicEventService';
 
 const getPlayerForUser = async (userId: number) => {
@@ -95,8 +96,8 @@ export const adminListEvents = async (req: Request, res: Response) => {
 export const adminForceStart = async (req: Request, res: Response) => {
   try {
     const { universeId, type } = req.body;
-    if (!universeId || !['ion_storm', 'incursion', 'port_strike'].includes(type)) {
-      return res.status(400).json({ error: 'universeId and a valid type (ion_storm, incursion, port_strike) are required' });
+    if (!universeId || !EVENT_TYPES.includes(type)) {
+      return res.status(400).json({ error: `universeId and a valid type (${EVENT_TYPES.join(', ')}) are required` });
     }
 
     const event = await forceStartEvent(parseInt(universeId), type as DynamicEventType);

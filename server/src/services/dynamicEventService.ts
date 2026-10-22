@@ -13,7 +13,7 @@ import { resolveCombatRounds } from './combatService';
 // - Warnings always precede effects: every event brews first.
 // - Events never destroy a player's ship, cargo, or credits outright.
 
-export type DynamicEventType = 'ion_storm' | 'incursion' | 'port_strike';
+export type DynamicEventType = 'ion_storm' | 'incursion' | 'port_strike' | 'trade_boom';
 export type DynamicEventState = 'brewing' | 'active' | 'resolved';
 export type StormEffect = 'none' | 'extra_turn' | 'misfire' | 'fail';
 
@@ -41,11 +41,16 @@ export const INCURSION_TRADE_PENALTY = 0.25; // prices 25% worse under an incurs
 const STRIKE_DEMAND_DRIFT = 0.15; // drift bump at neighbouring ports during a strike
 const STRIKE_SURGE_MINUTES = 60; // post strike price dip duration
 const STORM_SALVAGE_CHANCE = 0.25;
+export const TRADE_BOOM_BONUS = 0.3; // ports in a boom pay 30% more for the commodity
+export const PRICE_DRIFT_BOUND = 0.4; // same bound portService applies to drift
+const TRADE_BOOM_MIN_SECTORS = 8;
+const TRADE_BOOM_MAX_SECTORS = 15;
+const COMMODITIES = ['fuel', 'organics', 'equipment'] as const;
 
 const randInt = (min: number, max: number): number =>
   Math.floor(Math.random() * (max - min + 1)) + min;
 
-const EVENT_TYPES: DynamicEventType[] = ['ion_storm', 'incursion', 'port_strike'];
+export const EVENT_TYPES: DynamicEventType[] = ['ion_storm', 'incursion', 'port_strike', 'trade_boom'];
 
 const toEvent = (row: any): DynamicEvent => ({
   id: row.id,
@@ -141,6 +146,81 @@ export const getIncursionPenalty = async (
 };
 
 /**
+ * Trade boom bonus for a commodity at a sector's port (0.3 means the
+ * port pays 30% more). 0 when no boom is active there. Brewing booms
+ * return 0: warnings always precede effects.
+ */
+export const getTradeBoomBonus = async (
+  universeId: number,
+  sectorNumber: number,
+  commodity: string
+): Promise<number> => {
+  try {
+    const result = await query(
+      `SELECT params FROM dynamic_events
+       WHERE universe_id = $1 AND type = 'trade_boom' AND state = 'active'
+         AND region_sectors @> $2::jsonb
+         AND params->>'commodity' = $3
+       LIMIT 1`,
+      [universeId, JSON.stringify([sectorNumber]), commodity]
+    );
+    if (result.rows.length === 0) return 0;
+    const bonus = Number(result.rows[0].params?.bonus);
+    return Number.isFinite(bonus) ? bonus : TRADE_BOOM_BONUS;
+  } catch {
+    return 0;
+  }
+};
+
+/**
+ * Effective drift once a trade boom is layered on top. The combined
+ * change never leaves the [-0.4, 0.4] drift bound, and a port already
+ * in a scarcity or surplus state is skipped by the boom.
+ */
+export const applyTradeBoom = (drift: number, eventState: string | null | undefined, bonus: number): number => {
+  const skipped = eventState === 'scarcity' || eventState === 'surplus';
+  const combined = skipped ? drift : drift + bonus;
+  return Math.max(-PRICE_DRIFT_BOUND, Math.min(PRICE_DRIFT_BOUND, combined));
+};
+
+/**
+ * Build a boom region by walking warps out from a seed sector,
+ * breadth first, never entering TerraSpace.
+ */
+const walkBoomRegion = async (
+  client: any,
+  universeId: number,
+  seed: number,
+  target: number
+): Promise<number[]> => {
+  const region: number[] = [seed];
+  const seen = new Set<number>([seed]);
+  const queue: number[] = [seed];
+  while (queue.length > 0 && region.length < target) {
+    const current = queue.shift() as number;
+    const neighbours = await getAdjacentSectors(client, universeId, current);
+    for (const n of neighbours) {
+      if (region.length >= target) break;
+      if (seen.has(n)) continue;
+      seen.add(n);
+      if (n <= TERRASPACE_MAX_SECTOR) continue;
+      region.push(n);
+      queue.push(n);
+    }
+  }
+  return region;
+};
+
+const commodityLabel = (commodity: string | undefined): string => {
+  if (commodity === 'fuel') return 'Fuel Ore';
+  if (commodity === 'organics') return 'Organics';
+  if (commodity === 'equipment') return 'Equipment';
+  return 'cargo';
+};
+
+const sectorList = (sectors: number[]): string => sectors.join(', ');
+
+/**
  * Events currently brewing or active in a universe.
  */
 export const getLiveEvents = async (universeId: number): Promise<DynamicEvent[]> => {
@@ -225,6 +305,17 @@ const tnnForecast = (event: DynamicEvent, sectorName: string | null): { subject:
         subject: 'TNN Labor Wire: Strike Vote Called',
         body: `TNN Labor Wire: dockworkers at ${sectorName ? `the port in Sector ${firstSector}` : `Sector ${firstSector}`} have voted to walk out. Trade there stops when the strike begins. Nearby ports are already reporting strong demand.`,
       };
+    case 'trade_boom': {
+      const minutes = Math.max(
+        1,
+        Math.round((new Date(event.brewingEndsAt).getTime() - new Date(event.createdAt).getTime()) / 60000)
+      );
+      const label = commodityLabel(event.params.commodity);
+      return {
+        subject: `TNN Market Watch: ${label} Boom Coming`,
+        body: `TNN Market Watch: buyers are lining up for ${label} around Sector ${firstSector}. Starting in ${minutes} minute${minutes === 1 ? '' : 's'}, ports in sectors ${sectorList(event.regionSectors)} will pay up to 30% more for it. Fill your holds now.`,
+      };
+    }
   }
 };
 
@@ -246,6 +337,13 @@ const tnnStart = (event: DynamicEvent): { subject: string; body: string } => {
         subject: 'TNN Labor Wire: Port Strike Begins',
         body: `TNN Labor Wire: the walkout at Sector ${firstSector} is on. No trade, no refuel, no repairs until the strike resolves. Prices are frozen where they stood. Reroute and the neighbouring ports will pay for the detour.`,
       };
+    case 'trade_boom': {
+      const label = commodityLabel(event.params.commodity);
+      return {
+        subject: `TNN Market Watch: ${label} Boom On`,
+        body: `TNN Market Watch: the ${label} boom is live. Ports in sectors ${sectorList(event.regionSectors)} are paying up to 30% more for ${label} until the rush cools off.`,
+      };
+    }
   }
 };
 
@@ -267,6 +365,13 @@ const tnnResolution = (event: DynamicEvent): { subject: string; body: string } =
         subject: 'TNN Labor Wire: Strike Settled',
         body: `TNN Labor Wire: the strike at Sector ${firstSector} is settled. The port has restocked to full and its prices have dipped while crews celebrate. First ships in get the deal.`,
       };
+    case 'trade_boom': {
+      const label = commodityLabel(event.params.commodity);
+      return {
+        subject: `TNN Market Watch: ${label} Boom Over`,
+        body: `TNN Market Watch: the ${label} rush around Sector ${firstSector} has cooled off. Ports in the region are back to their usual rates.`,
+      };
+    }
   }
 };
 
@@ -325,6 +430,29 @@ export const createEvent = async (
       spreadDone: false,
       contacted: false,
     };
+  } else if (type === 'trade_boom') {
+    // Trade boom: seed at a port outside TerraSpace that buys at least
+    // one commodity, boom one of the commodities it buys, then spread
+    // the region out along the warps.
+    const portRes = await client.query(
+      `SELECT sector_number, port_type FROM sectors
+       WHERE universe_id = $1 AND sector_number > $2
+         AND port_type IS NOT NULL AND port_type != 'STARDOCK'
+         AND port_type LIKE '%B%'
+       ORDER BY RANDOM() LIMIT 1`,
+      [universeId, TERRASPACE_MAX_SECTOR]
+    );
+    if (portRes.rows.length === 0) return null;
+    const seed = portRes.rows[0];
+    const letters = String(seed.port_type).split('');
+    const bought = COMMODITIES.filter((_, i) => letters[i] === 'B');
+    if (bought.length === 0) return null;
+    const commodity = bought[randInt(0, bought.length - 1)];
+    const target = randInt(TRADE_BOOM_MIN_SECTORS, TRADE_BOOM_MAX_SECTORS);
+    regionSectors = (await walkBoomRegion(client, universeId, seed.sector_number, target))
+      .filter((n) => n > TERRASPACE_MAX_SECTOR);
+    if (regionSectors.length === 0) return null;
+    params = { commodity, bonus: TRADE_BOOM_BONUS };
   } else {
     // Port strike: a real port outside TerraSpace, never Stardock.
     const portRes = await client.query(

@@ -100,11 +100,12 @@ interface NpcTrafficShip {
 
 interface DynamicEventInfo {
   id: number;
-  type: 'ion_storm' | 'incursion' | 'port_strike';
+  type: 'ion_storm' | 'incursion' | 'port_strike' | 'trade_boom';
   state: 'brewing' | 'active' | 'resolved';
   regionSectors: number[];
   brewingEndsAt: string;
   activeEndsAt: string | null;
+  commodity?: string;
 }
 
 interface Sector {
@@ -1432,8 +1433,9 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
         </div>
       )}
 
-      {/* Dynamic Events (storms, incursions, strikes touching this sector) */}
+      {/* Dynamic Events (storms, incursions, strikes, booms touching this sector) */}
       {sector.dynamicEvents && sector.dynamicEvents.map(evt => {
+        const boomGood = evt.commodity === 'fuel' ? 'FUEL ORE' : evt.commodity === 'organics' ? 'ORGANICS' : evt.commodity === 'equipment' ? 'EQUIPMENT' : 'CARGO';
         const copy: Record<string, { icon: string; active: string; brewing: string; color: string }> = {
           ion_storm: {
             icon: '🌀',
@@ -1452,6 +1454,12 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
             active: 'PORT ON STRIKE: the dockworkers have walked out. No trading at this port until the strike resolves.',
             brewing: 'STRIKE VOTE CALLED: dockworkers at this port are about to walk out. Trade stops when the strike begins.',
             color: '#ffaa00'
+          },
+          trade_boom: {
+            icon: '📈',
+            active: `${boomGood} BOOM: ports across this region are paying up to 30% more for ${boomGood}. Sell while the rush lasts.`,
+            brewing: `${boomGood} BOOM FORECAST: buyers are lining up in this region. Ports start paying up to 30% more for ${boomGood} soon. Fill your holds now.`,
+            color: '#33ff99'
           }
         };
         const c = copy[evt.type];
