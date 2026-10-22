@@ -4,6 +4,7 @@ import {
   createTestUser,
   createTestUniverse,
   createTestSector,
+  createWarp,
   createTestPlayerWithStats,
   getPlayer,
   closeTestPool,
@@ -35,6 +36,7 @@ import {
   regionalFactors,
   computeSnapshotPrice,
   getStealthMultiplier,
+  getCoverForSector,
   scanPlayer,
   tradeContraband,
   buyAuction,
@@ -636,6 +638,54 @@ describe('Smuggling System', () => {
       expect(updated.patrolCount).toBe(7);
       const settings = await adminGetSettings(universeId);
       expect(settings.patrolCount).toBe(7);
+    });
+  });
+
+  // ------------------------------------------------------------------
+  describe('incursion cover (warp adjacency)', () => {
+    // Fixture layout: 400 warps to 402 only. 401 sits between them
+    // numerically but has no warp to either, which is exactly the
+    // case the old sector number arithmetic got wrong.
+    const insertIncursion = async (state: 'brewing' | 'active', sectorNumber: number) => {
+      await testPool.query(
+        `INSERT INTO dynamic_events
+           (universe_id, type, state, region_sectors, brewing_ends_at, active_ends_at, params)
+         VALUES ($1, 'incursion', $2, $3,
+            NOW() - INTERVAL '1 hour', NOW() + INTERVAL '3 hours', '{}')`,
+        [universeId, state, JSON.stringify([sectorNumber])]
+      );
+    };
+
+    beforeAll(async () => {
+      const id400 = await createTestSector(universeId, 400, 'Cover Sector 400');
+      await createTestSector(universeId, 401, 'Cover Sector 401');
+      const id402 = await createTestSector(universeId, 402, 'Cover Sector 402');
+      await createWarp(id400, 402, true);
+      await createWarp(id402, 400, true);
+    });
+
+    it('gives cover when the incursion is in a warp neighbour sector', async () => {
+      await insertIncursion('active', 402);
+      const cover = await getCoverForSector(universeId, 400);
+      expect(cover.incursionDistraction).toBe(true);
+    });
+
+    it('gives no cover for a sector that is only number adjacent', async () => {
+      await insertIncursion('active', 401);
+      const cover = await getCoverForSector(universeId, 400);
+      expect(cover.incursionDistraction).toBe(false);
+    });
+
+    it('gives cover in the incursion sector itself', async () => {
+      await insertIncursion('active', 400);
+      const cover = await getCoverForSector(universeId, 400);
+      expect(cover.incursionDistraction).toBe(true);
+    });
+
+    it('ignores a brewing incursion in a warp neighbour sector', async () => {
+      await insertIncursion('brewing', 402);
+      const cover = await getCoverForSector(universeId, 400);
+      expect(cover.incursionDistraction).toBe(false);
     });
   });
 });

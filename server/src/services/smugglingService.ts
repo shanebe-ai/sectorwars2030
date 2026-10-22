@@ -1,7 +1,7 @@
 import { pool, query } from '../db/connection';
 import { emitPlayerEvent, emitUniverseEvent } from '../index';
 import { broadcastTNN } from './broadcastService';
-import { getLiveEvents, getStrikeForSector } from './dynamicEventService';
+import { getLiveEvents, getStrikeForSector, getAdjacentSectors } from './dynamicEventService';
 
 // Smuggling: contraband goods, black markets, customs patrols, derelict
 // stashes and customs auctions. Driven by a tick on the same 5 minute
@@ -674,7 +674,9 @@ export const confiscateCargo = async (
 
 /**
  * Cover check for a sector: an active ion storm overhead, or an
- * active incursion in this or an adjacent sector thinning patrols.
+ * active incursion in this sector or one of its true warp neighbours
+ * thinning patrols. Adjacency is the warp graph, not sector numbers:
+ * numerically adjacent sectors are usually nowhere near each other.
  */
 export const getCoverForSector = async (
   universeId: number,
@@ -684,16 +686,23 @@ export const getCoverForSector = async (
   let incursionDistraction = false;
   try {
     const events = await getLiveEvents(universeId);
+    let neighbours: number[] | null = null;
     for (const event of events) {
       if (event.state !== 'active') continue;
       if (event.type === 'ion_storm' && event.regionSectors.includes(sectorNumber)) {
         stormCover = true;
       }
-      if (
-        event.type === 'incursion' &&
-        event.regionSectors.some((s) => Math.abs(s - sectorNumber) <= 1)
-      ) {
-        incursionDistraction = true;
+      if (event.type === 'incursion') {
+        if (event.regionSectors.includes(sectorNumber)) {
+          incursionDistraction = true;
+          continue;
+        }
+        if (neighbours === null) {
+          neighbours = await getAdjacentSectors(pool, universeId, sectorNumber);
+        }
+        if (event.regionSectors.some((s) => neighbours!.includes(s))) {
+          incursionDistraction = true;
+        }
       }
     }
   } catch {
