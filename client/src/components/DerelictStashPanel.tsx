@@ -33,7 +33,7 @@ const GOODS: Array<{ key: string; label: string }> = [
 ];
 
 interface DerelictStashPanelProps {
-  token: <redacted>
+  token: string;
   refreshKey?: number;
   onActionComplete?: () => void;
 }

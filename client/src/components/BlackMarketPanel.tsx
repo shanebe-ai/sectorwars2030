@@ -45,7 +45,7 @@ const GOODS: Array<{ key: string; label: string }> = [
 
 interface BlackMarketPanelProps {
   sectorNumber: number;
-  token: <redacted>
+  token: string;
   onTradeComplete?: (updatedPlayer: any) => void;
 }
 

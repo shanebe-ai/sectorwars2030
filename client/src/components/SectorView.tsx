@@ -27,6 +27,7 @@ interface Player {
   fighters: number;
   shields: number;
   username: string;
+  flagged: boolean;
 }
 
 interface Planet {

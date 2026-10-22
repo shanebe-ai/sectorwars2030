@@ -11,7 +11,7 @@ interface Patrol {
 
 interface PatrolControlsProps {
   universeId: number;
-  token: <redacted>
+  token: string;
 }
 
 // Customs patrol controls for one universe card, sitting alongside

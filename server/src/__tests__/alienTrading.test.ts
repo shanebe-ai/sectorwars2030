@@ -462,6 +462,11 @@ describe('Alien Trading System', () => {
 
     beforeEach(async () => {
       await testPool.query(`DELETE FROM alien_trade_offers WHERE player_id = $1`, [testPlayerId]);
+      // Reset alien cargo (may have been depleted by robbery tests)
+      await testPool.query(
+        `UPDATE alien_ships SET cargo_fuel = 100, cargo_organics = 100, cargo_equipment = 100 WHERE id = $1`,
+        [tradeAlienId]
+      );
       const offer = await alienTradingService.generateTradeOffer(tradeAlienId, testPlayerId);
       if (!offer) throw new Error('Failed to generate offer');
       offerId = offer.id;
@@ -516,6 +521,14 @@ describe('Alien Trading System', () => {
   });
 
   describe('Trade Offer Expiry', () => {
+    beforeEach(async () => {
+      // Reset alien cargo (may have been depleted by robbery tests)
+      await testPool.query(
+        `UPDATE alien_ships SET cargo_fuel = 100, cargo_organics = 100, cargo_equipment = 100 WHERE id = $1`,
+        [tradeAlienId]
+      );
+    });
+
     it('should expire old offers', async () => {
       // Create an offer and immediately expire it
       await testPool.query(`DELETE FROM alien_trade_offers WHERE player_id = $1`, [testPlayerId]);
@@ -564,6 +577,11 @@ describe('Alien Trading System', () => {
     beforeEach(async () => {
       await testPool.query(`DELETE FROM alien_trade_offers WHERE player_id = $1`, [testPlayerId]);
       await testPool.query(`DELETE FROM alien_trade_history WHERE player_id = $1`, [testPlayerId]);
+      // Reset alien cargo (may have been depleted by robbery tests)
+      await testPool.query(
+        `UPDATE alien_ships SET cargo_fuel = 100, cargo_organics = 100, cargo_equipment = 100 WHERE id = $1`,
+        [tradeAlienId]
+      );
     });
 
     it('should retrieve player trade history', async () => {
