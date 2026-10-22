@@ -1,6 +1,6 @@
 # Sector Wars 2030: Moral Decay
 
-A browser remake of TradeWars 2002, the old BBS space trading game. Built with React, Node/Express, PostgreSQL and Socket.io, plus an admin app. It used to be called TradeWars 2030 and the repo still has the old name.
+A browser remake of TradeWars 2002, the old BBS space trading game. Built with React, Node/Express, PostgreSQL and Socket.io, plus an admin app. It used to be called TradeWars 2030; the repo lives at shanebe-ai/sectorwars2030 now.
 
 You can play it two ways. **Cyber mode** is the full color version. **BBS mode** is a green screen terminal with the classic TW2002 commands. Both work on desktop and phone.
 
@@ -198,6 +198,8 @@ See [server/src/db/schema.sql](server/src/db/schema.sql) for complete schema.
 - **Ship Log**: Auto-logging of discoveries (ports, planets, StarDocks, dead-ends)
 - **Dynamic events**: The universe acts on its own: ion storms that scramble warps (misfires, extra turns, failed jumps, salvage on entry), alien incursions you can fight for alien salvage and hunter leaderboard credit, and port strikes that close a port and push demand prices up at neighbouring ports. Everything is forecast on TNN first, never targets TerraSpace, max two at a time
 - **NPC trader traffic**: Eight named independent traders per universe warp between ports and trade small amounts through the living economy, so stock and prices move even with no players online. Hail them in sector for market tips drawn from live prices
+- **Seasons and Hall of Fame**: 30 day competitive seasons run per universe. Standings track net worth, experience, kills and planets while the season runs, TNN warns everyone before the end, and the final standings are archived in a Hall of Fame when the season closes. Ending a season never touches your ship, cargo, credits or planets
+- **Smuggling**: Three contraband goods (Banned Tech Components, Restricted Medical Compounds, Stolen Artifacts) that legal ports refuse to touch. Black markets open at ports on the economy tick and quote prices as of the last tick, so the price you saw before arriving can move. Customs patrols sweep sectors outside TerraSpace and scan holds for contraband; get caught and the cargo is seized, you pay a fine, and the seized goods are auctioned off legally at the port of seizure. Repeat confiscations earn a visible flagged marker other players can see, and cleared derelicts make good stash spots for hiding contraband between runs
 
 ### Modern Enhancements
 - **Web-based interface**: Accessible from any browser
@@ -313,10 +315,21 @@ Format: `[Fuel][Organics][Equipment]`
   - [x] Event banner in sector view, incursion engage button, port strike notice, BBS terminal event lines
   - [x] Admin event endpoints: history, force start, force resolve, seeding cooldown
   - [x] Named NPC traders moving and trading between ports; hails return live market tips
+- [x] **Seasons & Hall of Fame (2026-10-20)**
+  - [x] 30 day timed seasons per universe, one active at a time (migration 034)
+  - [x] Live standings in rankings, BBS mode, and the admin panel
+  - [x] TNN end of season warnings at 7 days, 24 hours, and 1 hour out
+  - [x] Final standings archived to the Hall of Fame at season end; player ships, cargo, credits, and planets are never wiped
+- [x] **Smuggling (2026-10-22)**
+  - [x] Three contraband goods traded only at black markets that open at ports on the 5-minute tick, with prices snapshotted at the last tick (migration 035)
+  - [x] Customs patrols with cargo scans outside TerraSpace; ion storms and nearby incursions lower scan odds
+  - [x] Confiscation: contraband seized, fine capped at credits on hand, seized goods auctioned at the port of seizure
+  - [x] Repeat offenders flagged for 48 hours with a visible marker and a notice to the player; contraband stashes on cleared derelicts
+  - [x] Admin patrol controls: force spawn, force clear, scan tuning, and a smuggling event log
 
 ### In Progress 🚧
 - [ ] Mobile responsive design improvements
-- [ ] Advanced admin tools (player management, universe editing)
+- [ ] Advanced admin tools (player management)
 
 ## Running Tests
 

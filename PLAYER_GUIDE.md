@@ -200,6 +200,42 @@ There are named NPC traders flying around too, like Mara Voss in the *Rustbucket
 
 Hail them when you're in the same sector. They'll give you a market tip based on real prices, like which port is paying high for something right now. You can't attack or rob them.
 
+## Smuggling
+
+Some cargo is too hot for legal ports.
+
+There are three contraband goods: **Banned Tech Components**, **Restricted Medical Compounds** and **Stolen Artifacts**. Normal ports refuse them outright. The only place to buy or sell them is a black market, and carrying them is entirely your choice.
+
+### Black markets
+
+Every now and then a black market opens at a port outside TerraSpace. The wire names the port, and the market stays open for a few hours before it shuts down again. Prices are set on the economy tick, so the quote you saw on the wire is the price as of the last tick. It can move before you arrive. Plan around that: check the quote, fly fast, and don't be shocked if the margin shrank on the way.
+
+Like legal cargo, contraband is cheap near where it comes from and pays best far away. If the port itself is on strike, its black market pays a premium.
+
+### Customs patrols
+
+Customs patrols sweep the frontier. They never enter TerraSpace (sectors 1 to 10), so the run in and out of the safe zone is clean, but out past it a patrol in your sector can scan your holds.
+
+Your scan risk rides on how much of your hold is contraband and what you're flying. A hold full of hot cargo in a big hauler is easy to read. Small, fast ships are harder. An ion storm overhead or an incursion nearby keeps patrols busy and lowers your odds of being scanned, if you're feeling brave.
+
+### Getting caught
+
+If a scan finds contraband:
+
+* The contraband is seized, all of it
+* You pay a fine of half what the cargo was worth, capped at the credits you're carrying
+* Your legal cargo, fighters, shields and ship are untouched. Getting caught never costs you your ship
+
+Seized cargo doesn't vanish. Customs auctions it off at the port where it was seized, and anyone docked there can buy it legally at the listed price until the lot sells out or the auction ends. One pilot's bust is another pilot's bargain.
+
+### Getting flagged
+
+One bust is a bad day. Get caught a second time and you are **flagged** for 48 hours. Other pilots can see the marker next to your name in sector lists, scans and the bounty board, and patrols read you more easily while it lasts. You get a notice from the Port Authority when it happens, so it never comes as a surprise. It expires on its own, and clean runs clear your name faster.
+
+### Derelict stashes
+
+Boarded a derelict and cleared it out? You can stash contraband on it, up to 25 units. Stashed goods don't show up on patrol scans, which makes a derelict a handy drop point between a cheap market and a rich one. Two catches: the stash dies when the derelict does, and anyone who finds it can loot it. Pick your wrecks well.
+
 ## Corporations
 
 You start in your own one person corp. You can leave it and join someone else's, or start a new one and invite people.

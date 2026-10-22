@@ -10,9 +10,9 @@
 **Tech Stack**: React 19 + Vite + TypeScript (frontend), Node.js + Express + TypeScript + Socket.io (backend), PostgreSQL (database)
 **Ports**: Backend (3000), Client (5173), Admin (5174)
 
-**Current State**: ✅ Fully functional multiplayer game with all core features implemented and tested
-**Latest Update**: 2026-10-10 - Trade robbery verified complete: UI, API, and tests
-**Ready For**: Production deployment, multiplayer testing
+**Current State**: ✅ Fully functional multiplayer game, deployed to production, with all core features implemented and tested
+**Latest Update**: 2026-10-22 - Smuggling shipped to production (migration 035, verified live); Seasons and Hall of Fame shipped 2026-10-20 (migration 034), Season 1 running in Alpha Universe through 2026-11-20; full test suite at 229/229
+**Ready For**: Multiplayer testing, ongoing feature work
 
 **Key Files to Review**:
 - [README.md](README.md) - User-facing documentation, feature list
@@ -48,6 +48,10 @@
 **Dynamic Events System** (Completed 2026-10-19): The universe acts on its own. A 5-minute tick (dynamicEventService) seeds ion storms (warp misfires, extra turns, failed jumps, salvage on entry), alien incursions (fightable through combatService rounds, alien salvage, hunter leaderboard credit, spread if ignored, port trade penalty), and port strikes (trade blocked, demand drift at neighbouring ports, restock surge and price dip on resolution). Lifecycle is brewing (TNN forecast, 30 min minimum) then active then resolved. Max 2 concurrent per universe, never in TerraSpace (sectors 1-10), events never destroy player assets. Migration 032 adds dynamic_events and dynamic_event_settings (grants included). Admin endpoints under /api/events/admin: history, force-start, force-resolve, cooldown. Client: sector banner with incursion engage button, port strike notice, BBS terminal event lines.
 
 **NPC Traffic System** (Completed 2026-10-19): Eight named NPC traders per universe (npcService, migration 033 adds npc_ships) warp between ports via pathfinding, buy and sell small amounts through port_economy so prices move with zero humans online, appear in sector details as npcShips (cyber traffic panel and BBS traffic line), and answer POST /api/npcs/hail with a market tip drawn from live drift data. No combat or robbery against NPCs in v1; NPCs are never destroyed.
+
+**Seasons and Hall of Fame** (Completed 2026-10-20): Timed competitive seasons per universe (seasonService, migration 034 adds seasons and season_standings). A season runs 30 days with at most one active per universe. Standings (net worth, experience, kills, planets) show in rankings, BBS mode, and the admin panel. TNN warns at 7 days, 24 hours, and 1 hour before the end; at the end the final standings are archived to the Hall of Fame and player assets are never wiped. Season 1 is live in the production Alpha Universe (id 5) and ends 2026-11-20.
+
+**Smuggling System** (Completed 2026-10-22): An opt in contraband layer on the living economy (smugglingService on the same 5 minute tick, migration 035). Three contraband goods (Banned Tech Components, Restricted Medical Compounds, Stolen Artifacts) trade only at black markets that open at ports outside TerraSpace, with prices snapshotted at the last tick so quotes are stale by design. Customs patrols scan holds for contraband (scan odds ride on the contraband share of the hold, hull stealth, and cover from ion storms and incursions). Confiscation seizes the contraband, fines half its base value capped at credits on hand, and auctions the seized goods legally at the port of seizure. A second confiscation flags the player for 48 hours with a visible marker and a Port Authority notice. Cleared derelicts hold stashes of up to 25 units, invisible to scans and lootable by whoever finds them. Admin patrol controls (force spawn, force clear, scan multiplier, patrol count) sit beside the season controls, and every scan, seizure, and market flip lands in the smuggling log. Verified live in production 2026-10-22; suite at 229/229.
 
 ### ❌ NEEDS IMPROVEMENT
 **Mobile Responsiveness**: Desktop-focused, needs mobile optimization
@@ -1167,11 +1171,16 @@ When implementing new features:
 
 ---
 
-**Last Updated:** 2025-12-02
-**Status:** Economy & Combat Rebalancing Complete! Banking Fixes, Combat Improvements, Automated Tests Added
-**Current Session:** Economy fixes and automated testing
-**Next Priority:** Comprehensive Testing / Alien System
+**Last Updated:** 2026-10-22
+**Status:** Seasons, Hall of Fame, and Smuggling live in production; Season 1 running in Alpha Universe through 2026-11-20
+**Current Session:** Smuggling ship and documentation catch up
+**Next Priority:** Multiplayer testing
 **Recent Changes:**
+- ✅ **Seasons, Hall of Fame, and Smuggling (2026-10-20 to 2026-10-22):**
+  - Seasons and Hall of Fame shipped 2026-10-20 (migration 034): 30 day seasons, live standings in rankings, BBS mode, and the admin panel, TNN end warnings, final standings archived to the Hall of Fame.
+  - Smuggling shipped 2026-10-22 (migration 035): contraband goods, black markets with last tick prices, customs patrols and scans, confiscation with fines and customs auctions, 48 hour flagged marker for repeat offenders, derelict stashes, admin patrol controls. Verified live in production the same day.
+  - Test hardening in the same push: the suite now runs against a dedicated tradewars_test database, and an intermittent alien trading failure (a won robbery roll emptying the shared test alien's cargo) was root caused and fixed. 8 consecutive full runs green, 229/229, TypeScript clean on server, client, and admin.
+  - GitHub repo renamed to shanebe-ai/sectorwars2030; the old tradewars2030 URL redirects to it.
 - ✅ **StarDock / Combat UX Fixes (2025-12-10):**
   - Ship trade-ins now clear escape-pod flag and carry over fighters, shields, mines, beacons, and genesis torpedoes up to the new ship’s capacity; excess is discarded. (`server/src/services/stardockService.ts`)
   - Player death/respawn now zeroes mines, beacons, and genesis in addition to fighters/shields/cargo for PvP and alien combat. (`server/src/services/combatService.ts`, `server/src/services/alienService.ts`)
