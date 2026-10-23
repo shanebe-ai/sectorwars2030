@@ -270,6 +270,23 @@ describe('Anomaly System', () => {
   });
 
   describe('Gravity well warp surcharge', () => {
+    // moveToSector rolls a 0.25 percent warp drive misfire on every move
+    // (Math.random in sectorController) that teleports the player to a
+    // random sector in the universe. That roll is what flaked this suite
+    // in CI on 2026-10-22: the gravity test landed in sector 25 instead
+    // of 16. The warp lanes in this suite are pinned in beforeAll, so
+    // they were never the problem. Pin the misfire roll off for these
+    // three tests; the surcharge assertions are what is under test here.
+    let randomSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.99);
+    });
+
+    afterEach(() => {
+      randomSpy.mockRestore();
+    });
+
     it('costs 2 turns to warp out of a gravity well sector', async () => {
       await insertAnomaly(15, 'gravity', `NOW() + INTERVAL '2 hours'`);
 
