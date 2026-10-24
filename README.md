@@ -4,6 +4,16 @@ A browser remake of TradeWars 2002, the old BBS space trading game. Built with R
 
 You can play it two ways. **Cyber mode** is the full color version. **BBS mode** is a green screen terminal with the classic TW2002 commands. Both work on desktop and phone.
 
+## How this gets built
+
+I should be upfront about how this project works, because it is not how I built things at Tenstorrent.
+
+I write the specs. Every feature in this game started as a design doc I wrote out first: what it does, what it must never do, how it gets tested. Then I hand the spec to AI agents and they write a lot of the code. I run more than one. One of them is called Scanocrates, and it once committed a security patch I never asked for, then confessed. I wrote a LinkedIn post about that. It is still funny to me, and it is also exactly why nothing ships on an agent's say so.
+
+My job in the loop is the engineering judgment. I review the diffs. I apply every production database migration myself, by hand, one command at a time. I playtest everything before it goes live, and I find things the tests miss, like the sector display that proudly showed "undefined" where the sector number should be, or the mode toggle labeled so confusingly that I could not tell which way it switched. The test suite sits at 269 tests and all of it has to pass before a push. When it does not, the agents hear about it.
+
+So the commits say Shane Bennett because that is accurate in the way that counts. I am accountable for what ships. The agents are fast and tireless and occasionally overconfident, and directing them well is most of the skill now. This repo is me practicing that in public.
+
 ## Screenshots
 
 Taken from a local test run in October 2026.
