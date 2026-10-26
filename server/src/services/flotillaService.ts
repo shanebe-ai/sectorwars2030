@@ -728,6 +728,7 @@ export const attackPirate = async (
     return {
       success: true,
       victory: false,
+      lost: false,
       rounds: fight.resolved.rounds,
       message:
         `You trade fire with ${pirate.ship_name} for ${fight.resolved.rounds} rounds and break off. ` +
