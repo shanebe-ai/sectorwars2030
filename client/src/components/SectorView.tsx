@@ -81,6 +81,27 @@ interface AlienShip {
   fighters: number;
   shields: number;
   behavior: string;
+  isPirate?: boolean;
+  isRaider?: boolean;
+}
+
+interface FlotillaEncounter {
+  id: number;
+  eventId: number;
+  pirateShipId: number;
+  pirateName: string;
+  isRaider: boolean;
+  kind: 'toll' | 'raid';
+  state: string;
+  demand: {
+    fuel: number;
+    organics: number;
+    equipment: number;
+    bannedTech: number;
+    restrictedMeds: number;
+    stolenArtifacts: number;
+  };
+  sector: number;
 }
 
 interface AlienPlanet {
@@ -100,7 +121,7 @@ interface NpcTrafficShip {
 
 interface DynamicEventInfo {
   id: number;
-  type: 'ion_storm' | 'incursion' | 'port_strike' | 'trade_boom' | 'salvage_field' | 'contract';
+  type: 'ion_storm' | 'incursion' | 'port_strike' | 'trade_boom' | 'salvage_field' | 'contract' | 'pirate_flotilla';
   state: 'brewing' | 'active' | 'resolved';
   regionSectors: number[];
   brewingEndsAt: string;
@@ -110,6 +131,9 @@ interface DynamicEventInfo {
   contractPool?: number;
   contractDelivered?: number;
   contractPlayerDelivered?: number;
+  shipsRemaining?: number;
+  raiderSectors?: number[];
+  kills?: number;
 }
 
 interface Sector {
@@ -136,6 +160,8 @@ interface Sector {
   alienPlanet?: AlienPlanet | null;
   npcShips?: NpcTrafficShip[];
   dynamicEvents?: DynamicEventInfo[];
+  flotillaEncounter?: FlotillaEncounter | null;
+  raiderSectors?: number[];
 }
 
 interface CombatTarget {
@@ -219,6 +245,9 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
   const [hailingNpc, setHailingNpc] = useState<number | null>(null);
   const [engagingIncursion, setEngagingIncursion] = useState(false);
   const [incursionResult, setIncursionResult] = useState<string | null>(null);
+  const [flotillaBusy, setFlotillaBusy] = useState(false);
+  const [flotillaResult, setFlotillaResult] = useState<string | null>(null);
+  const [fleePickerOpen, setFleePickerOpen] = useState(false);
   const [shaking, setShaking] = useState(false);
   const [destinationSector, setDestinationSector] = useState('');
   const [plottedPath, setPlottedPath] = useState<PlottedPath | null>(null);
@@ -472,6 +501,11 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
           });
           if (theme === 'bbs') playAlert();
         }
+        // A pirate raider may have jumped the ship on entry
+        if (data.raidResult && data.raidResult.message) {
+          setFlotillaResult(data.raidResult.message);
+          if (theme === 'bbs') playAlert();
+        }
         // Update parent with new player data
         onSectorChange(data.player);
       } else {
@@ -547,6 +581,58 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
       setIncursionResult('Could not engage the incursion. (Comms failure)');
     } finally {
       setEngagingIncursion(false);
+    }
+  };
+
+  // Pirate flotilla actions: pay a toll, flee to a neighbouring
+  // sector, or fight. All three settle server side and refresh the
+  // sector, exactly like the incursion engage.
+  const flotillaAction = async (path: string, body: Record<string, unknown>) => {
+    setFlotillaBusy(true);
+    setFlotillaResult(null);
+    try {
+      const response = await fetch(`${API_URL}${path}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setFlotillaResult(data.message);
+        setFleePickerOpen(false);
+        if (onPlayerUpdate) onPlayerUpdate();
+        loadSectorDetails();
+      } else {
+        setFlotillaResult(data.error || 'The pirate does not answer.');
+      }
+    } catch {
+      setFlotillaResult('The pirate does not answer. (Comms failure)');
+    } finally {
+      setFlotillaBusy(false);
+    }
+  };
+
+  const handlePayToll = () => {
+    if (!sector?.flotillaEncounter) return;
+    flotillaAction('/api/events/flotilla/pay', { encounterId: sector.flotillaEncounter.id });
+  };
+
+  const handleFleeTo = (destinationSector: number) => {
+    if (!sector?.flotillaEncounter) return;
+    flotillaAction('/api/events/flotilla/flee', {
+      encounterId: sector.flotillaEncounter.id,
+      destinationSector,
+    });
+  };
+
+  const handleFightPirate = (pirateShipId?: number) => {
+    if (sector?.flotillaEncounter && pirateShipId === undefined) {
+      flotillaAction('/api/events/flotilla/attack', { encounterId: sector.flotillaEncounter.id });
+    } else if (pirateShipId !== undefined) {
+      flotillaAction('/api/events/flotilla/attack', { pirateShipId });
     }
   };
 
@@ -1380,8 +1466,12 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                       onClick={() => moveToSector(warp.destination)}
                       disabled={moving}
                       className={visitedSectors.has(warp.destination) ? 'is-visited' : undefined}
+                      style={(sector.raiderSectors ?? []).includes(warp.destination)
+                        ? { borderColor: '#ff2222', color: '#ff2222' }
+                        : undefined}
                     >
                       {moving ? '⟳' : warp.destination === previousSector ? '◄' : '►'} {warp.destination}
+                      {(sector.raiderSectors ?? []).includes(warp.destination) ? ' ⚠ RAIDER' : ''}
                     </button>
                   ))}
               </div>
@@ -1486,7 +1576,16 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
           brewing: `TERRACORP CONTRACT COMING: this port will split a ${evt.contractPool ?? 0} credit pool for ${evt.contractGoal ?? ''} units of ${boomGood} delivered after the contract opens. Sales before it opens do not count.`,
           color: '#66ccff'
         } : null;
-        const c = contractCopy ?? copy[evt.type];
+        // Flotilla banners are also built from live payload numbers:
+        // ships still out there, and the raider sectors to avoid.
+        const flotillaRaiders = evt.raiderSectors ?? [];
+        const flotillaCopy = evt.type === 'pirate_flotilla' ? {
+          icon: '🏴‍☠️',
+          active: `PIRATE FLOTILLA: toll collectors are working this region and ${evt.shipsRemaining ?? 0} pirate ships are still out there. Tolls run ten percent of your cargo. Losing a fight costs your cargo, never your ship. TerraCorp pays a bounty on every pirate hull.`,
+          brewing: `PIRATE FLOTILLA SIGHTED: ${evt.shipsRemaining ?? 0} pirate ships are inbound for this region. Toll collectors will demand ten percent of your cargo, and TerraCorp will pay a bounty on every hull.`,
+          color: '#ff6600'
+        } : null;
+        const c = contractCopy ?? flotillaCopy ?? copy[evt.type];
         if (!c) return null;
         const isActive = evt.state === 'active';
         return (
@@ -1502,6 +1601,11 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
             boxShadow: `0 0 20px ${c.color}55`
           }}>
             <div>{c.icon} {isActive ? c.active : c.brewing}</div>
+            {evt.type === 'pirate_flotilla' && flotillaRaiders.length > 0 && (
+              <div style={{ marginTop: '8px', color: '#ff2222', fontSize: '15px' }}>
+                🔴 RED FLAG: raiders in sectors {flotillaRaiders.join(', ')} attack on sight. Their sectors are marked.
+              </div>
+            )}
             {evt.type === 'incursion' && isActive && (
               <button
                 onClick={handleEngageIncursion}
@@ -1529,6 +1633,153 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
           </div>
         );
       })}
+
+      {/* Pirate flotilla hail: the encounter panel */}
+      {sector.flotillaEncounter && (() => {
+        const enc = sector.flotillaEncounter;
+        const demandLines: Array<[string, number]> = ([
+          ['Fuel Ore', enc.demand.fuel],
+          ['Organics', enc.demand.organics],
+          ['Equipment', enc.demand.equipment],
+          ['Banned Tech', enc.demand.bannedTech],
+          ['Restricted Meds', enc.demand.restrictedMeds],
+          ['Stolen Artifacts', enc.demand.stolenArtifacts],
+        ] as Array<[string, number]>).filter(([, n]) => n > 0);
+        return (
+          <div style={{
+            margin: '20px 20px 0 20px',
+            padding: '15px',
+            background: 'rgba(255, 102, 0, 0.12)',
+            border: '2px solid #ff6600',
+            color: '#ffb380',
+            fontSize: '14px',
+            boxShadow: '0 0 20px rgba(255, 102, 0, 0.35)'
+          }}>
+            <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#ff9933' }}>
+              🏴‍☠️ PIRATE HAIL: {enc.pirateName} demands a toll
+            </div>
+            <div style={{ marginTop: '8px' }}>
+              The toll is ten percent of everything in your holds:
+            </div>
+            <div style={{ marginTop: '6px', fontFamily: 'monospace', color: 'var(--text-primary)' }}>
+              {demandLines.map(([label, n]) => (
+                <div key={label}>{label}: {n} units</div>
+              ))}
+            </div>
+            <div style={{ marginTop: '8px', fontSize: '12px', opacity: 0.9 }}>
+              Paying buys the terms this pirate offers, and pirates have been known to break their word. Losing a fight costs your cargo only. Your ship is never at risk.
+            </div>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
+              <button
+                onClick={handlePayToll}
+                disabled={flotillaBusy}
+                style={{
+                  flex: 1,
+                  padding: '8px 16px',
+                  background: 'linear-gradient(135deg, #ffaa00 0%, #ff6600 100%)',
+                  color: '#000',
+                  border: 'none',
+                  cursor: flotillaBusy ? 'not-allowed' : 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  opacity: flotillaBusy ? 0.5 : 1
+                }}
+              >
+                {flotillaBusy ? '...' : '💰 PAY TOLL'}
+              </button>
+              <button
+                onClick={() => setFleePickerOpen(!fleePickerOpen)}
+                disabled={flotillaBusy || player.turnsRemaining < 1}
+                style={{
+                  flex: 1,
+                  padding: '8px 16px',
+                  background: 'linear-gradient(135deg, #00ccff 0%, #0066ff 100%)',
+                  color: 'white',
+                  border: 'none',
+                  cursor: flotillaBusy || player.turnsRemaining < 1 ? 'not-allowed' : 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  opacity: flotillaBusy || player.turnsRemaining < 1 ? 0.5 : 1
+                }}
+              >
+                🏃 FLEE
+              </button>
+              <button
+                onClick={() => handleFightPirate()}
+                disabled={flotillaBusy || player.turnsRemaining < 1}
+                style={{
+                  flex: 1,
+                  padding: '8px 16px',
+                  background: 'linear-gradient(135deg, #ff0066 0%, #9d00ff 100%)',
+                  color: 'white',
+                  border: 'none',
+                  cursor: flotillaBusy || player.turnsRemaining < 1 ? 'not-allowed' : 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  opacity: flotillaBusy || player.turnsRemaining < 1 ? 0.5 : 1
+                }}
+              >
+                {flotillaBusy ? '...' : '⚔️ FIGHT'}
+              </button>
+            </div>
+            {fleePickerOpen && (
+              <div style={{ marginTop: '10px' }}>
+                <div style={{ fontSize: '12px', marginBottom: '6px' }}>
+                  Run for which sector? One warp turn, and the pirate gets a say in whether you make it.
+                </div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {sector.warps.map(warp => (
+                    <button
+                      key={warp.destination}
+                      onClick={() => handleFleeTo(warp.destination)}
+                      disabled={flotillaBusy}
+                      style={{
+                        padding: '6px 14px',
+                        background: 'rgba(0, 204, 255, 0.15)',
+                        border: '1px solid #00ccff',
+                        color: (sector.raiderSectors ?? []).includes(warp.destination) ? '#ff2222' : '#00ccff',
+                        cursor: flotillaBusy ? 'not-allowed' : 'pointer',
+                        fontSize: '12px',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      SECTOR {warp.destination}{(sector.raiderSectors ?? []).includes(warp.destination) ? ' ⚠ RAIDER' : ''}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Flotilla action result */}
+      {flotillaResult && (
+        <div style={{
+          margin: '20px 20px 0 20px',
+          padding: '12px',
+          background: 'rgba(0, 0, 0, 0.35)',
+          border: '1px solid #ff6600',
+          color: 'var(--text-primary)',
+          fontSize: '13px',
+          textAlign: 'center'
+        }}>
+          {flotillaResult}
+          <button
+            onClick={() => setFlotillaResult(null)}
+            style={{
+              marginLeft: '10px',
+              background: 'transparent',
+              border: 'none',
+              color: '#ff9933',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Success Message */}
       {successMessage && (
@@ -1885,8 +2136,8 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                 justifyContent: 'center'
               }}>
                 {sector.warps.map((warp, idx) => (
-                  <div key={idx} style={{ color: 'var(--neon-cyan)' }}>
-                    [{warp.destination}]
+                  <div key={idx} style={{ color: (sector.raiderSectors ?? []).includes(warp.destination) ? '#ff2222' : 'var(--neon-cyan)' }}>
+                    [{warp.destination}]{(sector.raiderSectors ?? []).includes(warp.destination) ? ' ⚠ RAIDER' : ''}
                   </div>
                 ))}
               </div>
@@ -2862,8 +3113,13 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                   color: 'var(--text-primary)',
                   border: '1px solid rgba(157, 0, 255, 0.3)'
                 }}>
-                  <div style={{ color: '#9d00ff', fontWeight: 'bold' }}>
-                    {alien.shipName}
+                  <div style={{ color: alien.isPirate ? (alien.isRaider ? '#ff2222' : '#ff9933') : '#9d00ff', fontWeight: 'bold' }}>
+                    {alien.isPirate ? '🏴‍☠️ ' : ''}{alien.shipName}
+                    {alien.isPirate && (
+                      <span style={{ marginLeft: '8px', fontSize: '11px', color: alien.isRaider ? '#ff2222' : '#ffaa00' }}>
+                        {alien.isRaider ? '🔴 RAIDER' : 'TOLL COLLECTOR'}
+                      </span>
+                    )}
                   </div>
                   <div style={{ fontSize: '11px', opacity: 0.9, marginTop: '4px' }}>
                     Race: {alien.alienRace} • Ship: {alien.shipType} • Behavior: {alien.behavior.toUpperCase()}
@@ -2891,8 +3147,10 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                     )}
                     {sector.region !== 'TerraSpace' && (
                       <button
-                        onClick={() => handleAttackAlienShip(alien.id)}
-                        disabled={attackingAlienShip === alien.id || player.turnsRemaining < 1}
+                        onClick={() => alien.isPirate ? handleFightPirate(alien.id) : handleAttackAlienShip(alien.id)}
+                        disabled={alien.isPirate
+                          ? flotillaBusy || player.turnsRemaining < 1
+                          : attackingAlienShip === alien.id || player.turnsRemaining < 1}
                         style={{
                           flex: 1,
                           padding: '6px 12px',
@@ -2905,7 +3163,9 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                           opacity: attackingAlienShip === alien.id || player.turnsRemaining < 1 ? 0.5 : 1
                         }}
                       >
-                        {attackingAlienShip === alien.id ? 'ATTACKING...' : '⚔️ ATTACK'}
+                        {alien.isPirate
+                          ? (flotillaBusy ? 'FIGHTING...' : '⚔️ FIGHT')
+                          : (attackingAlienShip === alien.id ? 'ATTACKING...' : '⚔️ ATTACK')}
                       </button>
                     )}
                   </div>
@@ -3324,6 +3584,7 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                 return sortedWarps.map((warp, idx) => {
                   const isVisited = visitedSectors.has(warp.destination);
                   const isPrevious = warp.destination === previousSector;
+                  const isRaiderSector = (sector.raiderSectors ?? []).includes(warp.destination);
 
                   return (
                     <button
@@ -3332,14 +3593,15 @@ export default function SectorView({ currentSector, token, currentPlayerId, play
                       disabled={moving}
                       className="cyberpunk-button"
                       style={{
-                        background: 'rgba(0, 255, 0, 0.1)',
-                        borderColor: isVisited ? 'rgba(0, 100, 0, 0.9)' : 'var(--neon-green)',
+                        background: isRaiderSector ? 'rgba(255, 0, 0, 0.12)' : 'rgba(0, 255, 0, 0.1)',
+                        borderColor: isRaiderSector ? '#ff2222' : isVisited ? 'rgba(0, 100, 0, 0.9)' : 'var(--neon-green)',
                         borderWidth: '1px',
-                        color: 'var(--neon-green)',
+                        color: isRaiderSector ? '#ff2222' : 'var(--neon-green)',
                         padding: '12px'
                       }}
                     >
                       {moving ? '⟳' : isPrevious ? '◄' : '►'} SECTOR {warp.destination}
+                      {isRaiderSector ? ' ⚠ RAIDER' : ''}
                     </button>
                   );
                 });

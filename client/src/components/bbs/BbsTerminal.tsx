@@ -145,6 +145,13 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
     if (s.npcShips && s.npcShips.length > 0) {
       out.push(`\x1b[36mTraffic \x1b[0m: ${s.npcShips.map((n: any) => `${n.name} (${n.shipName})`).join(', ')}`);
     }
+    if (s.alienShips && s.alienShips.length > 0) {
+      s.alienShips.filter((a: any) => a.isPirate).forEach((a: any) => {
+        out.push(a.isRaider
+          ? `\x1b[31m<< RAIDER: "${a.shipName}", fighters ${a.fighters} >>\x1b[0m`
+          : `\x1b[33m<< PIRATE: Toll Collector "${a.shipName}", fighters ${a.fighters} >>\x1b[0m`);
+      });
+    }
     if (s.dynamicEvents && s.dynamicEvents.length > 0) {
       s.dynamicEvents.forEach((e: any) => {
         if (e.type === 'ion_storm') {
@@ -173,8 +180,26 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
           out.push(e.state === 'active'
             ? `\x1b[32m*** TERRACORP CONTRACT: deliver ${good} to this port. The credit pool splits by share delivered. ***\x1b[0m`
             : `\x1b[33m*** TERRACORP CONTRACT FORECAST: this port will split a credit pool for ${good} delivered once the contract opens. ***\x1b[0m`);
+        } else if (e.type === 'pirate_flotilla') {
+          const raiders = (e.raiderSectors || []).join(', ');
+          out.push(e.state === 'active'
+            ? `\x1b[31m*** PIRATE FLOTILLA: ${e.shipsRemaining ?? 0} pirates still working this region.${raiders ? ` RED FLAG: raiders in sectors ${raiders} attack on sight.` : ''} ***\x1b[0m`
+            : `\x1b[33m*** PIRATE FLOTILLA SIGHTED: ${e.shipsRemaining ?? 0} pirate ships inbound.${raiders ? ` Raiders will hold sectors ${raiders}.` : ''} ***\x1b[0m`);
         }
       });
+    }
+    if (s.flotillaEncounter) {
+      const enc = s.flotillaEncounter;
+      const d = enc.demand || {};
+      const parts: string[] = [];
+      if (d.fuel) parts.push(`${d.fuel} Fuel Ore`);
+      if (d.organics) parts.push(`${d.organics} Organics`);
+      if (d.equipment) parts.push(`${d.equipment} Equipment`);
+      if (d.bannedTech) parts.push(`${d.bannedTech} Banned Tech`);
+      if (d.restrictedMeds) parts.push(`${d.restrictedMeds} Restricted Meds`);
+      if (d.stolenArtifacts) parts.push(`${d.stolenArtifacts} Stolen Artifacts`);
+      out.push(`\x1b[33m*** PIRATE HAIL: ${enc.pirateName} demands a toll of ${parts.join(', ')}. ***\x1b[0m`);
+      out.push('\x1b[36mType PAY to pay the toll, FLEE <sector> to run, or FIGHT to fight.\x1b[0m');
     }
     if (s.beacons && s.beacons.length > 0) {
       s.beacons.forEach((b: any) => {
@@ -198,6 +223,9 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
       ' \x1b[32ml\x1b[0m - Planet scan (planets in this sector)',
       ' \x1b[32mb\x1b[0m - Bounty board',
       ' \x1b[32mk\x1b[0m - Market board',
+      ' \x1b[32mpay\x1b[0m - Pay a pirate toll when hailed',
+      ' \x1b[32mflee <n>\x1b[0m - Run from a pirate hail to sector n',
+      ' \x1b[32mfight\x1b[0m - Fight the pirate in this sector',
       ' \x1b[32mseason\x1b[0m - Current season and Hall of Fame',
       ' \x1b[32mq\x1b[0m - Quit to login',
       '',
@@ -269,6 +297,9 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
         addLines([`\x1b[32mArrived at sector ${newSectorNum}.\x1b[0m`, '']);
         if (data.stormMessage) {
           addLines([`\x1b[33m${data.stormMessage}\x1b[0m`, '']);
+        }
+        if (data.raidResult && data.raidResult.message) {
+          addLines([`\x1b[31m${data.raidResult.message}\x1b[0m`, '']);
         }
         // Fetch sector with the new sector number directly
         try {
@@ -380,6 +411,70 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
     }
   };
 
+  // Pirate flotilla actions: pay, flee, fight against the hail or
+  // the pirate in this sector. Refreshes the sector display after.
+  const flotillaPost = async (path: string, body: any) => {
+    try {
+      const res = await fetch(`${API_URL}${path}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        addLines([`\x1b[33m${data.message}\x1b[0m`, '']);
+      } else {
+        addLines([`\x1b[31m${data.error || 'The pirate does not answer.'}\x1b[0m`, '']);
+        return;
+      }
+    } catch (e) {
+      addLines(['\x1b[31mConnection error.\x1b[0m', '']);
+      return;
+    }
+    const s = await fetchSector();
+    if (s) displaySector(s);
+  };
+
+  const handlePay = async () => {
+    const enc = sector?.flotillaEncounter;
+    if (!enc) {
+      addLines(['\x1b[31mNo pirate is hailing you in this sector.\x1b[0m', '']);
+      return;
+    }
+    await flotillaPost('/api/events/flotilla/pay', { encounterId: enc.id });
+  };
+
+  const handleFight = async () => {
+    const enc = sector?.flotillaEncounter;
+    if (enc) {
+      await flotillaPost('/api/events/flotilla/attack', { encounterId: enc.id });
+      return;
+    }
+    const pirate = (sector?.alienShips || []).find((a: any) => a.isPirate);
+    if (!pirate) {
+      addLines(['\x1b[31mNo pirate in this sector to fight.\x1b[0m', '']);
+      return;
+    }
+    await flotillaPost('/api/events/flotilla/attack', { pirateShipId: pirate.id });
+  };
+
+  const handleFlee = async (destStr: string) => {
+    const enc = sector?.flotillaEncounter;
+    if (!enc) {
+      addLines(['\x1b[31mNo pirate is hailing you in this sector.\x1b[0m', '']);
+      return;
+    }
+    const dest = parseInt(destStr);
+    if (isNaN(dest)) {
+      addLines(['\x1b[31mUsage: flee <sector number>\x1b[0m', '']);
+      return;
+    }
+    await flotillaPost('/api/events/flotilla/flee', { encounterId: enc.id, destinationSector: dest });
+  };
+
   const handleCommand = async (raw: string) => {
     const cmd = raw.trim().toLowerCase();
     if (!cmd) return;
@@ -445,6 +540,15 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
       case 'season':
       case 'seasons':
         await handleSeason();
+        break;
+      case 'pay':
+        await handlePay();
+        break;
+      case 'fight':
+        await handleFight();
+        break;
+      case 'flee':
+        await handleFlee(parts[1] || '');
         break;
       case 'q':
       case 'quit':

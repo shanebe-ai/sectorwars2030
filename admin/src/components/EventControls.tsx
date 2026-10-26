@@ -11,6 +11,7 @@ interface DynamicEventRow {
   activeEndsAt: string | null;
   createdAt: string;
   resolvedAt: string | null;
+  params?: Record<string, any>;
 }
 
 interface EventControlsProps {
@@ -18,7 +19,7 @@ interface EventControlsProps {
   token: string;
 }
 
-const EVENT_TYPES = ['ion_storm', 'incursion', 'port_strike', 'trade_boom', 'salvage_field', 'contract'];
+const EVENT_TYPES = ['ion_storm', 'incursion', 'port_strike', 'trade_boom', 'salvage_field', 'contract', 'pirate_flotilla'];
 
 // Countdown text for a future timestamp, or "due now" once it passes.
 const countdown = (iso: string | null): string => {
@@ -145,6 +146,7 @@ export default function EventControls({ universeId, token }: EventControlsProps)
                   {e.state === 'brewing'
                     ? `starts in ${countdown(e.brewingEndsAt)}`
                     : `ends in ${countdown(e.activeEndsAt)}`}
+                  {e.type === 'pirate_flotilla' ? ` · kills ${e.params?.kills ?? 0}` : ''}
                 </span>
                 <button
                   disabled={busy}
@@ -177,6 +179,7 @@ export default function EventControls({ universeId, token }: EventControlsProps)
             <div key={e.id}>
               {e.type} · sectors {e.regionSectors.join(', ') || 'none'} · resolved{' '}
               {e.resolvedAt ? new Date(e.resolvedAt).toLocaleString() : ''}
+              {e.type === 'pirate_flotilla' ? ` · kills ${e.params?.kills ?? 0}` : ''}
             </div>
           ))}
         </div>
