@@ -64,8 +64,13 @@ interface AlienShip {
   credits: number;
   fighters: number;
   shields: number;
-  behavior: 'patrol' | 'trade' | 'aggressive' | 'defensive';
+  behavior: 'patrol' | 'trade' | 'aggressive' | 'defensive' | 'pirate';
   homeSector?: number;
+  // Flotilla pirates (migration 040): isPirate marks a ship owned by
+  // a pirate_flotilla event, isRaider splits raiders from toll
+  // collectors for display and warnings.
+  isPirate?: boolean;
+  isRaider?: boolean;
 }
 
 /**
@@ -270,14 +275,29 @@ export async function generateAliensForUniverse(config: AlienGenerationConfig): 
  */
 export async function getAlienShipsInSector(universeId: number, sectorNumber: number): Promise<AlienShip[]> {
   try {
-    const result = await pool.query(`
-      SELECT
-        a.id, a.universe_id, a.alien_race, a.ship_name,
-        a.ship_type, a.current_sector, a.credits,
-        a.fighters, a.shields, a.behavior, a.home_sector
-      FROM alien_ships a
-      WHERE a.universe_id = $1 AND a.current_sector = $2
-    `, [universeId, sectorNumber]);
+    let result;
+    try {
+      result = await pool.query(`
+        SELECT
+          a.id, a.universe_id, a.alien_race, a.ship_name,
+          a.ship_type, a.current_sector, a.credits,
+          a.fighters, a.shields, a.behavior, a.home_sector,
+          a.dynamic_event_id, a.is_raider
+        FROM alien_ships a
+        WHERE a.universe_id = $1 AND a.current_sector = $2
+      `, [universeId, sectorNumber]);
+    } catch {
+      // Pre migration 040 database: the flotilla columns do not
+      // exist yet, so fall back to the plain ship list.
+      result = await pool.query(`
+        SELECT
+          a.id, a.universe_id, a.alien_race, a.ship_name,
+          a.ship_type, a.current_sector, a.credits,
+          a.fighters, a.shields, a.behavior, a.home_sector
+        FROM alien_ships a
+        WHERE a.universe_id = $1 AND a.current_sector = $2
+      `, [universeId, sectorNumber]);
+    }
 
     return result.rows.map(row => ({
       id: row.id,
@@ -291,7 +311,9 @@ export async function getAlienShipsInSector(universeId: number, sectorNumber: nu
       fighters: row.fighters,
       shields: row.shields,
       behavior: row.behavior,
-      homeSector: row.home_sector
+      homeSector: row.home_sector,
+      isPirate: row.dynamic_event_id != null,
+      isRaider: !!row.is_raider
     }));
   } catch (error: any) {
     console.error('Error in getAlienShipsInSector:', error);
@@ -410,6 +432,7 @@ export async function moveAlienShips(universeId: number): Promise<void> {
       FROM alien_ships a
       JOIN ship_types st ON a.ship_type = st.name
       WHERE a.universe_id = $1
+        AND a.behavior != 'pirate'
         AND (a.last_move_at IS NULL OR a.last_move_at < NOW() - INTERVAL '5 minutes')
     `, [universeId]);
 
@@ -893,6 +916,16 @@ export async function attackAlienShip(
     }
 
     const alien = alienResult.rows[0];
+
+    // Flotilla pirates are off limits to the generic alien combat
+    // path: that simulator can destroy the player, which the
+    // flotilla fairness contract forbids. Pirates are fought
+    // through the flotilla encounter actions instead. The check is
+    // a plain value test on the row just loaded, so a database
+    // without migration 040 simply never triggers it.
+    if (alien.dynamic_event_id) {
+      throw new Error('That is a flotilla pirate. Use the flotilla actions to pay its toll, flee, or fight it.');
+    }
 
     // Validation checks
     if (!player.is_alive) {

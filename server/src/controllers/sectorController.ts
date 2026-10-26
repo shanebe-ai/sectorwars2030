@@ -7,6 +7,7 @@ import { checkMinesOnEntry } from '../services/mineService';
 import { getAlienShipsInSector, getAlienPlanetInSector, unlockAlienComms } from '../services/alienService';
 import { getNpcShipsInSector } from '../services/npcService';
 import { getEventsForSector, getStormForMove, rollStormEffect, getContractProgress } from '../services/dynamicEventService';
+import { presentHailForPlayer, getFlotillaSectorDisplay, getLiveRaiderSectors, resolveRaidOnEntry } from '../services/flotillaService';
 
 /**
  * Get sector details including warps
@@ -332,6 +333,17 @@ export const getSectorDetails = async (req: Request, res: Response) => {
           activeEndsAt: e.activeEndsAt,
           commodity: e.type === 'trade_boom' || e.type === 'contract' ? e.params.commodity : undefined
         };
+        if (e.type === 'pirate_flotilla') {
+          // Flotilla banners show how many pirates are still out
+          // there and which sectors hold a live raider.
+          const display = await getFlotillaSectorDisplay(e);
+          return {
+            ...base,
+            shipsRemaining: display.shipsRemaining,
+            raiderSectors: display.raiderSectors,
+            kills: display.kills
+          };
+        }
         if (e.type !== 'contract') return base;
         // Contract banners show live progress: goal, pool, total
         // delivered, and the viewing player's own delivered units.
@@ -377,6 +389,22 @@ export const getSectorDetails = async (req: Request, res: Response) => {
       }).catch(err => console.error('Failed to auto-log sector:', err));
     }
 
+    // Pirate flotilla: a toll hail is presented when the player is
+    // standing in a toll pirate's sector, and the sector payload
+    // always carries the live raider sectors so warp lists can warn
+    // about them. Both quietly empty on a pre migration 040 database.
+    let flotillaEncounter: any = null;
+    let raiderSectors: number[] = [];
+    try {
+      raiderSectors = await getLiveRaiderSectors(universeId);
+      if (parseInt(sectorNumber as string) === currentSector) {
+        flotillaEncounter = await presentHailForPlayer(playerId);
+      }
+    } catch {
+      flotillaEncounter = null;
+      raiderSectors = [];
+    }
+
     res.json({
       sector: {
         sectorNumber: sector.sector_number,
@@ -393,6 +421,8 @@ export const getSectorDetails = async (req: Request, res: Response) => {
         derelict: sectorDerelict,
         npcShips,
         dynamicEvents,
+        flotillaEncounter,
+        raiderSectors,
         warps,
         players,
         planets,
@@ -409,7 +439,9 @@ export const getSectorDetails = async (req: Request, res: Response) => {
           shipType: a.shipTypeName || 'Unknown',
           fighters: a.fighters,
           shields: a.shields,
-          behavior: a.behavior
+          behavior: a.behavior,
+          isPirate: !!a.isPirate,
+          isRaider: !!a.isRaider
         })),
         alienPlanet: alienPlanet ? {
           id: alienPlanet.id,
@@ -1074,6 +1106,15 @@ export const moveToSector = async (req: Request, res: Response) => {
         // Don't block movement if mine check fails
       }
 
+      // Pirate raiders jump cargo carriers on entry, once per entry.
+      let raidResult = null;
+      try {
+        raidResult = await resolveRaidOnEntry(player.id, player.universe_id, actualDestination);
+      } catch (raidError) {
+        console.error('Error resolving pirate raid on entry:', raidError);
+        // Don't block movement if the raid check fails
+      }
+
       // Check for beacons in destination sector and broadcast their messages
       const beaconsResult = await pool.query(
         `SELECT u.username as owner_name, b.message FROM sector_beacons b
@@ -1138,7 +1179,8 @@ export const moveToSector = async (req: Request, res: Response) => {
         stormEffect: stormEffect !== 'none' ? stormEffect : null,
         stormMessage,
         stormSalvage,
-        mineResult: mineResult || null
+        mineResult: mineResult || null,
+        raidResult: raidResult || null
       });
     } catch (error) {
       await client.query('ROLLBACK');

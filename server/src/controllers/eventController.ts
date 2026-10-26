@@ -12,6 +12,7 @@ import {
   DynamicEventType,
   EVENT_TYPES,
 } from '../services/dynamicEventService';
+import { payToll, fleeEncounter, attackPirate } from '../services/flotillaService';
 
 const getPlayerForUser = async (userId: number) => {
   const result = await pool.query(
@@ -70,6 +71,108 @@ export const attackIncursionHandler = async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Error attacking incursion:', error);
     res.status(500).json({ error: error.message || 'Failed to engage the incursion' });
+  }
+};
+
+/**
+ * POST /api/events/flotilla/pay
+ * Pay the toll on an open flotilla hail.
+ * Body: { encounterId }
+ */
+export const payFlotillaTollHandler = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const player = await getPlayerForUser(userId);
+    if (!player) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    const encounterId = parseInt(req.body?.encounterId);
+    if (isNaN(encounterId)) {
+      return res.status(400).json({ error: 'encounterId is required' });
+    }
+
+    const result = await payToll(player.id, encounterId);
+    if (!result.success) {
+      return res.status(400).json({ error: result.message });
+    }
+    res.json(result);
+  } catch (error: any) {
+    console.error('Error paying flotilla toll:', error);
+    res.status(500).json({ error: error.message || 'Failed to pay the toll' });
+  }
+};
+
+/**
+ * POST /api/events/flotilla/flee
+ * Run from an open flotilla hail toward a neighbouring sector.
+ * Body: { encounterId, destinationSector }
+ */
+export const fleeFlotillaHandler = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const player = await getPlayerForUser(userId);
+    if (!player) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    const encounterId = parseInt(req.body?.encounterId);
+    const destinationSector = parseInt(req.body?.destinationSector);
+    if (isNaN(encounterId) || isNaN(destinationSector)) {
+      return res.status(400).json({ error: 'encounterId and destinationSector are required' });
+    }
+
+    const result = await fleeEncounter(player.id, encounterId, destinationSector);
+    if (!result.success) {
+      return res.status(400).json({ error: result.message });
+    }
+    res.json(result);
+  } catch (error: any) {
+    console.error('Error fleeing flotilla hail:', error);
+    res.status(500).json({ error: error.message || 'Failed to flee' });
+  }
+};
+
+/**
+ * POST /api/events/flotilla/attack
+ * Fight a flotilla pirate, through an open encounter or directly by
+ * pirate ship id.
+ * Body: { encounterId } or { pirateShipId }
+ */
+export const attackFlotillaHandler = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const player = await getPlayerForUser(userId);
+    if (!player) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    const encounterId = req.body?.encounterId !== undefined ? parseInt(req.body.encounterId) : undefined;
+    const pirateShipId = req.body?.pirateShipId !== undefined ? parseInt(req.body.pirateShipId) : undefined;
+    if ((encounterId === undefined || isNaN(encounterId)) && (pirateShipId === undefined || isNaN(pirateShipId as number))) {
+      return res.status(400).json({ error: 'encounterId or pirateShipId is required' });
+    }
+
+    const result = await attackPirate(player.id, { encounterId, pirateShipId });
+    if (!result.success) {
+      return res.status(400).json({ error: result.message });
+    }
+    res.json(result);
+  } catch (error: any) {
+    console.error('Error attacking flotilla pirate:', error);
+    res.status(500).json({ error: error.message || 'Failed to attack the pirate' });
   }
 };
 

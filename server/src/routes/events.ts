@@ -3,6 +3,9 @@ import { authenticateToken, requireAdmin } from '../middleware/auth';
 import {
   getEvents,
   attackIncursionHandler,
+  payFlotillaTollHandler,
+  fleeFlotillaHandler,
+  attackFlotillaHandler,
   adminListEvents,
   adminForceStart,
   adminForceResolve,
@@ -29,6 +32,11 @@ router.get('/', getEvents);
 
 // POST /api/events/incursion/attack - Engage the incursion in your sector
 router.post('/incursion/attack', attackIncursionHandler);
+
+// Pirate flotilla encounter actions
+router.post('/flotilla/pay', payFlotillaTollHandler);
+router.post('/flotilla/flee', fleeFlotillaHandler);
+router.post('/flotilla/attack', attackFlotillaHandler);
 
 // Admin: event history across universes
 router.get('/admin/all', requireAdmin, adminListEvents);
