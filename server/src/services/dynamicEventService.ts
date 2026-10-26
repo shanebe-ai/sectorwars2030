@@ -14,7 +14,7 @@ import { spawnEventDerelicts } from './derelictService';
 // - Warnings always precede effects: every event brews first.
 // - Events never destroy a player's ship, cargo, or credits outright.
 
-export type DynamicEventType = 'ion_storm' | 'incursion' | 'port_strike' | 'trade_boom' | 'salvage_field' | 'contract';
+export type DynamicEventType = 'ion_storm' | 'incursion' | 'port_strike' | 'trade_boom' | 'salvage_field' | 'contract' | 'pirate_flotilla';
 export type DynamicEventState = 'brewing' | 'active' | 'resolved';
 export type StormEffect = 'none' | 'extra_turn' | 'misfire' | 'fail';
 
@@ -63,11 +63,38 @@ const CONTRACT_MISS_RATE = 0.5; // a missed goal still pays out at half rate
 // math uses the same market values the ports trade at.
 const COMMODITY_BASE_PRICES: Record<string, number> = { fuel: 20, organics: 35, equipment: 55 };
 const COMMODITIES = ['fuel', 'organics', 'equipment'] as const;
+// Pirate flotilla shape. A flotilla works a small linked region with
+// a handful of ships: most stop traders and charge a toll, a few are
+// raiders who shoot on sight. The kill bonus scales with the pirate's
+// spawn fighters, so a raider is worth hunting and a toll skiff is
+// not worth farming at flat rates.
+const FLOTILLA_MIN_REGION = 3;
+const FLOTILLA_MAX_REGION = 5;
+const FLOTILLA_MIN_SHIPS = 3;
+const FLOTILLA_MAX_SHIPS = 6;
+const FLOTILLA_RAIDER_CHANCE = 0.15;
+const FLOTILLA_TOLL_FIGHTERS: [number, number] = [30, 50];
+const FLOTILLA_TOLL_SHIELDS: [number, number] = [100, 200];
+const FLOTILLA_TOLL_CREDITS: [number, number] = [3000, 8000];
+const FLOTILLA_RAIDER_FIGHTERS: [number, number] = [80, 120];
+const FLOTILLA_RAIDER_SHIELDS: [number, number] = [250, 400];
+const FLOTILLA_RAIDER_CREDITS: [number, number] = [8000, 15000];
+export const FLOTILLA_BOUNTY_BASE = 5000;
+export const FLOTILLA_BOUNTY_PER_FIGHTER = 100;
+const PIRATE_TOLL_NAMES = [
+  'Widow Nine', 'Sister Mercy', 'Copper Jack', 'The Auditor',
+  'Polite Pete', 'Madame Ledger', 'Brother Toll', 'Quiet Annie',
+  'The Tollkeeper', 'Cousin Rake', 'Miss Ten Percent', 'Honest Ilya',
+];
+const PIRATE_RAIDER_NAMES = [
+  'Glass Hammer', 'Red Wedding', 'The Undertaker', 'Sister Slaughter',
+  'Cannonball Kate', 'The Widowmaker', 'Bloody Pavel', 'Iron Confession',
+];
 
 const randInt = (min: number, max: number): number =>
   Math.floor(Math.random() * (max - min + 1)) + min;
 
-export const EVENT_TYPES: DynamicEventType[] = ['ion_storm', 'incursion', 'port_strike', 'trade_boom', 'salvage_field', 'contract'];
+export const EVENT_TYPES: DynamicEventType[] = ['ion_storm', 'incursion', 'port_strike', 'trade_boom', 'salvage_field', 'contract', 'pirate_flotilla'];
 
 const toEvent = (row: any): DynamicEvent => ({
   id: row.id,
@@ -228,6 +255,83 @@ const walkBoomRegion = async (
   return region;
 };
 
+export interface FlotillaShipPlan {
+  sector: number;
+  isRaider: boolean;
+  fighters: number;
+  shields: number;
+  credits: number;
+  cargoFuel: number;
+  cargoOrganics: number;
+  cargoEquipment: number;
+  shipName: string;
+}
+
+/**
+ * Plan a flotilla's ships against a region: how many ships, where
+ * they sit, which of them are raiders, and what each one carries.
+ * Pure apart from the dice, so tests can pin the shape. The plan is
+ * fixed at creation because the TNN forecast has to name the raider
+ * sectors before a single pirate row exists; the rows themselves
+ * only spawn when the event goes active.
+ */
+export const buildFlotillaPlan = (regionSectors: number[]): FlotillaShipPlan[] => {
+  const shipCount = randInt(FLOTILLA_MIN_SHIPS, FLOTILLA_MAX_SHIPS);
+  const tollNames = [...PIRATE_TOLL_NAMES].sort(() => Math.random() - 0.5);
+  const raiderNames = [...PIRATE_RAIDER_NAMES].sort(() => Math.random() - 0.5);
+  let tollNameIdx = 0;
+  let raiderNameIdx = 0;
+
+  const rollStats = (isRaider: boolean) => ({
+    fighters: isRaider
+      ? randInt(FLOTILLA_RAIDER_FIGHTERS[0], FLOTILLA_RAIDER_FIGHTERS[1])
+      : randInt(FLOTILLA_TOLL_FIGHTERS[0], FLOTILLA_TOLL_FIGHTERS[1]),
+    shields: isRaider
+      ? randInt(FLOTILLA_RAIDER_SHIELDS[0], FLOTILLA_RAIDER_SHIELDS[1])
+      : randInt(FLOTILLA_TOLL_SHIELDS[0], FLOTILLA_TOLL_SHIELDS[1]),
+    credits: isRaider
+      ? randInt(FLOTILLA_RAIDER_CREDITS[0], FLOTILLA_RAIDER_CREDITS[1])
+      : randInt(FLOTILLA_TOLL_CREDITS[0], FLOTILLA_TOLL_CREDITS[1]),
+  });
+
+  const plan: FlotillaShipPlan[] = [];
+  for (let i = 0; i < shipCount; i++) {
+    const cargoTotal = randInt(10, 30);
+    const cargoFuel = randInt(0, cargoTotal);
+    const cargoOrganics = randInt(0, cargoTotal - cargoFuel);
+    const isRaider = Math.random() < FLOTILLA_RAIDER_CHANCE;
+    plan.push({
+      sector: regionSectors[i % regionSectors.length],
+      isRaider,
+      ...rollStats(isRaider),
+      cargoFuel,
+      cargoOrganics,
+      cargoEquipment: cargoTotal - cargoFuel - cargoOrganics,
+      shipName: '',
+    });
+  }
+
+  // A big flotilla always has teeth: if no raider rolled, the
+  // strongest toll ship converts, and its stats re-roll in the
+  // raider ranges so its bounty matches the risk it now poses.
+  if (shipCount >= 5 && !plan.some((p) => p.isRaider)) {
+    let strongest = 0;
+    for (let i = 1; i < plan.length; i++) {
+      if (plan[i].fighters > plan[strongest].fighters) strongest = i;
+    }
+    plan[strongest].isRaider = true;
+    Object.assign(plan[strongest], rollStats(true));
+  }
+
+  for (const ship of plan) {
+    ship.shipName = ship.isRaider
+      ? raiderNames[raiderNameIdx++ % raiderNames.length]
+      : tollNames[tollNameIdx++ % tollNames.length];
+  }
+
+  return plan;
+};
+
 const commodityLabel = (commodity: string | undefined): string => {
   if (commodity === 'fuel') return 'Fuel Ore';
   if (commodity === 'organics') return 'Organics';
@@ -354,6 +458,17 @@ const tnnForecast = (event: DynamicEvent, sectorName: string | null): { subject:
         body: `TNN Contract Desk: TerraCorp is stocking up and paying haulers to do the lifting. Deliver ${event.params.goal} units of ${label} to the port in Sector ${firstSector} and everyone who delivers splits a ${event.params.pool} credit pool by share. Deliveries start counting when the contract opens in ${minutes} minute${minutes === 1 ? '' : 's'}. Miss the goal and the pool still pays, at half rate.`,
       };
     }
+    case 'pirate_flotilla': {
+      const shipCount = event.params.shipsSpawned ?? 0;
+      const raiderSectors: number[] = event.params.raiderSectors || [];
+      const redFlag = raiderSectors.length > 0
+        ? ` RED FLAG: raiders in sectors ${sectorList(raiderSectors)} attack on sight. Their sectors are marked.`
+        : '';
+      return {
+        subject: 'TNN Flash: Pirate Flotilla Sighted',
+        body: `TNN Flash: a pirate flotilla of ${shipCount} ships is moving into sectors ${sectorList(event.regionSectors)}. Toll pirates there stop traders and take ten percent of cargo as their price for safe passage. Pay it, run, or fight, the choice is yours when they hail.${redFlag} The flotilla arrives in ${BREWING_MINUTES} minutes.`,
+      };
+    }
   }
 };
 
@@ -394,6 +509,11 @@ const tnnStart = (event: DynamicEvent): { subject: string; body: string } => {
         body: `TNN Contract Desk: the TerraCorp contract at Sector ${firstSector} is open. Every unit of ${label} sold to that port counts toward the ${event.params.goal} unit goal, and the ${event.params.pool} credit pool splits by share delivered. Haulers, start your runs.`,
       };
     }
+    case 'pirate_flotilla':
+      return {
+        subject: `TNN Flash: Flotilla Working Sectors ${sectorList(event.regionSectors)}`,
+        body: `TNN Flash: the pirate flotilla is live in sectors ${sectorList(event.regionSectors)}. Tolls are being collected, raiders are live, and TerraCorp pays a bonus for every pirate hull destroyed. Losing to a pirate costs your cargo and nothing else.`,
+      };
   }
 };
 
@@ -450,6 +570,16 @@ const tnnResolution = (event: DynamicEvent): { subject: string; body: string } =
       return {
         subject: 'TNN Contract Desk: Contract Falls Short',
         body: `TNN Contract Desk: the TerraCorp contract at Sector ${firstSector} closed at ${s.totalDelivered} of ${goal} units of ${label}. Contributors are paid pro rata at half rate, ${s.distributed} credits split by share.${topLine}`,
+      };
+    }
+    case 'pirate_flotilla': {
+      const kills = event.params.kills ?? 0;
+      const killLine = kills > 0
+        ? ` ${kills} pirate ship${kills === 1 ? '' : 's'} went down during the visit.`
+        : ' No pirate ships were destroyed.';
+      return {
+        subject: 'TNN Flash: Flotilla Moves On',
+        body: `TNN Flash: the pirate flotilla working sectors ${sectorList(event.regionSectors)} has moved on. Surviving pirates have left the region with whatever they were carrying.${killLine}`,
       };
     }
   }
@@ -574,6 +704,36 @@ export const createEvent = async (
     targetPortId = port.id;
     portSectorName = port.name;
     params = { commodity, goal, pool: poolCredits };
+  } else if (type === 'pirate_flotilla') {
+    // Pirate flotilla: a small linked region outside TerraSpace,
+    // walked the same way a trade boom region is. Nothing spawns
+    // while the event brews; the ship plan is fixed now so the TNN
+    // forecast can name the raider sectors up front, and the hulls
+    // drop in when the event goes active.
+    let region: number[] = [];
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const sectorRes = await client.query(
+        `SELECT sector_number FROM sectors
+         WHERE universe_id = $1 AND sector_number > $2
+         ORDER BY RANDOM() LIMIT 1`,
+        [universeId, TERRASPACE_MAX_SECTOR]
+      );
+      if (sectorRes.rows.length === 0) break;
+      const target = randInt(FLOTILLA_MIN_REGION, FLOTILLA_MAX_REGION);
+      const walked = (await walkBoomRegion(client, universeId, sectorRes.rows[0].sector_number, target))
+        .filter((n) => n > TERRASPACE_MAX_SECTOR);
+      if (walked.length > region.length) region = walked;
+      if (region.length >= FLOTILLA_MIN_REGION) break;
+    }
+    if (region.length === 0) return null;
+    regionSectors = region;
+    const plan = buildFlotillaPlan(region);
+    params = {
+      shipsSpawned: plan.length,
+      shipPlan: plan,
+      raiderSectors: plan.filter((p) => p.isRaider).map((p) => p.sector),
+      kills: 0,
+    };
   } else {
     // Port strike: a real port outside TerraSpace, never Stardock.
     const portRes = await client.query(
@@ -768,9 +928,75 @@ export const settleContract = async (client: any, event: DynamicEvent): Promise<
 };
 
 /**
+ * Spawn a flotilla's pirate hulls from the plan fixed at creation.
+ * Pirates are alien_ships rows owned by the event through
+ * dynamic_event_id; the encounter service in flotillaService runs
+ * their fights, and the alien movement and aggression ticks never
+ * touch them. Returns the params additions (ship ids, raider ids).
+ */
+export const spawnFlotillaPirates = async (
+  client: any,
+  event: DynamicEvent
+): Promise<{ shipIds: number[]; raiders: number[] }> => {
+  const plan: FlotillaShipPlan[] = event.params.shipPlan || [];
+
+  // Ship type: an existing mid range hull name, the same pool alien
+  // generation picks from, so the max fighters and shields joins in
+  // alien queries keep working.
+  const typeRes = await client.query(
+    `SELECT name FROM ship_types
+     WHERE (universe_id = $1 OR universe_id IS NULL)
+       AND name IN ('Scout', 'Trader', 'Freighter', 'Merchant Cruiser')
+     ORDER BY cost_credits ASC`,
+    [event.universeId]
+  );
+  const typeNames: string[] = typeRes.rows.map((r: any) => r.name);
+  const shipType = typeNames.length > 0
+    ? typeNames[Math.min(1, typeNames.length - 1)]
+    : 'Freighter';
+
+  const shipIds: number[] = [];
+  const raiders: number[] = [];
+  for (const ship of plan) {
+    const bounty = FLOTILLA_BOUNTY_BASE + FLOTILLA_BOUNTY_PER_FIGHTER * ship.fighters;
+    const res = await client.query(
+      `INSERT INTO alien_ships (
+         universe_id, sector_number, alien_race, ship_name, ship_type,
+         behavior, fighters, shields, credits, alignment, home_sector,
+         cargo_fuel, cargo_organics, cargo_equipment, current_sector,
+         dynamic_event_id, is_raider, bounty_value
+       )
+       VALUES ($1, $2, 'Pirate', $3, $4, 'pirate', $5, $6, $7, -200, $2,
+               $8, $9, $10, $2, $11, $12, $13)
+       RETURNING id`,
+      [
+        event.universeId, ship.sector, ship.shipName, shipType,
+        ship.fighters, ship.shields, ship.credits,
+        ship.cargoFuel, ship.cargoOrganics, ship.cargoEquipment,
+        event.id, ship.isRaider, bounty,
+      ]
+    );
+    shipIds.push(res.rows[0].id);
+    if (ship.isRaider) raiders.push(res.rows[0].id);
+  }
+  return { shipIds, raiders };
+};
+
+/**
  * Apply the effects that land when an event goes active.
  */
 const applyActivationEffects = async (client: any, event: DynamicEvent): Promise<void> => {
+  if (event.type === 'pirate_flotilla') {
+    // The flotilla arrives: pirate hulls drop into the region.
+    const spawned = await spawnFlotillaPirates(client, event);
+    event.params = { ...event.params, shipIds: spawned.shipIds, raiders: spawned.raiders };
+    await client.query(
+      `UPDATE dynamic_events SET params = $1, updated_at = NOW() WHERE id = $2`,
+      [JSON.stringify(event.params), event.id]
+    );
+    return;
+  }
+
   if (event.type === 'salvage_field') {
     // The field settles: derelicts drop into the region, tagged with
     // this event so resolution can sweep whatever nobody claimed.
@@ -814,6 +1040,24 @@ const applyActivationEffects = async (client: any, event: DynamicEvent): Promise
  * Apply the aftermath when an event resolves.
  */
 const applyResolutionEffects = async (client: any, event: DynamicEvent): Promise<void> => {
+  if (event.type === 'pirate_flotilla') {
+    // The flotilla moves on: surviving pirates leave the universe
+    // with whatever they were carrying, and any hail still hanging
+    // open lapses. Encounter rows for the deleted pirates cascade
+    // away with their ships.
+    await client.query(
+      `DELETE FROM alien_ships WHERE dynamic_event_id = $1`,
+      [event.id]
+    );
+    await client.query(
+      `UPDATE pirate_encounters
+       SET state = 'expired', resolved_at = NOW()
+       WHERE event_id = $1 AND state = 'hailed'`,
+      [event.id]
+    );
+    return;
+  }
+
   if (event.type === 'salvage_field') {
     // Sweep the field: delete only this event's derelicts that are
     // still 'spotted', meaning never boarded or looted. Claimed,
@@ -1291,12 +1535,54 @@ export const setEventsEnabled = async (
 };
 
 /**
+ * Flotilla drift: on each event tick, every live pirate in an active
+ * flotilla takes one warp step to a random neighbour inside its own
+ * region. Pirates are event property; the alien movement tick never
+ * moves them, and region membership is checked on every step, so a
+ * pirate can never drift out of the flotilla's ground or into
+ * TerraSpace. Quietly does nothing on a database where migration
+ * 040 has not landed yet.
+ */
+export const driftFlotillaPirates = async (client: any): Promise<void> => {
+  let eventsRes: any;
+  try {
+    eventsRes = await client.query(
+      `SELECT * FROM dynamic_events WHERE type = 'pirate_flotilla' AND state = 'active'`
+    );
+  } catch {
+    return;
+  }
+
+  for (const row of eventsRes.rows) {
+    const event = toEvent(row);
+    const pirates = await client.query(
+      `SELECT id, current_sector FROM alien_ships WHERE dynamic_event_id = $1`,
+      [event.id]
+    );
+    for (const pirate of pirates.rows) {
+      const from = pirate.current_sector as number;
+      const neighbours = (await getAdjacentSectors(client, event.universeId, from))
+        .filter((n) => n !== from && event.regionSectors.includes(n));
+      if (neighbours.length === 0) continue;
+      const next = neighbours[randInt(0, neighbours.length - 1)];
+      await client.query(
+        `UPDATE alien_ships
+         SET current_sector = $1, sector_number = $1, last_move_at = NOW()
+         WHERE id = $2`,
+        [next, pirate.id]
+      );
+    }
+  }
+};
+
+/**
  * Run one dynamic event tick across all universes.
  */
 export const runDynamicEventTick = async (): Promise<void> => {
   const client = await pool.connect();
   try {
     await advanceEvents(client);
+    await driftFlotillaPirates(client);
 
     const universes = await client.query(`SELECT id FROM universes`);
     for (const universe of universes.rows) {
