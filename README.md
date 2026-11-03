@@ -10,7 +10,7 @@ I should be upfront about how this project works, because it is not how I built 
 
 I write the specs. Every feature in this game started as a design doc I wrote out first: what it does, what it must never do, how it gets tested. Then I hand the spec to AI agents and they write a lot of the code. I run more than one. One of them is called Scanocrates, and it once committed a security patch I never asked for, then confessed. I wrote a LinkedIn post about that. It is still funny to me, and it is also exactly why nothing ships on an agent's say so.
 
-My job in the loop is the engineering judgment. I review the diffs. I apply every production database migration myself, by hand, one command at a time. I playtest everything before it goes live, and I find things the tests miss, like the sector display that proudly showed "undefined" where the sector number should be, or the mode toggle labeled so confusingly that I could not tell which way it switched. The test suite sits at 269 tests and all of it has to pass before a push. When it does not, the agents hear about it.
+My job in the loop is the engineering judgment. I review the diffs. I apply every production database migration myself, by hand, one command at a time. I playtest everything before it goes live, and I find things the tests miss, like the sector display that proudly showed "undefined" where the sector number should be, or the mode toggle labeled so confusingly that I could not tell which way it switched. The test suite sits at 307 tests and all of it has to pass before a push. When it does not, the agents hear about it.
 
 So the commits say Shane Bennett because that is accurate in the way that counts. I am accountable for what ships. The agents are fast and tireless and occasionally overconfident, and directing them well is most of the skill now. This repo is me practicing that in public.
 
@@ -75,21 +75,11 @@ tradewars2030/
 
 ## Tech Stack
 
-### Frontend (Client & Admin)
-- **React 19**: UI framework
-- **TypeScript**: Type safety
-- **Vite**: Build tool and dev server
-- **CSS**: Cyberpunk-themed styling with ASCII art
-
-### Backend (Server)
-- **Node.js + Express**: REST API server
-- **TypeScript**: Type-safe backend code
-- **Socket.io**: Real-time WebSocket communication
-- **PostgreSQL**: Robust relational database
-- **JWT**: Authentication
-- **bcrypt**: Password hashing
+Both front ends, the player client and the admin panel, are React 19 with TypeScript, built with Vite and styled by hand in CSS: neon and ASCII art on the player side, a plainer working panel on the admin side. The server is Node with Express and TypeScript, Socket.io for the real time traffic, PostgreSQL underneath, JWT for auth and bcrypt for password hashing.
 
 ## Getting Started
+
+Three processes and one database. Set the database up first, then the server, then whichever front end you want to run.
 
 ### Prerequisites
 - Node.js 18+
@@ -212,13 +202,8 @@ See [server/src/db/schema.sql](server/src/db/schema.sql) for complete schema.
 - **Smuggling**: Three contraband goods (Banned Tech Components, Restricted Medical Compounds, Stolen Artifacts) that legal ports refuse to touch. Black markets open at ports on the economy tick and quote prices as of the last tick, so the price you saw before arriving can move. Customs patrols sweep sectors outside TerraSpace and scan holds for contraband; get caught and the cargo is seized, you pay a fine, and the seized goods are auctioned off legally at the port of seizure. Repeat confiscations earn a visible flagged marker other players can see, and cleared derelicts make good stash spots for hiding contraband between runs
 
 ### Modern Enhancements
-- **Web-based interface**: Accessible from any browser
-- **Real-time updates**: See other players' actions via WebSockets
-  - Player movement, combat, trading, planet colonization
-  - Alien encounters and communications
-  - Genesis torpedo launches, beacon messages
-- **Cyberpunk aesthetics**: Neon colors and ASCII art
-- **Admin panel**: Configure universes without SQL
+
+It runs in any browser, no install, and other players' actions show up live over WebSockets: movement, combat, trading, planets changing hands, torpedo launches, beacon messages. The admin panel handles universe setup and season management without anyone writing SQL.
 
 ## Port Types
 
@@ -286,7 +271,7 @@ Format: `[Fuel][Organics][Equipment]`
   - [x] Reply and delete functionality
 - [x] **Automated Testing**
   - [x] Jest + ts-jest framework
-  - [x] 17 tests total (navigation, player creation, banking, combat)
+  - [x] 307 tests total
   - [x] Run with: `cd server && npm test`
 - [x] **Economy & Combat Rebalancing (2025-12-02)**
   - [x] Banking system fixes (StarDock requirement, 5% withdrawal fee, death penalty on bank balance)
