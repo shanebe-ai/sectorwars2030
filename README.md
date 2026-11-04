@@ -224,107 +224,12 @@ Format: `[Fuel][Organics][Equipment]`
 
 ## Development Roadmap
 
-### Completed ✅
-- [x] Project structure setup
-- [x] Database schema design and migrations
-- [x] Server initialization
-- [x] Shared TypeScript types
-- [x] Authentication system (JWT + bcrypt)
-- [x] User registration and login API
-- [x] Admin authorization middleware
-- [x] Universe generation service (with ~3% planets, 12% ports)
-- [x] Ship types system
-- [x] **Admin Panel (Port 5174)**
-  - [x] Purple cyberpunk theme
-  - [x] Universe creation UI with defaults
-  - [x] Universe management dashboard
-  - [x] Toggle slider for dead-end sectors
-- [x] **Player Initialization System**
-  - [x] Player creation API
-  - [x] Starting ship assignment
-  - [x] Credits and sector placement
-  - [x] Reserved corporation names (Terra Corp)
-- [x] **Sector Navigation System**
-  - [x] GET /api/sectors/:sectorNumber: sector details with warps
-  - [x] POST /api/sectors/move: move player between sectors
-  - [x] Turn consumption (1 turn per move)
-  - [x] Bidirectional warp connections
-  - [x] SectorView component with ASCII art
-  - [x] Warp drive misfire system (0.25% chance of malfunction)
-  - [x] Visited sector tracking with visual indicators
-  - [x] Previous sector navigation (◄ marker)
-- [x] **Port Trading System**
-  - [x] GET /api/ports/:sectorNumber: port details and prices
-  - [x] POST /api/ports/trade: buy/sell commodities
-  - [x] Dynamic pricing based on port percentage
-  - [x] PortTradingPanel with cyberpunk UI
-  - [x] Cargo manifest display
-- [x] **Turn Regeneration System**
-  - [x] Gradual turn regeneration (turns_per_day / 24 per hour)
-  - [x] Automatic regeneration on player data fetch
-  - [x] Capped at universe's turns_per_day setting
-- [x] **Ship Communications System**
-  - [x] Send messages to other ships in your sector
-  - [x] Messages stored in "ship computer" for offline players
-  - [x] Inbox/Sent message views
-  - [x] Unread message count badge
-  - [x] Reply and delete functionality
-- [x] **Automated Testing**
-  - [x] Jest + ts-jest framework
-  - [x] 307 tests total
-  - [x] Run with: `cd server && npm test`
-- [x] **Economy & Combat Rebalancing (2025-12-02)**
-  - [x] Banking system fixes (StarDock requirement, 5% withdrawal fee, death penalty on bank balance)
-  - [x] Combat improvements (1 turn cost, 75% loot, 25% death penalty)
-  - [x] Fighter maintenance system (₡5/fighter/day, auto-destruction on non-payment)
-  - [x] Planet production buff (5x rates, citadel bonuses)
-  - [x] Corporate account withdrawal limits (founder/officer/member tiers)
-  - [x] Ship cost database fixes
-- [x] **UI Improvements**
-  - [x] No browser popups (prompt/alert/confirm). All interactions use UI modals
-  - [x] Real-time ship status updates (fighters update immediately on deploy/retrieve)
-  - [x] Fighter maintenance cost warnings in deployment UI
-- [x] **Alien System (2025-12-02, updated 2026-01-12)**
-  - [x] Alien planet generation with scaling formula (0.3% for 1000+ sectors)
-  - [x] Alien ship generation with multiple races and ship types
-  - [x] Alien communications channel (read-only)
-  - [x] Auto-unlock alien comms when entering alien planet sector
-  - [x] Alien comms integrated into MessagingPanel as separate tab
-  - [x] Alien ship AI movement system (game tick every 5 minutes)
-  - [x] Alien ship behaviors with balanced distribution (40% trade, 30% patrol, 20% aggressive, 10% defensive)
-  - [x] Alien alignment system: traders friendly (+50 to +150), patrol neutral (-50 to +50), raiders hostile (-300 to -150), guards territorial (-100)
-  - [x] Alien planet detection and logging in ship log
-  - [x] Admin panel configuration for alien planet count
-- [x] **TW2002-Style Universe Generation (2026-01-12, updated 2026-01-13)**
-  - [x] Constrained warp ranges (±50-200 sectors) instead of fully random
-  - [x] Dynamic TerraSpace sizing (2% of universe, minimum 10 sectors)
-  - [x] TerraSpace exit sectors use constrained ranges (no long-distance teleports)
-  - [x] Mars planet at last TerraSpace sector (owned by Terra Corp)
-  - [x] Alien TerraSpace restrictions (trade aliens can enter, aggressive/patrol/defensive cannot)
-  - [x] Alien spawning respects dynamic TerraSpace boundaries
-  - [x] Dynamic connection limits: edge sectors max 6, middle sectors max 8 (allows natural hub formation)
-  - [x] Connectivity verification from actual inserted warps (prevents isolated sectors)
-  - [x] Automatic connection of unreachable sectors during universe generation
-- [x] **Dynamic Events & NPC Traffic (2026-10-19)**
-  - [x] Ion storms, alien incursions, and port strikes on a 5-minute event tick with TNN forecasts
-  - [x] Event banner in sector view, incursion engage button, port strike notice, BBS terminal event lines
-  - [x] Admin event endpoints: history, force start, force resolve, seeding cooldown
-  - [x] Named NPC traders moving and trading between ports; hails return live market tips
-- [x] **Seasons & Hall of Fame (2026-10-20)**
-  - [x] 30 day timed seasons per universe, one active at a time (migration 034)
-  - [x] Live standings in rankings, BBS mode, and the admin panel
-  - [x] TNN end of season warnings at 7 days, 24 hours, and 1 hour out
-  - [x] Final standings archived to the Hall of Fame at season end; player ships, cargo, credits, and planets are never wiped
-- [x] **Smuggling (2026-10-22)**
-  - [x] Three contraband goods traded only at black markets that open at ports on the 5-minute tick, with prices snapshotted at the last tick (migration 035)
-  - [x] Customs patrols with cargo scans outside TerraSpace; ion storms and nearby incursions lower scan odds
-  - [x] Confiscation: contraband seized, fine capped at credits on hand, seized goods auctioned at the port of seizure
-  - [x] Repeat offenders flagged for 48 hours with a visible marker and a notice to the player; contraband stashes on cleared derelicts
-  - [x] Admin patrol controls: force spawn, force clear, scan tuning, and a smuggling event log
+The original build list is finished and live: TW2002 style universe generation, ports and trading, ships, the alien system, banking, corporations, combat, planets, dynamic events, NPC trader traffic, seasons with a hall of fame, smuggling, the pirate flotilla, and the BBS terminal mode alongside the cyber one. The session by session history of how it got built lives in PROJECT_STATUS.md and the git log, which is where it belongs.
 
-### In Progress 🚧
-- [ ] Mobile responsive design improvements
-- [ ] Advanced admin tools (player management)
+Still open:
+- Mobile responsive design improvements
+- Advanced admin tools (player management)
+
 
 ## Running Tests
 
