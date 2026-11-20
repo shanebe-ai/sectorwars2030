@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import * as planetService from '../services/planetService';
 import { pool } from '../db/connection';
+import { activePlayerSql } from '../utils/activePlayer';
 
 // ============================================================================
 // GET PLANET INFO
@@ -48,7 +49,7 @@ export async function getPlayerPlanets(req: Request, res: Response) {
     
     // Get player from token
     const playerResult = await pool.query(
-      'SELECT id FROM players WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()} ORDER BY created_at DESC LIMIT 1`,
       [userId]
     );
     
@@ -90,7 +91,7 @@ export async function claimPlanet(req: Request, res: Response) {
     
     // Get player from token
     const playerResult = await pool.query(
-      'SELECT id FROM players WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()} ORDER BY created_at DESC LIMIT 1`,
       [userId]
     );
     
@@ -146,7 +147,7 @@ export async function setProductionType(req: Request, res: Response) {
     
     // Get player from token
     const playerResult = await pool.query(
-      'SELECT id FROM players WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()} ORDER BY created_at DESC LIMIT 1`,
       [userId]
     );
     
@@ -188,7 +189,7 @@ export async function depositColonists(req: Request, res: Response) {
     
     // Get player from token
     const playerResult = await pool.query(
-      'SELECT id FROM players WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()} ORDER BY created_at DESC LIMIT 1`,
       [userId]
     );
     
@@ -236,7 +237,7 @@ export async function withdrawResources(req: Request, res: Response) {
     
     // Get player from token
     const playerResult = await pool.query(
-      'SELECT id FROM players WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()} ORDER BY created_at DESC LIMIT 1`,
       [userId]
     );
     
@@ -281,7 +282,7 @@ export async function depositResources(req: Request, res: Response) {
     
     // Get player from token
     const playerResult = await pool.query(
-      'SELECT id FROM players WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()} ORDER BY created_at DESC LIMIT 1`,
       [userId]
     );
     
@@ -325,7 +326,7 @@ export async function depositFighters(req: Request, res: Response) {
     
     // Get player from token
     const playerResult = await pool.query(
-      'SELECT id FROM players WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()} ORDER BY created_at DESC LIMIT 1`,
       [userId]
     );
     
@@ -364,7 +365,7 @@ export async function withdrawFighters(req: Request, res: Response) {
     
     // Get player from token
     const playerResult = await pool.query(
-      'SELECT id FROM players WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()} ORDER BY created_at DESC LIMIT 1`,
       [userId]
     );
     
@@ -406,7 +407,7 @@ export async function upgradeCitadel(req: Request, res: Response) {
     
     // Get player from token
     const playerResult = await pool.query(
-      'SELECT id FROM players WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()} ORDER BY created_at DESC LIMIT 1`,
       [userId]
     );
     
@@ -453,7 +454,7 @@ export async function depositCredits(req: Request, res: Response) {
     
     // Get player from token
     const playerResult = await pool.query(
-      'SELECT id FROM players WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()} ORDER BY created_at DESC LIMIT 1`,
       [userId]
     );
     
@@ -492,7 +493,7 @@ export async function withdrawCredits(req: Request, res: Response) {
     
     // Get player from token
     const playerResult = await pool.query(
-      'SELECT id FROM players WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()} ORDER BY created_at DESC LIMIT 1`,
       [userId]
     );
     

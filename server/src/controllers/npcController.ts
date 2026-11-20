@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { pool } from '../db/connection';
 import { hailNpc } from '../services/npcService';
+import { activePlayerSql } from '../utils/activePlayer';
 
 /**
  * POST /api/npcs/hail
@@ -20,7 +21,7 @@ export const hail = async (req: Request, res: Response) => {
     }
 
     const playerResult = await pool.query(
-      'SELECT id FROM players WHERE user_id = $1',
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
     if (playerResult.rows.length === 0) {

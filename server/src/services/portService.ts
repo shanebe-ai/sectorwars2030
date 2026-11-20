@@ -1,6 +1,7 @@
 import { pool } from '../db/connection';
 import { emitSectorEvent } from '../index';
 import { getStrikeForSector, getIncursionPenalty, getTradeBoomBonus, applyTradeBoom, recordContractDelivery } from './dynamicEventService';
+import { activePlayerSql } from '../utils/activePlayer';
 
 // Base prices for commodities (mid-point prices)
 export const BASE_PRICES = {
@@ -72,7 +73,7 @@ export const getPortInfo = async (
 ): Promise<PortInfo | null> => {
   // Get player's universe
   const playerResult = await pool.query(
-    'SELECT universe_id FROM players WHERE user_id = $1',
+    `SELECT universe_id FROM players WHERE user_id = $1${activePlayerSql()}`,
     [userId]
   );
 
@@ -249,7 +250,7 @@ export const executeTrade = async (
         s.port_equipment_pct
       FROM players p
       JOIN sectors s ON s.universe_id = p.universe_id AND s.sector_number = p.current_sector
-      WHERE p.user_id = $1`,
+      WHERE p.user_id = $1${activePlayerSql('p')}`,
       [userId]
     );
 
@@ -548,7 +549,7 @@ export const buyColonists = async (
         s.port_type
       FROM players p
       JOIN sectors s ON s.universe_id = p.universe_id AND s.sector_number = p.current_sector
-      WHERE p.user_id = $1`,
+      WHERE p.user_id = $1${activePlayerSql('p')}`,
       [userId]
     );
 
@@ -678,7 +679,7 @@ export const getColonistInfo = async (
       s.port_type
     FROM players p
     JOIN sectors s ON s.universe_id = p.universe_id AND s.sector_number = p.current_sector
-    WHERE p.user_id = $1`,
+    WHERE p.user_id = $1${activePlayerSql('p')}`,
     [userId]
   );
 
@@ -765,7 +766,7 @@ export interface MarketEntry {
  */
 export const getMarketBoard = async (userId: number): Promise<MarketEntry[]> => {
   const playerResult = await pool.query(
-    'SELECT universe_id FROM players WHERE user_id = $1',
+    `SELECT universe_id FROM players WHERE user_id = $1${activePlayerSql()}`,
     [userId]
   );
 

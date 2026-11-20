@@ -2,6 +2,7 @@ import { pool, query } from '../db/connection';
 import { emitPlayerEvent, emitUniverseEvent } from '../index';
 import { broadcastTNN } from './broadcastService';
 import { getLiveEvents, getStrikeForSector, getAdjacentSectors } from './dynamicEventService';
+import { activePlayerSql } from '../utils/activePlayer';
 
 // Smuggling: contraband goods, black markets, customs patrols, derelict
 // stashes and customs auctions. Driven by a tick on the same 5 minute
@@ -222,7 +223,7 @@ export const getPlayerStatus = async (userId: number): Promise<any> => {
             cargo_fuel, cargo_organics, cargo_equipment,
             cargo_banned_tech, cargo_restricted_meds, cargo_stolen_artifacts,
             contraband_rep, flagged_until
-     FROM players WHERE user_id = $1`,
+     FROM players WHERE user_id = $1${activePlayerSql()}`,
     [userId]
   );
   if (result.rows.length === 0) throw new Error('Player not found');
@@ -250,7 +251,7 @@ export const getPlayerStatus = async (userId: number): Promise<any> => {
  */
 export const getMarketBoard = async (userId: number): Promise<any[]> => {
   const playerResult = await pool.query(
-    'SELECT universe_id FROM players WHERE user_id = $1',
+    `SELECT universe_id FROM players WHERE user_id = $1${activePlayerSql()}`,
     [userId]
   );
   if (playerResult.rows.length === 0) throw new Error('Player not found');
@@ -337,7 +338,7 @@ export const tradeContraband = async (
     await client.query('BEGIN');
 
     const playerResult = await client.query(
-      `SELECT * FROM players WHERE user_id = $1 FOR UPDATE`,
+      `SELECT * FROM players WHERE user_id = $1${activePlayerSql()} FOR UPDATE`,
       [userId]
     );
     if (playerResult.rows.length === 0) throw new Error('Player not found');
@@ -453,7 +454,7 @@ export const buyAuction = async (
     await client.query('BEGIN');
 
     const playerResult = await client.query(
-      `SELECT * FROM players WHERE user_id = $1 FOR UPDATE`,
+      `SELECT * FROM players WHERE user_id = $1${activePlayerSql()} FOR UPDATE`,
       [userId]
     );
     if (playerResult.rows.length === 0) throw new Error('Player not found');
@@ -781,7 +782,7 @@ export const scanPlayer = async (
  */
 export const getSectorStashInfo = async (userId: number): Promise<any> => {
   const playerResult = await pool.query(
-    'SELECT id, universe_id, current_sector FROM players WHERE user_id = $1',
+    `SELECT id, universe_id, current_sector FROM players WHERE user_id = $1${activePlayerSql()}`,
     [userId]
   );
   if (playerResult.rows.length === 0) throw new Error('Player not found');

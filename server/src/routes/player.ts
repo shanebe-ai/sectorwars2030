@@ -5,6 +5,7 @@ import {
   getPlayer,
   checkPlayerInUniverse,
   searchPlayers,
+  selectPlayer,
 } from '../controllers/playerController';
 import { authenticateToken } from '../middleware/auth';
 
@@ -24,6 +25,9 @@ router.get('/search', searchPlayers);
 
 // GET /api/players/check/:universeId - Check if user has player in universe
 router.get('/check/:universeId', checkPlayerInUniverse);
+
+// POST /api/players/:id/select - Switch the active player (universe picker)
+router.post('/:id/select', selectPlayer);
 
 // GET /api/players/:id - Get specific player details
 router.get('/:id', getPlayer);

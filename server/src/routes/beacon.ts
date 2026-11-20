@@ -11,6 +11,7 @@ import {
   getBeaconCapacity,
   BEACON_PRICE
 } from '../services/beaconService';
+import { activePlayerSql } from '../utils/activePlayer';
 
 const router = Router();
 
@@ -26,7 +27,7 @@ router.get('/info', async (req: Request, res: Response) => {
     const userId = (req as any).user?.userId;
 
     const playerResult = await pool.query(
-      `SELECT ship_type, ship_beacons FROM players WHERE user_id = $1`,
+      `SELECT ship_type, ship_beacons FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 
@@ -63,7 +64,7 @@ router.post('/purchase', async (req: Request, res: Response) => {
     }
 
     const playerResult = await pool.query(
-      `SELECT id FROM players WHERE user_id = $1`,
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 
@@ -112,7 +113,7 @@ router.post('/launch', async (req: Request, res: Response) => {
     }
 
     const playerResult = await pool.query(
-      `SELECT id FROM players WHERE user_id = $1`,
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 
@@ -153,7 +154,7 @@ router.get('/sector', async (req: Request, res: Response) => {
     const userId = (req as any).user?.userId;
 
     const playerResult = await pool.query(
-      `SELECT universe_id, current_sector FROM players WHERE user_id = $1`,
+      `SELECT universe_id, current_sector FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 
@@ -188,7 +189,7 @@ router.get('/mine', async (req: Request, res: Response) => {
     const userId = (req as any).user?.userId;
 
     const playerResult = await pool.query(
-      `SELECT id FROM players WHERE user_id = $1`,
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 
@@ -228,7 +229,7 @@ router.post('/attack', async (req: Request, res: Response) => {
     }
 
     const playerResult = await pool.query(
-      `SELECT id FROM players WHERE user_id = $1`,
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 
@@ -291,7 +292,7 @@ router.post('/retrieve', async (req: Request, res: Response) => {
     }
 
     const playerResult = await pool.query(
-      `SELECT id FROM players WHERE user_id = $1`,
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 

@@ -15,6 +15,7 @@ import {
   transferOwnership,
   disbandCorporation
 } from '../services/corporationService';
+import { activePlayerSql } from '../utils/activePlayer';
 
 /**
  * GET /api/corporations/:corpId
@@ -52,7 +53,7 @@ export async function leave(req: Request, res: Response): Promise<void> {
 
     // Get player ID
     const playerResult = await pool.query(`
-      SELECT id FROM players WHERE user_id = $1
+      SELECT id FROM players WHERE user_id = $1${activePlayerSql()}
     `, [userId]);
 
     if (playerResult.rows.length === 0) {
@@ -91,7 +92,7 @@ export async function invite(req: Request, res: Response): Promise<void> {
 
     // Get player ID
     const playerResult = await pool.query(`
-      SELECT id FROM players WHERE user_id = $1
+      SELECT id FROM players WHERE user_id = $1${activePlayerSql()}
     `, [userId]);
 
     if (playerResult.rows.length === 0) {
@@ -130,7 +131,7 @@ export async function acceptInvite(req: Request, res: Response): Promise<void> {
 
     // Get player ID
     const playerResult = await pool.query(`
-      SELECT id FROM players WHERE user_id = $1
+      SELECT id FROM players WHERE user_id = $1${activePlayerSql()}
     `, [userId]);
 
     if (playerResult.rows.length === 0) {
@@ -169,7 +170,7 @@ export async function kick(req: Request, res: Response): Promise<void> {
 
     // Get player ID
     const playerResult = await pool.query(`
-      SELECT id FROM players WHERE user_id = $1
+      SELECT id FROM players WHERE user_id = $1${activePlayerSql()}
     `, [userId]);
 
     if (playerResult.rows.length === 0) {
@@ -213,7 +214,7 @@ export async function changeRankEndpoint(req: Request, res: Response): Promise<v
 
     // Get player ID
     const playerResult = await pool.query(`
-      SELECT id FROM players WHERE user_id = $1
+      SELECT id FROM players WHERE user_id = $1${activePlayerSql()}
     `, [userId]);
 
     if (playerResult.rows.length === 0) {
@@ -252,7 +253,7 @@ export async function transferOwnershipEndpoint(req: Request, res: Response): Pr
 
     // Get player ID
     const playerResult = await pool.query(`
-      SELECT id FROM players WHERE user_id = $1
+      SELECT id FROM players WHERE user_id = $1${activePlayerSql()}
     `, [userId]);
 
     if (playerResult.rows.length === 0) {
@@ -285,7 +286,7 @@ export async function disband(req: Request, res: Response): Promise<void> {
 
     // Get player ID
     const playerResult = await pool.query(`
-      SELECT id FROM players WHERE user_id = $1
+      SELECT id FROM players WHERE user_id = $1${activePlayerSql()}
     `, [userId]);
 
     if (playerResult.rows.length === 0) {

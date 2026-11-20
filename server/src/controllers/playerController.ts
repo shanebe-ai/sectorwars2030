@@ -9,6 +9,7 @@ import {
   getPlayerByIdWithTurns,
 } from '../services/playerService';
 import { query } from '../db/connection';
+import { generateToken } from '../utils/jwt';
 
 /**
  * POST /api/players
@@ -55,8 +56,14 @@ export const initializePlayer = async (req: Request, res: Response) => {
       corpName: corpName.trim(),
     });
 
+    // A new player is usually created to join a new universe (a new
+    // season), so the client switches to it straight away. The fresh
+    // token carries the new player as the active one.
+    const token = generateToken({ ...req.user, playerId: player.id });
+
     res.status(201).json({
       message: 'Player created successfully',
+      token,
       player: {
         id: player.id,
         corpName: player.corp_name,
@@ -102,7 +109,16 @@ export const getUserPlayers = async (req: Request, res: Response) => {
 
     const players = await getPlayersByUser(req.user.userId);
 
+    // The active player is the one in the token, or the newest player
+    // for tokens issued before the universe picker (players come back
+    // newest first). See utils/activePlayer.ts.
+    const tokenPlayer = req.user.playerId
+      ? players.find((p) => p.id === req.user!.playerId)
+      : undefined;
+    const activePlayerId = tokenPlayer ? tokenPlayer.id : players[0]?.id ?? null;
+
     const response = {
+      activePlayerId,
       players: players.map((p) => ({
         id: p.id,
         corpId: p.corp_id,
@@ -124,6 +140,8 @@ export const getUserPlayers = async (req: Request, res: Response) => {
         colonists: p.colonists || 0,
         isAlive: p.is_alive,
         createdAt: p.created_at,
+        universeSeason: (p as any).season_name ?? null,
+        universeSeasonEndsAt: (p as any).season_ends_at ?? null,
       })),
       count: players.length,
     };
@@ -133,6 +151,49 @@ export const getUserPlayers = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get user players error:', error);
     res.status(500).json({ error: 'Failed to fetch players' });
+  }
+};
+
+/**
+ * POST /api/players/:id/select
+ * Make one of the user's players the active one. Returns a fresh token
+ * that carries the player id; every later request acts as that player.
+ */
+export const selectPlayer = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const playerId = parseInt(req.params.id);
+    if (isNaN(playerId)) {
+      return res.status(400).json({ error: 'Invalid player ID' });
+    }
+
+    const player = await getPlayerById(playerId);
+    if (!player || player.user_id !== req.user.userId) {
+      // Same answer for missing and not yours, so ids cannot be probed.
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    const token = generateToken({ ...req.user, playerId: player.id });
+    res.json({
+      message: 'Player selected',
+      token,
+      player: {
+        id: player.id,
+        corpName: player.corp_name,
+        universeId: player.universe_id,
+        currentSector: player.current_sector,
+        credits: player.credits,
+        turnsRemaining: player.turns_remaining,
+        shipType: player.ship_type,
+        isAlive: player.is_alive,
+      },
+    });
+  } catch (error) {
+    console.error('Select player error:', error);
+    res.status(500).json({ error: 'Failed to select player' });
   }
 };
 

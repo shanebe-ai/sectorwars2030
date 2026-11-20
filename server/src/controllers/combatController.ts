@@ -7,6 +7,7 @@ import {
 } from '../services/combatService';
 import { pool } from '../db/connection';
 import { notifyCombatResult } from '../services/broadcastService';
+import { activePlayerSql } from '../utils/activePlayer';
 
 /**
  * Attack another player in the same sector
@@ -27,7 +28,7 @@ export const attackPlayer = async (req: Request, res: Response) => {
 
     // Get attacker's player ID
     const playerResult = await pool.query(
-      'SELECT id, universe_id FROM players WHERE user_id = $1',
+      `SELECT id, universe_id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 
@@ -139,7 +140,7 @@ export const getTargets = async (req: Request, res: Response) => {
 
     // Get player ID
     const playerResult = await pool.query(
-      'SELECT id FROM players WHERE user_id = $1',
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 
@@ -172,7 +173,7 @@ export const getHistory = async (req: Request, res: Response) => {
 
     // Get player ID
     const playerResult = await pool.query(
-      'SELECT id FROM players WHERE user_id = $1',
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 
@@ -232,7 +233,7 @@ export const checkCanAttack = async (req: Request, res: Response) => {
 
     // Get player ID
     const playerResult = await pool.query(
-      'SELECT id FROM players WHERE user_id = $1',
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 

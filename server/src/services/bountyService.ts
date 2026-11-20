@@ -1,5 +1,6 @@
 import { pool } from '../db/connection';
 import { broadcastTNN } from './broadcastService';
+import { activePlayerSql } from '../utils/activePlayer';
 
 export const MIN_BOUNTY_AMOUNT = 5000;
 export const BOUNTY_EXPIRY_DAYS = 7;
@@ -48,7 +49,7 @@ export const placeBounty = async (
     // Get placer player and verify credits
     const placerResult = await client.query(
       `SELECT p.id, p.universe_id, p.credits, p.corp_name
-       FROM players p WHERE p.user_id = $1`,
+       FROM players p WHERE p.user_id = $1${activePlayerSql('p')}`,
       [placerUserId]
     );
     if (placerResult.rows.length === 0) throw new Error('Player not found');
@@ -119,7 +120,7 @@ export const placeBounty = async (
  */
 export const getBountyBoard = async (userId: number): Promise<BountyBoardEntry[]> => {
   const playerResult = await pool.query(
-    'SELECT id, universe_id FROM players WHERE user_id = $1',
+    `SELECT id, universe_id FROM players WHERE user_id = $1${activePlayerSql()}`,
     [userId]
   );
   if (playerResult.rows.length === 0) throw new Error('Player not found');
@@ -302,7 +303,7 @@ export const expireBounties = async (): Promise<number> => {
  */
 export const getHunterLeaderboard = async (userId: number): Promise<any[]> => {
   const playerResult = await pool.query(
-    'SELECT universe_id FROM players WHERE user_id = $1',
+    `SELECT universe_id FROM players WHERE user_id = $1${activePlayerSql()}`,
     [userId]
   );
   if (playerResult.rows.length === 0) throw new Error('Player not found');

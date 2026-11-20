@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken, JwtPayload } from '../utils/jwt';
+import { runWithActivePlayer } from '../utils/activePlayer';
 
 // Extend Express Request to include user
 declare global {
@@ -25,7 +26,9 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
   }
 
   req.user = user;
-  next();
+  // Everything the request does from here on sees the active player,
+  // so user_id lookups can append activePlayerSql().
+  runWithActivePlayer({ userId: user.userId, playerId: user.playerId ?? null }, () => next());
 };
 
 export const requireAdmin = (req: Request, res: Response, next: NextFunction) => {

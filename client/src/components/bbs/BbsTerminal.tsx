@@ -10,6 +10,7 @@ interface BbsTerminalProps {
 token: string;
   onPlayerUpdate: (player: any) => void;
   onLogout: () => void;
+  onSwitchUniverse?: () => void;
 }
 
 /**
@@ -37,7 +38,7 @@ const REGION_INFO: Record<string, string> = {
   'Frontier': 'Uncharted space - proceed with caution',
 };
 
-export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }: BbsTerminalProps) {
+export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout, onSwitchUniverse }: BbsTerminalProps) {
   const [lines, setLines] = useState<string[]>([]);
   const [input, setInput] = useState('');
   const [sector, setSector] = useState<any>(null);
@@ -227,6 +228,7 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
       ' \x1b[32mflee <n>\x1b[0m - Run from a pirate hail to sector n',
       ' \x1b[32mfight\x1b[0m - Fight the pirate in this sector',
       ' \x1b[32mseason\x1b[0m - Current season and Hall of Fame',
+      ' \x1b[32mu\x1b[0m, \x1b[32muniverse\x1b[0m - Switch ship or join another universe',
       ' \x1b[32mq\x1b[0m - Quit to login',
       '',
     ]);
@@ -549,6 +551,16 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
         break;
       case 'flee':
         await handleFlee(parts[1] || '');
+        break;
+      case 'u':
+      case 'universe':
+      case 'universes':
+        if (onSwitchUniverse) {
+          addLines(['\x1b[33mReturning to your ships...\x1b[0m']);
+          setTimeout(onSwitchUniverse, 300);
+        } else {
+          addLines(['\x1b[31mUniverse switching is not available here.\x1b[0m', '']);
+        }
         break;
       case 'q':
       case 'quit':

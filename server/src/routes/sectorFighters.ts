@@ -10,6 +10,7 @@ import {
   retreatFromSector,
   getPlayerTotalDeployed
 } from '../services/sectorFighterService';
+import { activePlayerSql } from '../utils/activePlayer';
 
 const router = Router();
 
@@ -24,7 +25,7 @@ router.get('/', async (req: Request, res: Response) => {
     const userId = (req as any).user?.userId;
 
     const playerResult = await pool.query(
-      `SELECT id, universe_id, current_sector FROM players WHERE user_id = $1`,
+      `SELECT id, universe_id, current_sector FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 
@@ -59,7 +60,7 @@ router.get('/my-deployments', async (req: Request, res: Response) => {
     const userId = (req as any).user?.userId;
 
     const playerResult = await pool.query(
-      `SELECT id FROM players WHERE user_id = $1`,
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 
@@ -106,7 +107,7 @@ router.post('/deploy', async (req: Request, res: Response) => {
     }
 
     const playerResult = await pool.query(
-      `SELECT id FROM players WHERE user_id = $1`,
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 
@@ -147,7 +148,7 @@ router.post('/retrieve', async (req: Request, res: Response) => {
     }
 
     const playerResult = await pool.query(
-      `SELECT id FROM players WHERE user_id = $1`,
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 
@@ -188,7 +189,7 @@ router.post('/attack', async (req: Request, res: Response) => {
     }
 
     const playerResult = await pool.query(
-      `SELECT id FROM players WHERE user_id = $1`,
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 
@@ -241,7 +242,7 @@ router.post('/retreat', async (req: Request, res: Response) => {
     }
 
     const playerResult = await pool.query(
-      `SELECT id FROM players WHERE user_id = $1`,
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 

@@ -8,6 +8,7 @@ import { getAlienShipsInSector, getAlienPlanetInSector, unlockAlienComms } from 
 import { getNpcShipsInSector } from '../services/npcService';
 import { getEventsForSector, getStormForMove, rollStormEffect, getContractProgress } from '../services/dynamicEventService';
 import { presentHailForPlayer, getFlotillaSectorDisplay, getLiveRaiderSectors, resolveRaidOnEntry } from '../services/flotillaService';
+import { activePlayerSql } from '../utils/activePlayer';
 
 /**
  * Get sector details including warps
@@ -23,7 +24,7 @@ export const getSectorDetails = async (req: Request, res: Response) => {
 
     // Get the player's universe and current sector
     const playerResult = await pool.query(
-      'SELECT id, universe_id, current_sector FROM players WHERE user_id = $1',
+      `SELECT id, universe_id, current_sector FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 
@@ -492,7 +493,7 @@ export const scanSector = async (req: Request, res: Response) => {
     // Get player data
     const playerResult = await pool.query(
       `SELECT id, universe_id, current_sector, turns_remaining
-       FROM players WHERE user_id = $1 FOR UPDATE`,
+       FROM players WHERE user_id = $1${activePlayerSql()} FOR UPDATE`,
       [userId]
     );
 
@@ -783,7 +784,7 @@ export const moveToSector = async (req: Request, res: Response) => {
     let stormSalvageChance = 0.25;
     try {
       const preMove = await pool.query(
-        'SELECT id, universe_id, current_sector, turns_remaining FROM players WHERE user_id = $1',
+        `SELECT id, universe_id, current_sector, turns_remaining FROM players WHERE user_id = $1${activePlayerSql()}`,
         [userId]
       );
       if (preMove.rows.length > 0 && preMove.rows[0].turns_remaining > 0) {
@@ -830,7 +831,7 @@ export const moveToSector = async (req: Request, res: Response) => {
           s.id as current_sector_id
         FROM players p
         JOIN sectors s ON s.universe_id = p.universe_id AND s.sector_number = p.current_sector
-        WHERE p.user_id = $1`,
+        WHERE p.user_id = $1${activePlayerSql('p')}`,
         [userId]
       );
 

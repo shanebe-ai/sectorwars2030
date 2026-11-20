@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { pool } from '../db/connection';
 import * as bankingService from '../services/bankingService';
+import { activePlayerSql } from '../utils/activePlayer';
 
 /**
  * Get player's bank accounts (personal + corporate)
@@ -15,7 +16,7 @@ export async function getBankAccounts(req: Request, res: Response) {
 
     // Get player ID from user ID
     const playerResult = await pool.query(
-      'SELECT id FROM players WHERE user_id = $1',
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 
@@ -46,7 +47,7 @@ export async function depositCredits(req: Request, res: Response) {
 
     // Get player ID from user ID
     const playerResult = await pool.query(
-      'SELECT id FROM players WHERE user_id = $1',
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 
@@ -107,7 +108,7 @@ export async function withdrawCredits(req: Request, res: Response) {
 
     // Get player ID from user ID
     const playerResult = await pool.query(
-      'SELECT id FROM players WHERE user_id = $1',
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 
@@ -168,7 +169,7 @@ export async function transferCredits(req: Request, res: Response) {
 
     // Get player ID from user ID
     const playerResult = await pool.query(
-      'SELECT id FROM players WHERE user_id = $1',
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 
@@ -209,7 +210,7 @@ export async function getTransactionHistory(req: Request, res: Response) {
 
     // Get player ID from user ID
     const playerResult = await pool.query(
-      'SELECT id FROM players WHERE user_id = $1',
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 
@@ -256,7 +257,7 @@ export async function searchPlayers(req: Request, res: Response) {
 
     // Get player with universe_id from user ID
     const playerResult = await pool.query(
-      'SELECT id, universe_id FROM players WHERE user_id = $1',
+      `SELECT id, universe_id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 
