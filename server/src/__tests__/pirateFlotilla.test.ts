@@ -951,6 +951,41 @@ describe('Pirate Flotilla dynamic event', () => {
       expect(tnn[0].body).not.toMatch(/[–—]/);
     });
 
+    it('Pirate Season pays 1.5 times the TerraCorp bonus and says so', async () => {
+      await testPool.query(
+        `INSERT INTO seasons (universe_id, season_number, name, status, ends_at, theme, scoring)
+         VALUES ($1, 99, 'Season 99: Pirate Season', 'active', NOW() + INTERVAL '30 days', 'pirate_season', 'gain')`,
+        [testUniverseId]
+      );
+      try {
+        const eventId = await insertFlotillaEvent('active', [25, 26, 27]);
+        const pirate = await insertPirate(eventId, TOLL_SECTOR, {
+          name: 'Widow Nine', fighters: 5, shields: 0, credits: 4000,
+        });
+        await insertPirate(eventId, 26, { name: 'Second Hull' });
+        await setPlayer({ ship_fighters: 1000, ship_shields: 0 });
+        await setCargo({});
+
+        const result = await attackPirate(testPlayerId, { pirateShipId: pirate.id });
+        expect(result.victory).toBe(true);
+        expect(result.prize).toBe(4000);
+        expect(result.bonus).toBe(8250); // 5500 x 1.5
+
+        const hunter = await testPool.query(`SELECT * FROM bounty_hunters WHERE player_id = $1`, [testPlayerId]);
+        expect(Number(hunter.rows[0].bounty_credits_earned)).toBe(12250);
+
+        const inbox = await testPool.query(
+          `SELECT body FROM messages WHERE recipient_id = $1 AND sender_name = 'TerraCorp Bounty Office'`,
+          [testPlayerId]
+        );
+        expect(inbox.rows[0].body).toContain('Pirate Season bonus applied');
+        const tnn = await broadcasts('Pirate Down');
+        expect(tnn[0].body).toContain('Pirate Season bonus applied');
+      } finally {
+        await testPool.query(`DELETE FROM seasons WHERE universe_id = $1`, [testUniverseId]);
+      }
+    });
+
     it('salvage that does not fit is lost, equipment still first', async () => {
       const eventId = await insertFlotillaEvent('active', [25, 26, 27]);
       const pirate = await insertPirate(eventId, TOLL_SECTOR, {

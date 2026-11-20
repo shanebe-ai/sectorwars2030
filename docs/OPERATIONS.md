@@ -58,8 +58,8 @@ the season features stay hidden and nothing errors.
 * At the end the top 100 by net worth (same formula as the leaderboard) are
   copied into the Hall of Fame, and TNN announces the podium.
 * Ending a season never resets or removes ships, cargo, credits or planets.
-  For a clean slate next season, create a new universe and start Season 1
-  there; the old universe and its Hall of Fame stay.
+  The universe is one persistent world; each season is a chapter inside it
+  (see Season chapters below).
 * Players see the season and countdown in RANKINGS (plus a Hall of Fame tab)
   and with the `season` command in BBS mode.
 
@@ -67,6 +67,27 @@ API:
 
 * `GET /api/seasons/universe/:universeId` current season, history, Hall of Fame
 * `GET /api/seasons/:seasonId/standings` archived final standings
-* `POST /api/seasons/admin/start` `{ universeId, durationDays, name? }` (admin)
+* `GET /api/seasons/themes` season themes an admin can pick
+* `POST /api/seasons/admin/start` `{ universeId, durationDays, name?, theme? }` (admin)
 * `POST /api/seasons/admin/:id/extend` `{ days }` (admin)
 * `POST /api/seasons/admin/:id/end` (admin)
+
+## Season chapters and themes (migration 041)
+
+Apply once with psql: `server/src/db/migrations/041_season_chapters.sql`
+(additive and safe to re run). Seasons are themed chapters of one long
+lasting world. Nothing resets.
+
+* Every season started after 041 scores on net worth gained during the
+  season. A snapshot of every player is taken at the start
+  (`season_baselines`); late joiners are snapshotted when they arrive.
+  Season 1 keeps its original net worth scoring.
+* Themes live in `server/src/services/seasonThemes.ts`. Pirate Season: pirate
+  flotillas 30% and salvage fields 20% of seeded events (others 10% each),
+  1.5 times the TerraCorp bonus on pirate kills, and a Top Bounty Hunter
+  title (most bounty credits earned during the season, ties on bounties
+  claimed). Seeding rate, the 2 event cap and TerraSpace safety are unchanged.
+* Admin: pick the theme in the universe card before START SEASON.
+* Players: RANKINGS has a This Season tab (gains plus the title race) and
+  the Hall of Fame shows titles; the BBS `season` command shows both.
+* Titles are archived in `season_titles` and announced by TNN at the end.

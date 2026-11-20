@@ -394,10 +394,30 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout, o
         const msLeft = new Date(data.current.endsAt).getTime() - new Date(data.serverTime).getTime();
         const hoursLeft = Math.max(0, Math.floor(msLeft / 3600000));
         const left = hoursLeft >= 48 ? `${Math.floor(hoursLeft / 24)} days` : `${hoursLeft} hours`;
+        const gainScored = data.current.scoring === 'gain';
         addLines([
           `  \x1b[32m${data.current.name}\x1b[0m ends in \x1b[33m${left}\x1b[0m`,
-          '  Final net worth ranks go to the Hall of Fame. Nothing is reset.',
+          gainScored
+            ? '  Net worth gained this season goes to the Hall of Fame. Nothing is reset.'
+            : '  Final net worth ranks go to the Hall of Fame. Nothing is reset.',
         ]);
+        const gains = (data.live?.gains || []).slice(0, 5);
+        if (gains.length > 0) {
+          addLines(['', '\x1b[33mTHIS SEASON (net worth gained):\x1b[0m']);
+          gains.forEach((g: any, i: number) => {
+            const sign = g.gain >= 0 ? '+' : '-';
+            addLines([`  ${i + 1}. \x1b[32m${g.corpName}\x1b[0m ${sign}${Math.abs(g.gain).toLocaleString()} cr`]);
+          });
+        }
+        (data.live?.titleRaces || []).forEach((race: any) => {
+          addLines(['', `\x1b[33m${race.titleLabel.toUpperCase()} RACE:\x1b[0m`]);
+          if (race.leaders.length === 0) {
+            addLines(['  No bounties earned yet this season.']);
+          }
+          race.leaders.slice(0, 5).forEach((l: any, i: number) => {
+            addLines([`  ${i + 1}. \x1b[32m${l.corpName}\x1b[0m ${Number(l.value).toLocaleString()} cr`]);
+          });
+        });
       }
       const hall = (data.hallOfFame || []).slice(0, 3);
       if (hall.length > 0) {
@@ -405,6 +425,9 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout, o
         hall.forEach((h: any) => {
           const podium = h.standings.map((s: any) => `#${s.rank} ${s.corpName}`).join(', ') || 'No ranked traders';
           addLines([`  \x1b[32m${h.season.name}\x1b[0m: ${podium}`]);
+          (h.titles || []).forEach((t: any) => {
+            addLines([`    \x1b[33m${t.titleLabel}:\x1b[0m ${t.corpName} (${Number(t.value).toLocaleString()} cr)`]);
+          });
         });
       }
       addLines(['']);

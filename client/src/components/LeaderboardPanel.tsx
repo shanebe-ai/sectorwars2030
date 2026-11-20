@@ -9,6 +9,26 @@ interface SeasonInfo {
   startsAt: string;
   endsAt: string;
   endedAt: string | null;
+  theme?: string | null;
+  themeName?: string | null;
+  scoring?: 'networth' | 'gain';
+}
+
+interface SeasonTitle {
+  titleKey: string;
+  titleLabel: string;
+  corpName: string;
+  username: string | null;
+  value: number;
+}
+
+interface LiveSeason {
+  gains: Array<{ playerId: number; corpName: string; username: string; networth: number; gain: number }>;
+  titleRaces: Array<{
+    titleKey: string;
+    titleLabel: string;
+    leaders: Array<{ playerId: number; corpName: string; username: string; value: number }>;
+  }>;
 }
 
 interface SeasonStanding {
@@ -16,12 +36,14 @@ interface SeasonStanding {
   username: string | null;
   corpName: string;
   networth: number;
+  gain?: number | null;
 }
 
 interface SeasonsResponse {
   available: boolean;
   current: SeasonInfo | null;
-  hallOfFame: Array<{ season: SeasonInfo; standings: SeasonStanding[] }>;
+  hallOfFame: Array<{ season: SeasonInfo; standings: SeasonStanding[]; titles?: SeasonTitle[] }>;
+  live?: LiveSeason;
   serverTime: string;
 }
 
@@ -44,7 +66,7 @@ interface LeaderboardPanelProps {
 }
 
 export default function LeaderboardPanel({ universeId, token, onClose }: LeaderboardPanelProps) {
-  const [category, setCategory] = useState<'networth' | 'experience' | 'kills' | 'planets' | 'hall'>('networth');
+  const [category, setCategory] = useState<'networth' | 'experience' | 'kills' | 'planets' | 'hall' | 'season'>('networth');
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -68,8 +90,12 @@ export default function LeaderboardPanel({ universeId, token, onClose }: Leaderb
     loadLeaderboard();
   }, [category]);
 
+  // Hall of Fame and This Season come from the seasons call, not the
+  // leaderboard endpoint.
+  const isSeasonTab = category === 'hall' || category === 'season';
+
   const loadLeaderboard = async () => {
-    if (category === 'hall') {
+    if (category === 'hall' || category === 'season') {
       setLoading(false);
       setError('');
       return;
@@ -189,6 +215,24 @@ export default function LeaderboardPanel({ universeId, token, onClose }: Leaderb
                 {cat === 'planets' && '🌍 Planets'}
               </button>
             ))}
+            {seasons?.current?.scoring === 'gain' && (
+              <button
+                onClick={() => setCategory('season')}
+                data-testid="this-season-tab"
+                style={{
+                  padding: '8px 16px',
+                  background: category === 'season' ? 'rgba(255, 215, 0, 0.15)' : 'transparent',
+                  border: `1px solid ${category === 'season' ? '#FFD700' : 'rgba(255, 215, 0, 0.4)'}`,
+                  color: category === 'season' ? '#FFD700' : 'rgba(255, 215, 0, 0.7)',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  textTransform: 'uppercase',
+                  fontWeight: category === 'season' ? 'bold' : 'normal'
+                }}
+              >
+                ☠ This Season
+              </button>
+            )}
             {seasons && (
               <button
                 onClick={() => setCategory('hall')}
@@ -215,7 +259,7 @@ export default function LeaderboardPanel({ universeId, token, onClose }: Leaderb
               color: seasons.current ? 'var(--neon-yellow)' : 'var(--text-secondary)'
             }}>
               {seasons.current
-                ? `◆ ${seasons.current.name.toUpperCase()} · ENDS IN ${formatTimeLeft(new Date(seasons.current.endsAt).getTime() - (Date.now() + clockOffset)).toUpperCase()} · FINAL NET WORTH RANKS GO TO THE HALL OF FAME`
+                ? `◆ ${seasons.current.name.toUpperCase()} · ENDS IN ${formatTimeLeft(new Date(seasons.current.endsAt).getTime() - (Date.now() + clockOffset)).toUpperCase()} · ${seasons.current.scoring === 'gain' ? 'NET WORTH GAINED THIS SEASON' : 'FINAL NET WORTH RANKS'} GO TO THE HALL OF FAME`
                 : '◇ NO SEASON RUNNING'}
             </div>
           )}
@@ -230,7 +274,7 @@ export default function LeaderboardPanel({ universeId, token, onClose }: Leaderb
                   No finished seasons yet. Champions appear here when a season ends.
                 </div>
               )}
-              {seasons.hallOfFame.map(({ season, standings }) => (
+              {seasons.hallOfFame.map(({ season, standings, titles }) => (
                 <div key={season.id} style={{
                   border: '1px solid rgba(255, 215, 0, 0.3)',
                   padding: '12px 16px',
@@ -253,8 +297,17 @@ export default function LeaderboardPanel({ universeId, token, onClose }: Leaderb
                       <span style={{ color: 'var(--neon-purple)', flex: 1 }}>{s.corpName}</span>
                       <span style={{ color: 'var(--neon-green)' }}>{s.username}</span>
                       <span style={{ color: 'var(--neon-yellow)', minWidth: '70px', textAlign: 'right' }}>
-                        ₡{formatNumber(Number(s.networth))}
+                        {s.gain !== null && s.gain !== undefined
+                          ? `+₡${formatNumber(Number(s.gain))}`
+                          : `₡${formatNumber(Number(s.networth))}`}
                       </span>
+                    </div>
+                  ))}
+                  {(titles || []).map((t) => (
+                    <div key={t.titleKey} data-testid="season-title" style={{ display: 'flex', gap: '12px', fontSize: '13px', padding: '6px 0 0', color: '#FFD700' }}>
+                      <span style={{ width: '28px' }}>☠</span>
+                      <span style={{ flex: 1, fontWeight: 'bold' }}>{t.titleLabel.toUpperCase()}: {t.corpName}</span>
+                      <span style={{ minWidth: '70px', textAlign: 'right' }}>₡{formatNumber(Number(t.value))}</span>
                     </div>
                   ))}
                 </div>
@@ -262,25 +315,66 @@ export default function LeaderboardPanel({ universeId, token, onClose }: Leaderb
             </div>
           )}
 
-          {category !== 'hall' && loading && (
+          {category === 'season' && seasons?.current && (
+            <div data-testid="this-season">
+              <div style={{ color: '#FFD700', fontWeight: 'bold', marginBottom: '8px' }}>
+                {seasons.current.name.toUpperCase()}: NET WORTH GAINED
+              </div>
+              {(seasons.live?.gains || []).length === 0 && (
+                <div style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>No pilots yet</div>
+              )}
+              {(seasons.live?.gains || []).map((g, i) => (
+                <div key={g.playerId} style={{ display: 'flex', gap: '12px', fontSize: '13px', padding: '3px 0' }}>
+                  <span style={{ color: getRankColor(i + 1), width: '28px' }}>#{i + 1}</span>
+                  <span style={{ color: 'var(--neon-purple)', flex: 1 }}>{g.corpName}</span>
+                  <span style={{ color: 'var(--neon-green)' }}>{g.username}</span>
+                  <span style={{ color: g.gain >= 0 ? 'var(--neon-yellow)' : 'var(--neon-pink)', minWidth: '70px', textAlign: 'right' }}>
+                    {g.gain >= 0 ? '+' : '-'}₡{formatNumber(Math.abs(g.gain))}
+                  </span>
+                </div>
+              ))}
+              {(seasons.live?.titleRaces || []).map((race) => (
+                <div key={race.titleKey} style={{ marginTop: '18px' }}>
+                  <div style={{ color: '#FFD700', fontWeight: 'bold', marginBottom: '8px' }}>
+                    ☠ {race.titleLabel.toUpperCase()} RACE
+                  </div>
+                  {race.leaders.length === 0 && (
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
+                      No bounties earned yet this season. Hunt a pirate to lead.
+                    </div>
+                  )}
+                  {race.leaders.map((l, i) => (
+                    <div key={l.playerId} style={{ display: 'flex', gap: '12px', fontSize: '13px', padding: '3px 0' }}>
+                      <span style={{ color: getRankColor(i + 1), width: '28px' }}>#{i + 1}</span>
+                      <span style={{ color: 'var(--neon-purple)', flex: 1 }}>{l.corpName}</span>
+                      <span style={{ color: 'var(--neon-green)' }}>{l.username}</span>
+                      <span style={{ color: 'var(--neon-yellow)', minWidth: '70px', textAlign: 'right' }}>₡{formatNumber(l.value)}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!isSeasonTab && loading && (
             <div style={{ textAlign: 'center', color: 'var(--neon-cyan)', padding: '40px' }}>
               Loading...
             </div>
           )}
 
-          {category !== 'hall' && error && (
+          {!isSeasonTab && error && (
             <div style={{ color: 'var(--neon-pink)', padding: '20px', textAlign: 'center' }}>
               {error}
             </div>
           )}
 
-          {category !== 'hall' && !loading && !error && leaderboard.length === 0 && (
+          {!isSeasonTab && !loading && !error && leaderboard.length === 0 && (
             <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '40px' }}>
               No players found
             </div>
           )}
 
-          {category !== 'hall' && !loading && !error && leaderboard.length > 0 && (
+          {!isSeasonTab && !loading && !error && leaderboard.length > 0 && (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{

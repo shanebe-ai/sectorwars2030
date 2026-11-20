@@ -1,5 +1,6 @@
 import { query, getClient } from '../db/connection';
 import { recordEncounter } from './messageService';
+import { snapshotNewPlayer } from './seasonService';
 import { Player } from '../../../shared/types';
 
 interface CreatePlayerParams {
@@ -150,6 +151,10 @@ export const createPlayer = async ({
       await recordEncounter(newPlayer.id, otherPlayer.id, universeId);
       await recordEncounter(otherPlayer.id, newPlayer.id, universeId);
     }
+
+    // Season scoring counts gains from the moment a ship arrives, so a
+    // late joiner's starting credits never count as gain. Never throws.
+    await snapshotNewPlayer(universeId);
 
     // Broadcast TNN welcome message for new player
     try {
