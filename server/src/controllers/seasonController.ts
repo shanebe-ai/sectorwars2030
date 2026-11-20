@@ -9,7 +9,9 @@ import {
   startSeason,
   extendSeason,
   endSeason,
+  getLiveStandings,
 } from '../services/seasonService';
+import { listThemes } from '../services/seasonThemes';
 
 const parseId = (value: any): number | null => {
   const n = parseInt(String(value), 10);
@@ -35,7 +37,10 @@ export const getUniverseSeasons = async (req: Request, res: Response) => {
       listSeasons(universeId),
       getHallOfFame(universeId, 3),
     ]);
-    res.json({ available: true, current, seasons, hallOfFame, serverTime: new Date().toISOString() });
+    // Running chapter scored on gains: the live This Season board and
+    // the race for each title.
+    const live = current ? await getLiveStandings(current, 10) : { gains: [], titleRaces: [] };
+    res.json({ available: true, current, seasons, hallOfFame, live, serverTime: new Date().toISOString() });
   } catch (error: any) {
     console.error('Error getting seasons:', error);
     res.status(500).json({ error: 'Failed to get seasons' });
@@ -65,7 +70,15 @@ export const getSeasonStandings = async (req: Request, res: Response) => {
 };
 
 /**
- * POST /api/seasons/admin/start { universeId, durationDays, name? }
+ * GET /api/seasons/themes
+ * Themes an admin can give a new season.
+ */
+export const getSeasonThemes = async (_req: Request, res: Response) => {
+  res.json({ themes: listThemes() });
+};
+
+/**
+ * POST /api/seasons/admin/start { universeId, durationDays, name?, theme? }
  */
 export const adminStartSeason = async (req: Request, res: Response) => {
   try {
@@ -74,7 +87,7 @@ export const adminStartSeason = async (req: Request, res: Response) => {
     if (!universeId) {
       return res.status(400).json({ error: 'universeId is required' });
     }
-    const result = await startSeason(universeId, durationDays, req.body?.name);
+    const result = await startSeason(universeId, durationDays, req.body?.name, req.body?.theme || null);
     if (!result.success) {
       return res.status(400).json({ error: result.message });
     }

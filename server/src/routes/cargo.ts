@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { authenticateToken } from '../middleware/auth';
 import { pool } from '../db/connection';
 import { getFloatingCargo, pickupCargo, jettisonCargo } from '../services/cargoService';
+import { activePlayerSql } from '../utils/activePlayer';
 
 const router = Router();
 
@@ -22,7 +23,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     // Get player's location
     const playerResult = await pool.query(
-      'SELECT universe_id, current_sector FROM players WHERE user_id = $1',
+      `SELECT universe_id, current_sector FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 
@@ -70,7 +71,7 @@ router.post('/pickup', async (req: Request, res: Response) => {
 
     // Get player ID
     const playerResult = await pool.query(
-      'SELECT id FROM players WHERE user_id = $1',
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 
@@ -131,7 +132,7 @@ router.post('/jettison', async (req: Request, res: Response) => {
 
     // Get player ID
     const playerResult = await pool.query(
-      'SELECT id FROM players WHERE user_id = $1',
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 

@@ -14,6 +14,7 @@ import {
   attackAlienShip,
   attackAlienPlanet
 } from '../services/alienService';
+import { activePlayerSql } from '../utils/activePlayer';
 
 /**
  * GET /api/aliens/comms
@@ -30,7 +31,7 @@ export async function getAlienComms(req: Request, res: Response): Promise<void> 
 
     // Get player's id and universe
     const playerResult = await pool.query(`
-      SELECT id, universe_id FROM players WHERE user_id = $1
+      SELECT id, universe_id FROM players WHERE user_id = $1${activePlayerSql()}
     `, [userId]);
 
     if (playerResult.rows.length === 0) {
@@ -87,7 +88,7 @@ export async function getAlienPresence(req: Request, res: Response): Promise<voi
 
     // Get player's universe
     const playerResult = await pool.query(`
-      SELECT universe_id FROM players WHERE user_id = $1
+      SELECT universe_id FROM players WHERE user_id = $1${activePlayerSql()}
     `, [userId]);
 
     if (playerResult.rows.length === 0) {
@@ -126,7 +127,7 @@ export async function unlockComms(req: Request, res: Response): Promise<void> {
 
     // Get player's id and universe
     const playerResult = await pool.query(`
-      SELECT id, universe_id FROM players WHERE user_id = $1
+      SELECT id, universe_id FROM players WHERE user_id = $1${activePlayerSql()}
     `, [userId]);
 
     if (playerResult.rows.length === 0) {
@@ -171,7 +172,7 @@ export async function attackAlien(req: Request, res: Response): Promise<void> {
 
     // Get player's id
     const playerResult = await pool.query(`
-      SELECT id FROM players WHERE user_id = $1
+      SELECT id FROM players WHERE user_id = $1${activePlayerSql()}
     `, [userId]);
 
     if (playerResult.rows.length === 0) {
@@ -262,7 +263,7 @@ export async function attackPlanet(req: Request, res: Response): Promise<void> {
       `SELECT p.id, p.universe_id, p.current_sector, p.in_escape_pod, p.ship_fighters, p.turns_remaining, s.region
        FROM players p
        JOIN sectors s ON s.universe_id = p.universe_id AND s.sector_number = p.current_sector
-       WHERE p.user_id = $1`,
+       WHERE p.user_id = $1${activePlayerSql('p')}`,
       [userId]
     );
 

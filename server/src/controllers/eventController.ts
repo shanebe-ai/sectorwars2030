@@ -13,10 +13,11 @@ import {
   EVENT_TYPES,
 } from '../services/dynamicEventService';
 import { payToll, fleeEncounter, attackPirate } from '../services/flotillaService';
+import { activePlayerSql } from '../utils/activePlayer';
 
 const getPlayerForUser = async (userId: number) => {
   const result = await pool.query(
-    'SELECT id, universe_id FROM players WHERE user_id = $1',
+    `SELECT id, universe_id FROM players WHERE user_id = $1${activePlayerSql()}`,
     [userId]
   );
   return result.rows[0] || null;

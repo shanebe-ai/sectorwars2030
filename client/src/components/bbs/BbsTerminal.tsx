@@ -10,6 +10,7 @@ interface BbsTerminalProps {
 token: string;
   onPlayerUpdate: (player: any) => void;
   onLogout: () => void;
+  onSwitchUniverse?: () => void;
 }
 
 /**
@@ -37,7 +38,7 @@ const REGION_INFO: Record<string, string> = {
   'Frontier': 'Uncharted space - proceed with caution',
 };
 
-export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }: BbsTerminalProps) {
+export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout, onSwitchUniverse }: BbsTerminalProps) {
   const [lines, setLines] = useState<string[]>([]);
   const [input, setInput] = useState('');
   const [sector, setSector] = useState<any>(null);
@@ -227,6 +228,7 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
       ' \x1b[32mflee <n>\x1b[0m - Run from a pirate hail to sector n',
       ' \x1b[32mfight\x1b[0m - Fight the pirate in this sector',
       ' \x1b[32mseason\x1b[0m - Current season and Hall of Fame',
+      ' \x1b[32mu\x1b[0m, \x1b[32muniverse\x1b[0m - Switch ship or join another universe',
       ' \x1b[32mq\x1b[0m - Quit to login',
       '',
     ]);
@@ -392,10 +394,30 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
         const msLeft = new Date(data.current.endsAt).getTime() - new Date(data.serverTime).getTime();
         const hoursLeft = Math.max(0, Math.floor(msLeft / 3600000));
         const left = hoursLeft >= 48 ? `${Math.floor(hoursLeft / 24)} days` : `${hoursLeft} hours`;
+        const gainScored = data.current.scoring === 'gain';
         addLines([
           `  \x1b[32m${data.current.name}\x1b[0m ends in \x1b[33m${left}\x1b[0m`,
-          '  Final net worth ranks go to the Hall of Fame. Nothing is reset.',
+          gainScored
+            ? '  Net worth gained this season goes to the Hall of Fame. Nothing is reset.'
+            : '  Final net worth ranks go to the Hall of Fame. Nothing is reset.',
         ]);
+        const gains = (data.live?.gains || []).slice(0, 5);
+        if (gains.length > 0) {
+          addLines(['', '\x1b[33mTHIS SEASON (net worth gained):\x1b[0m']);
+          gains.forEach((g: any, i: number) => {
+            const sign = g.gain >= 0 ? '+' : '-';
+            addLines([`  ${i + 1}. \x1b[32m${g.corpName}\x1b[0m ${sign}${Math.abs(g.gain).toLocaleString()} cr`]);
+          });
+        }
+        (data.live?.titleRaces || []).forEach((race: any) => {
+          addLines(['', `\x1b[33m${race.titleLabel.toUpperCase()} RACE:\x1b[0m`]);
+          if (race.leaders.length === 0) {
+            addLines(['  No bounties earned yet this season.']);
+          }
+          race.leaders.slice(0, 5).forEach((l: any, i: number) => {
+            addLines([`  ${i + 1}. \x1b[32m${l.corpName}\x1b[0m ${Number(l.value).toLocaleString()} cr`]);
+          });
+        });
       }
       const hall = (data.hallOfFame || []).slice(0, 3);
       if (hall.length > 0) {
@@ -403,6 +425,9 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
         hall.forEach((h: any) => {
           const podium = h.standings.map((s: any) => `#${s.rank} ${s.corpName}`).join(', ') || 'No ranked traders';
           addLines([`  \x1b[32m${h.season.name}\x1b[0m: ${podium}`]);
+          (h.titles || []).forEach((t: any) => {
+            addLines([`    \x1b[33m${t.titleLabel}:\x1b[0m ${t.corpName} (${Number(t.value).toLocaleString()} cr)`]);
+          });
         });
       }
       addLines(['']);
@@ -549,6 +574,16 @@ export default function BbsTerminal({ player, token, onPlayerUpdate, onLogout }:
         break;
       case 'flee':
         await handleFlee(parts[1] || '');
+        break;
+      case 'u':
+      case 'universe':
+      case 'universes':
+        if (onSwitchUniverse) {
+          addLines(['\x1b[33mReturning to your ships...\x1b[0m']);
+          setTimeout(onSwitchUniverse, 300);
+        } else {
+          addLines(['\x1b[31mUniverse switching is not available here.\x1b[0m', '']);
+        }
         break;
       case 'q':
       case 'quit':

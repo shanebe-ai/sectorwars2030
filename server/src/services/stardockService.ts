@@ -1,5 +1,6 @@
 import { pool } from '../db/connection';
 import { emitPlayerEvent } from '../index';
+import { activePlayerSql } from '../utils/activePlayer';
 
 // Fighter and shield prices (balanced so full loadout = ~2-3 trade runs)
 const FIGHTER_PRICE = 200;   // 200 credits per fighter
@@ -69,7 +70,7 @@ export async function getStardockInfo(userId: number): Promise<StardockInfo | nu
      FROM players p
      JOIN sectors s ON s.universe_id = p.universe_id AND s.sector_number = p.current_sector
      LEFT JOIN ship_types st ON LOWER(st.name) = LOWER(p.ship_type) AND (st.universe_id IS NULL OR st.universe_id = p.universe_id)
-     WHERE p.user_id = $1`,
+     WHERE p.user_id = $1${activePlayerSql('p')}`,
     [userId]
   );
 
@@ -152,7 +153,7 @@ export async function purchaseShip(userId: number, shipName: string): Promise<Pu
       `SELECT p.*, s.port_type
        FROM players p
        JOIN sectors s ON s.universe_id = p.universe_id AND s.sector_number = p.current_sector
-       WHERE p.user_id = $1
+       WHERE p.user_id = $1${activePlayerSql('p')}
        FOR UPDATE`,
       [userId]
     );
@@ -343,7 +344,7 @@ export async function purchaseFighters(userId: number, quantity: number): Promis
       `SELECT p.*, s.port_type
        FROM players p
        JOIN sectors s ON s.universe_id = p.universe_id AND s.sector_number = p.current_sector
-       WHERE p.user_id = $1
+       WHERE p.user_id = $1${activePlayerSql('p')}
        FOR UPDATE OF p`,
       [userId]
     );
@@ -434,7 +435,7 @@ export async function purchaseShields(userId: number, quantity: number): Promise
       `SELECT p.*, s.port_type
        FROM players p
        JOIN sectors s ON s.universe_id = p.universe_id AND s.sector_number = p.current_sector
-       WHERE p.user_id = $1
+       WHERE p.user_id = $1${activePlayerSql('p')}
        FOR UPDATE OF p`,
       [userId]
     );

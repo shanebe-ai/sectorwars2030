@@ -18,9 +18,10 @@ interface Universe {
 interface UniverseSelectorProps {
   onSelect: (universeId: number) => void;
   onCancel: () => void;
+  excludeIds?: number[];
 }
 
-export default function UniverseSelector({ onSelect, onCancel }: UniverseSelectorProps) {
+export default function UniverseSelector({ onSelect, onCancel, excludeIds = [] }: UniverseSelectorProps) {
   const [universes, setUniverses] = useState<Universe[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -35,8 +36,10 @@ export default function UniverseSelector({ onSelect, onCancel }: UniverseSelecto
       const response = await fetch(`${API_URL}/api/universes`);
       const data = await response.json();
 
-      // Only show active universes
-      const activeUniverses = (data.universes || []).filter((u: Universe) => u.is_active);
+      // Only show active universes the user does not already fly in
+      const activeUniverses = (data.universes || []).filter(
+        (u: Universe) => u.is_active && !excludeIds.includes(u.id)
+      );
       setUniverses(activeUniverses);
     } catch (err: any) {
       setError('Failed to load universes');
@@ -70,10 +73,15 @@ export default function UniverseSelector({ onSelect, onCancel }: UniverseSelecto
             <div className="error-message">{error}</div>
           ) : universes.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px', color: 'var(--neon-cyan)' }}>
-              <p>No active universes available.</p>
+              <p>No universes to join right now.</p>
               <p style={{ marginTop: '10px', fontSize: '14px', opacity: 0.7 }}>
-                Contact an administrator to create a universe.
+                {excludeIds.length > 0
+                  ? 'You already fly in every open universe.'
+                  : 'Contact an administrator to create a universe.'}
               </p>
+              <button onClick={onCancel} className="cyberpunk-button" style={{ marginTop: '20px' }}>
+                ◄ BACK
+              </button>
             </div>
           ) : (
             <>

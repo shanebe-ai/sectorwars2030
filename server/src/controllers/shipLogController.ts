@@ -1,11 +1,12 @@
 import { Request, Response } from 'express';
 import * as shipLogService from '../services/shipLogService';
 import { pool } from '../db/connection';
+import { activePlayerSql } from '../utils/activePlayer';
 
 // Helper to get player ID from user ID
 async function getPlayerIdFromUser(userId: number): Promise<number | null> {
   const result = await pool.query(
-    'SELECT id FROM players WHERE user_id = $1',
+    `SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`,
     [userId]
   );
   return result.rows[0]?.id || null;

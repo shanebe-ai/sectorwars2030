@@ -2,13 +2,14 @@ import { Request, Response } from 'express';
 import * as messageService from '../services/messageService';
 import { pool } from '../db/connection';
 import { MessageType } from '../../../shared/types';
+import { activePlayerSql } from '../utils/activePlayer';
 
 /**
  * Get player ID from user ID
  */
 async function getPlayerIdFromUser(userId: number): Promise<number | null> {
   const result = await pool.query(
-    'SELECT id FROM players WHERE user_id = $1',
+    `SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`,
     [userId]
   );
   return result.rows.length > 0 ? result.rows[0].id : null;

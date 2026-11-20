@@ -14,6 +14,7 @@ import {
   cancelPlayerTrade,
   getPlayerTradeHistory,
 } from '../services/playerTradingService';
+import { activePlayerSql } from '../utils/activePlayer';
 
 /**
  * POST /api/player-trading/create
@@ -351,7 +352,7 @@ export const getAllOffers = async (req: Request, res: Response) => {
 
     // 2. Get player's player ID
     const playerResult = await pool.query(`
-      SELECT id FROM players WHERE user_id = $1
+      SELECT id FROM players WHERE user_id = $1${activePlayerSql()}
     `, [userId]);
 
     if (playerResult.rows.length === 0) {

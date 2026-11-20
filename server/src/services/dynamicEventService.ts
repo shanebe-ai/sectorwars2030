@@ -2,6 +2,7 @@ import { pool, query } from '../db/connection';
 import { broadcastTNN } from './broadcastService';
 import { resolveCombatRounds } from './combatService';
 import { spawnEventDerelicts } from './derelictService';
+import { getActiveTheme, pickWeightedType } from './seasonThemes';
 
 // Dynamic event tick: seed new events, advance brewing events to
 // active, apply resolution effects, and announce everything through
@@ -1228,7 +1229,10 @@ const maybeSeedEvent = async (client: any, universeId: number): Promise<void> =>
 
   if (Math.random() > SEED_CHANCE) return;
 
-  const type = EVENT_TYPES[randInt(0, EVENT_TYPES.length - 1)];
+  // A themed season (for example Pirate Season) reweights the pick;
+  // a classic stretch keeps every type equally likely.
+  const theme = await getActiveTheme(universeId);
+  const type = pickWeightedType(EVENT_TYPES, theme);
   await createEvent(client, universeId, type);
 };
 

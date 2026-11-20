@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { findPath, getPathDetails } from '../services/pathfindingService';
 import { pool } from '../db/connection';
+import { activePlayerSql } from '../utils/activePlayer';
 
 /**
  * Find shortest path between two sectors
@@ -21,7 +22,7 @@ export const plotCourse = async (req: Request, res: Response) => {
 
     // Get player's current sector and universe
     const playerResult = await pool.query(
-      'SELECT id, current_sector, universe_id FROM players WHERE user_id = $1',
+      `SELECT id, current_sector, universe_id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 

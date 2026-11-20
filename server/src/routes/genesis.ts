@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticateToken } from '../middleware/auth';
 import * as genesisService from '../services/genesisService';
+import { activePlayerSql } from '../utils/activePlayer';
 
 const router = express.Router();
 
@@ -14,7 +15,7 @@ router.get('/info', authenticateToken, async (req, res) => {
 
     // Get player ID from user ID
     const playerResult = await require('../db/connection').query(
-      `SELECT id FROM players WHERE user_id = $1`,
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 
@@ -42,7 +43,7 @@ router.post('/purchase', authenticateToken, async (req, res) => {
 
     // Get player ID from user ID
     const playerLookup = await require('../db/connection').query(
-      `SELECT id FROM players WHERE user_id = $1`,
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 
@@ -82,7 +83,7 @@ router.post('/launch', authenticateToken, async (req, res) => {
 
     // Get player ID from user ID
     const playerLookup = await require('../db/connection').query(
-      `SELECT id FROM players WHERE user_id = $1`,
+      `SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`,
       [userId]
     );
 

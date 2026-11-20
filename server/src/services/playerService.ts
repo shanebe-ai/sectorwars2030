@@ -1,5 +1,6 @@
 import { query, getClient } from '../db/connection';
 import { recordEncounter } from './messageService';
+import { snapshotNewPlayer } from './seasonService';
 import { Player } from '../../../shared/types';
 
 interface CreatePlayerParams {
@@ -151,6 +152,10 @@ export const createPlayer = async ({
       await recordEncounter(otherPlayer.id, newPlayer.id, universeId);
     }
 
+    // Season scoring counts gains from the moment a ship arrives, so a
+    // late joiner's starting credits never count as gain. Never throws.
+    await snapshotNewPlayer(universeId);
+
     // Broadcast TNN welcome message for new player
     try {
       const { broadcastTNN } = require('./broadcastService');
@@ -198,11 +203,17 @@ export const getPlayerByUserAndUniverse = async (
  */
 export const getPlayersByUser = async (userId: number): Promise<Player[]> => {
   const result = await query(
-    `SELECT p.*, u.name as universe_name
+    `SELECT p.*, u.name as universe_name,
+            (SELECT s.name FROM seasons s
+              WHERE s.universe_id = p.universe_id AND s.status = 'active'
+              LIMIT 1) AS season_name,
+            (SELECT s.ends_at FROM seasons s
+              WHERE s.universe_id = p.universe_id AND s.status = 'active'
+              LIMIT 1) AS season_ends_at
      FROM players p
      JOIN universes u ON p.universe_id = u.id
      WHERE p.user_id = $1
-     ORDER BY p.created_at DESC`,
+     ORDER BY p.created_at DESC, p.id DESC`,
     [userId]
   );
 

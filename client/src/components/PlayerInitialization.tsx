@@ -5,8 +5,10 @@ import { API_URL } from '../config/api';
 
 interface PlayerInitializationProps {
   token: string;
-  onComplete: (player: any) => void;
+  onComplete: (player: any, token?: string) => void;
   onLogout: () => void;
+  // Universes the user already flies in; hidden from the list.
+  excludeUniverseIds?: number[];
 }
 
 type Step = 'universe' | 'corpName';
@@ -15,6 +17,7 @@ export default function PlayerInitialization({
   token,
   onComplete,
   onLogout,
+  excludeUniverseIds = [],
 }: PlayerInitializationProps) {
   const [step, setStep] = useState<Step>('universe');
   const [selectedUniverse, setSelectedUniverse] = useState<{
@@ -67,7 +70,7 @@ export default function PlayerInitialization({
 
       if (response.ok) {
         // Player created successfully
-        onComplete(data.player);
+        onComplete(data.player, data.token);
       } else {
         setError(data.error || 'Failed to create player');
       }
@@ -93,6 +96,7 @@ export default function PlayerInitialization({
       <UniverseSelector
         onSelect={handleUniverseSelect}
         onCancel={onLogout}
+        excludeIds={excludeUniverseIds}
       />
     );
   }

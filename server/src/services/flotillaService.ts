@@ -1,5 +1,6 @@
 import { pool, query } from '../db/connection';
 import { broadcastTNN } from './broadcastService';
+import { getActiveTheme } from './seasonThemes';
 import { resolveCombatRounds, ResolvedCombatRounds } from './combatService';
 import {
   getAdjacentSectors,
@@ -180,6 +181,8 @@ interface KillPayout {
   cargoTaken: { fuel: number; organics: number; equipment: number };
   remainingPirates: number;
   eventCleared: boolean;
+  // Name of the themed season that raised the bonus, if any.
+  seasonBonus: string | null;
 }
 
 /**
@@ -198,7 +201,12 @@ const payOutKill = async (
   player: any
 ): Promise<KillPayout> => {
   const prize = pirate.credits || 0;
-  const bonus = pirate.bounty_value || 0;
+  // A themed season can raise the TerraCorp bonus (Pirate Season pays
+  // 1.5 times). The lookup runs outside this transaction.
+  const theme = await getActiveTheme(player.universe_id);
+  const multiplier = theme?.pirateBountyMultiplier ?? 1;
+  const bonus = Math.round((pirate.bounty_value || 0) * multiplier);
+  const seasonBonusNote = multiplier !== 1 ? ` ${theme!.name} bonus applied.` : '';
 
   const used = totalCargo(player);
   let free = Math.max(0, (player.ship_holds_max || 0) - used);
@@ -268,12 +276,19 @@ const payOutKill = async (
       player.id,
       `Bounty paid: ${pirate.ship_name}`,
       `TerraCorp bounty paid for destroying the pirate ${pirate.ship_name} in Sector ${pirate.current_sector}. ` +
-        `Prize credits seized: ${prize.toLocaleString()}. TerraCorp bonus: ${bonus.toLocaleString()}. ` +
+        `Prize credits seized: ${prize.toLocaleString()}. TerraCorp bonus: ${bonus.toLocaleString()}.${seasonBonusNote} ` +
         `Cargo recovered: ${equipment} equipment, ${organics} organics, ${fuel} fuel ore.`,
     ]
   );
 
-  return { prize, bonus, cargoTaken: { fuel, organics, equipment }, remainingPirates, eventCleared };
+  return {
+    prize,
+    bonus,
+    cargoTaken: { fuel, organics, equipment },
+    remainingPirates,
+    eventCleared,
+    seasonBonus: multiplier !== 1 && theme ? theme.name : null,
+  };
 };
 
 /**
@@ -285,13 +300,14 @@ const broadcastKill = async (
   universeId: number,
   pirate: any,
   killerName: string,
-  eventCleared: boolean
+  eventCleared: boolean,
+  seasonBonus: string | null = null
 ): Promise<void> => {
   try {
     await broadcastTNN(
       universeId,
       'TNN Flash: Pirate Down',
-      `TNN Flash: the pirate ${pirate.ship_name} has been destroyed in Sector ${pirate.current_sector} by ${killerName}. TerraCorp has paid the bounty.`
+      `TNN Flash: the pirate ${pirate.ship_name} has been destroyed in Sector ${pirate.current_sector} by ${killerName}. TerraCorp has paid the bounty.${seasonBonus ? ` ${seasonBonus} bonus applied.` : ''}`
     );
     if (eventCleared) {
       await broadcastTNN(
@@ -701,7 +717,7 @@ export const attackPirate = async (
     await client.query('COMMIT');
 
     if (payout) {
-      await broadcastKill(player.universe_id, pirate, player.corp_name, payout.eventCleared);
+      await broadcastKill(player.universe_id, pirate, player.corp_name, payout.eventCleared, payout.seasonBonus);
       return {
         success: true,
         victory: true,
@@ -858,7 +874,7 @@ export const fleeEncounter = async (
     await client.query('COMMIT');
 
     if (payout) {
-      await broadcastKill(player.universe_id, pirate, player.corp_name, payout.eventCleared);
+      await broadcastKill(player.universe_id, pirate, player.corp_name, payout.eventCleared, payout.seasonBonus);
       return {
         success: true,
         fled: false,
@@ -968,7 +984,7 @@ export const resolveRaidOnEntry = async (
     await client.query('COMMIT');
 
     if (payout) {
-      await broadcastKill(universeId, pirate, player.corp_name, payout.eventCleared);
+      await broadcastKill(universeId, pirate, player.corp_name, payout.eventCleared, payout.seasonBonus);
       return {
         success: true,
         victory: true,

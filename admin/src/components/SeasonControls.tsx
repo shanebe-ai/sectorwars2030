@@ -6,6 +6,14 @@ interface Season {
   name: string;
   seasonNumber: number;
   endsAt: string;
+  themeName?: string | null;
+  scoring?: 'networth' | 'gain';
+}
+
+interface ThemeOption {
+  key: string;
+  name: string;
+  blurb: string;
 }
 
 interface SeasonControlsProps {
@@ -20,6 +28,9 @@ export default function SeasonControls({ universeId, token }: SeasonControlsProp
   const [current, setCurrent] = useState<Season | null>(null);
   const [pastCount, setPastCount] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [themes, setThemes] = useState<ThemeOption[]>([]);
+  // '' is a classic chapter with no theme.
+  const [themeKey, setThemeKey] = useState('');
 
   const load = async () => {
     try {
@@ -33,6 +44,13 @@ export default function SeasonControls({ universeId, token }: SeasonControlsProp
       setAvailable(false);
     }
   };
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/seasons/themes`)
+      .then((r) => (r.ok ? r.json() : { themes: [] }))
+      .then((data) => setThemes(data.themes || []))
+      .catch(() => setThemes([]));
+  }, []);
 
   useEffect(() => {
     load();
@@ -65,8 +83,18 @@ export default function SeasonControls({ universeId, token }: SeasonControlsProp
   const handleStart = () => {
     const days = prompt('Season length in days (1 to 365):', '30');
     if (days === null) return;
-    const name = prompt('Season name (leave blank for "Season N"):', '') || '';
-    post('start', { universeId, durationDays: Number(days), name }, 'Start season');
+    const theme = themes.find((t) => t.key === themeKey);
+    const name = prompt(
+      `Season name (leave blank for "Season N${theme ? `: ${theme.name}` : ''}"):`,
+      ''
+    ) || '';
+    if (!confirm(
+      `Start a ${theme ? theme.name : 'classic'} season of ${days} days? ` +
+      'Nothing resets: a snapshot of every player is taken now and the season scores net worth gained from here.'
+    )) {
+      return;
+    }
+    post('start', { universeId, durationDays: Number(days), name, theme: themeKey || null }, 'Start season');
   };
 
   const handleExtend = () => {
@@ -99,7 +127,7 @@ export default function SeasonControls({ universeId, token }: SeasonControlsProp
         <span className="stat-row-label">SEASON:</span>
         <span className="stat-row-value">
           {current
-            ? `${current.name.toUpperCase()} · ENDS ${new Date(current.endsAt).toLocaleString()}`
+            ? `${current.name.toUpperCase()} · ${current.scoring === 'gain' ? 'SCORES GAINS' : 'SCORES NET WORTH'} · ENDS ${new Date(current.endsAt).toLocaleString()}`
             : 'NONE RUNNING'}
         </span>
       </div>
@@ -107,6 +135,29 @@ export default function SeasonControls({ universeId, token }: SeasonControlsProp
         <span className="stat-row-label">PAST SEASONS:</span>
         <span className="stat-row-value">{pastCount}</span>
       </div>
+      {!current && (
+        <div className="stat-row">
+          <span className="stat-row-label">THEME:</span>
+          <select
+            value={themeKey}
+            onChange={(e) => setThemeKey(e.target.value)}
+            disabled={busy}
+            className="cyberpunk-input"
+            data-testid="season-theme"
+            style={{ padding: '4px', fontSize: '11px' }}
+          >
+            <option value="">Classic (no theme)</option>
+            {themes.map((t) => (
+              <option key={t.key} value={t.key}>{t.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+      {!current && themeKey && (
+        <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '4px' }}>
+          {themes.find((t) => t.key === themeKey)?.blurb}
+        </div>
+      )}
       <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
         {!current && (
           <button

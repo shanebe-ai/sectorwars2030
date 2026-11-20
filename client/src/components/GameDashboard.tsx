@@ -21,9 +21,11 @@ interface GameDashboardProps {
   player: any;
   token: string;
   onLogout: () => void;
+  // Back to the universe picker (switch ship or join another universe)
+  onSwitchUniverse?: () => void;
 }
 
-export default function GameDashboard({ player: initialPlayer, token, onLogout }: GameDashboardProps) {
+export default function GameDashboard({ player: initialPlayer, token, onLogout, onSwitchUniverse }: GameDashboardProps) {
   const [player, setPlayer] = useState(initialPlayer);
   const [showMessaging, setShowMessaging] = useState(false);
   const [showShipLog, setShowShipLog] = useState(false);
@@ -141,6 +143,7 @@ export default function GameDashboard({ player: initialPlayer, token, onLogout }
 token={token}
           onPlayerUpdate={handleSectorChange}
           onLogout={onLogout}
+          onSwitchUniverse={onSwitchUniverse}
         />
       </>
     );
@@ -514,6 +517,20 @@ token={token}
             >
               ℹ INFO
             </button>
+            {onSwitchUniverse && (
+              <button
+                onClick={onSwitchUniverse}
+                className="cyberpunk-button"
+                title="Switch ship or join another universe"
+                style={{
+                  background: 'rgba(0, 255, 255, 0.1)',
+                  borderColor: 'var(--neon-cyan)',
+                  color: 'var(--neon-cyan)'
+                }}
+              >
+                ⇄ UNIVERSES
+              </button>
+            )}
             <button onClick={onLogout} className="cyberpunk-button" style={{
               background: 'rgba(255, 20, 147, 0.1)',
               borderColor: 'var(--neon-pink)',
@@ -668,6 +685,9 @@ token={token}
               <button type="button" onClick={() => openFromMenu(() => setShowBountyBoard(true))}>🎯 BOUNTIES</button>
               <button type="button" onClick={() => openFromMenu(() => setShowUniverseInfo(true))}>ℹ INFO</button>
               <button type="button" onClick={() => openFromMenu(() => { playPowerOn(); toggleTheme(); })}>▣ BBS MODE</button>
+              {onSwitchUniverse && (
+                <button type="button" onClick={() => openFromMenu(onSwitchUniverse)}>⇄ UNIVERSES</button>
+              )}
               <button type="button" className="tw-sheet-danger" onClick={() => openFromMenu(onLogout)}>◄ LOGOUT</button>
               <button type="button" onClick={() => setShowMoreMenu(false)}>✕ CLOSE</button>
             </div>

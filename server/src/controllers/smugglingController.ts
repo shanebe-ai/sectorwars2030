@@ -12,6 +12,7 @@ import {
 } from '../services/smugglingService';
 import { boardDerelict, BoardAction } from '../services/derelictService';
 import { query } from '../db/connection';
+import { activePlayerSql } from '../utils/activePlayer';
 
 const badRequest = (res: Response, error: unknown) => {
   const message = error instanceof Error ? error.message : 'Request failed';
@@ -41,7 +42,7 @@ export const marketBoard = async (req: Request, res: Response) => {
 export const auctions = async (req: Request, res: Response) => {
   try {
     const playerResult = await query(
-      'SELECT universe_id, current_sector FROM players WHERE user_id = $1',
+      `SELECT universe_id, current_sector FROM players WHERE user_id = $1${activePlayerSql()}`,
       [req.user!.userId]
     );
     if (playerResult.rows.length === 0) {
@@ -101,7 +102,7 @@ export const stashInfo = async (req: Request, res: Response) => {
 export const stash = async (req: Request, res: Response) => {
   try {
     const { derelictId, commodity, quantity } = req.body || {};
-    const playerResult = await query('SELECT id FROM players WHERE user_id = $1', [req.user!.userId]);
+    const playerResult = await query(`SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`, [req.user!.userId]);
     if (playerResult.rows.length === 0) {
       return res.status(404).json({ error: 'Player not found' });
     }
@@ -121,7 +122,7 @@ export const stash = async (req: Request, res: Response) => {
 export const retrieve = async (req: Request, res: Response) => {
   try {
     const { stashId } = req.body || {};
-    const playerResult = await query('SELECT id FROM players WHERE user_id = $1', [req.user!.userId]);
+    const playerResult = await query(`SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`, [req.user!.userId]);
     if (playerResult.rows.length === 0) {
       return res.status(404).json({ error: 'Player not found' });
     }
@@ -141,7 +142,7 @@ export const board = async (req: Request, res: Response) => {
     const { action } = req.body || {};
     const boardAction: BoardAction =
       action === 'claim_sell' || action === 'claim_swap' ? action : 'loot';
-    const playerResult = await query('SELECT id FROM players WHERE user_id = $1', [req.user!.userId]);
+    const playerResult = await query(`SELECT id FROM players WHERE user_id = $1${activePlayerSql()}`, [req.user!.userId]);
     if (playerResult.rows.length === 0) {
       return res.status(404).json({ error: 'Player not found' });
     }
